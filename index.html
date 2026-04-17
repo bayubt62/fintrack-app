@@ -42,119 +42,143 @@
         <div class="w-10 h-10 border-4 border-[#6342E8] border-t-transparent rounded-full animate-spin"></div>
     </div>
 
-    <div id="toast" class="fixed top-5 left-1/2 transform -translate-x-1/2 px-6 py-3 rounded-full shadow-2xl transition-all duration-300 opacity-0 z-[9999] pointer-events-none flex items-center gap-2 translate-y-[-20px] bg-red-500 text-white">
-        <span id="toast-icon" class="font-bold">✕</span>
+    <div id="toast" class="fixed top-5 left-1/2 transform -translate-x-1/2 px-6 py-3 rounded-full shadow-2xl transition-all duration-300 opacity-0 z-[9999] pointer-events-none flex items-center gap-2 translate-y-[-20px] bg-green-500 text-white">
+        <span id="toast-icon" class="font-bold">✓</span>
         <span id="toast-msg" class="text-sm font-bold">Pesan</span>
     </div>
 
-    <div id="login-screen" class="min-h-screen flex flex-col justify-center px-8 bg-white dark:bg-gray-900 relative z-[20]">
-        <h1 class="text-4xl font-extrabold text-[#6342E8] mb-2">Fintrack</h1>
-        <p data-i18n="signIn" class="text-sm text-gray-400 mb-10">Masuk ke dompet Anda</p>
-        <form id="login-form" class="space-y-4">
-            <input type="email" id="login-email" data-i18n-placeholder="emailPlaceholder" placeholder="Alamat Email" class="w-full p-4 bg-gray-50 dark:bg-gray-800 dark:text-white border border-gray-100 dark:border-gray-700 rounded-2xl outline-none focus:border-[#6342E8]" required>
-            <input type="password" id="login-password" data-i18n-placeholder="passPlaceholder" placeholder="Kata Sandi" class="w-full p-4 bg-gray-50 dark:bg-gray-800 dark:text-white border border-gray-100 dark:border-gray-700 rounded-2xl outline-none focus:border-[#6342E8]" required>
-            <button type="submit" data-i18n="btnLogin" class="w-full bg-[#6342E8] text-white py-4 rounded-2xl font-semibold shadow-lg active:scale-95 transition">Masuk</button>
-        </form>
+    <div id="login-screen" class="min-h-screen flex flex-col justify-center px-8 bg-white dark:bg-gray-900 relative">
+        <div class="z-10">
+            <h1 class="text-4xl font-extrabold text-[#6342E8] mb-2">Fintrack</h1>
+            <p data-i18n="signIn" class="text-sm text-gray-400 mb-10">Masuk ke dompet Anda</p>
+            <form id="login-form" class="space-y-4">
+                <input type="email" id="login-email" data-i18n-placeholder="emailPlaceholder" placeholder="Alamat Email" class="w-full p-4 bg-gray-50 dark:bg-gray-800 dark:text-white border border-gray-100 dark:border-gray-700 rounded-2xl outline-none focus:border-[#6342E8]" required>
+                <input type="password" id="login-password" data-i18n-placeholder="passPlaceholder" placeholder="Kata Sandi" class="w-full p-4 bg-gray-50 dark:bg-gray-800 dark:text-white border border-gray-100 dark:border-gray-700 rounded-2xl outline-none focus:border-[#6342E8]" required>
+                <button type="submit" data-i18n="btnLogin" class="w-full bg-[#6342E8] text-white py-4 rounded-2xl font-semibold shadow-lg active:scale-95 transition">Masuk</button>
+            </form>
+        </div>
+        <div class="absolute top-[-10%] right-[-20%] w-64 h-64 bg-light-purple dark:bg-[#6342E8]/20 rounded-full blur-3xl opacity-60 pointer-events-none"></div>
     </div>
 
-    <div id="dashboard-screen" class="hidden-page">
-        <header class="px-6 pt-10 pb-4 flex justify-between items-center">
+    <div id="app-ui" class="hidden-page">
+        <header id="dashboard-header" class="px-6 pt-10 pb-4 flex justify-between items-center">
             <div>
                 <p data-i18n="hello" class="text-gray-500 dark:text-gray-400 text-[13px] mb-1">Halo,</p>
                 <h1 id="user-display-name" class="font-bold text-xl text-gray-900 dark:text-white leading-tight">User!</h1>
             </div>
             <div class="flex gap-2">
-                <button onclick="toggleTheme()" class="w-12 h-10 rounded-[16px] border border-gray-200 dark:border-gray-700 flex items-center justify-center bg-white dark:bg-gray-800 shadow-sm active:scale-95 transition">
+                <button onclick="toggleTheme()" class="w-10 h-10 rounded-xl border border-gray-200 dark:border-gray-700 flex items-center justify-center bg-white dark:bg-gray-800 active:scale-95 transition">
                     <span class="dark:hidden">🌙</span><span class="hidden dark:block">☀️</span>
                 </button>
-                <button onclick="toggleLanguage()" class="w-12 h-10 rounded-[16px] border border-gray-200 dark:border-gray-700 flex items-center justify-center text-[#6342E8] font-black text-xs bg-white dark:bg-gray-800 shadow-sm active:scale-95 transition">
+                <button onclick="toggleLanguage()" class="w-10 h-10 rounded-xl border border-gray-200 dark:border-gray-700 flex items-center justify-center text-[#6342E8] dark:text-secondary font-black text-xs bg-white dark:bg-gray-800 active:scale-95 transition">
                     <span id="lang-indicator">ID</span>
                 </button>
             </div>
         </header>
 
-        <section class="px-6 mb-6">
-            <div class="bg-purple-gradient rounded-[28px] p-6 shadow-xl relative overflow-hidden">
-                <p data-i18n="currentBalance" class="text-white text-xs opacity-80 mb-1">Saldo Saat Ini</p>
-                <div class="flex items-center gap-3">
-                    <h2 id="total-balance" class="text-white text-3xl font-bold tracking-tight">********</h2>
-                    <button onclick="toggleHomeBalance()" class="text-white opacity-80"><svg id="eye-icon-home" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21"></path></svg></button>
+        <div id="dashboard-screen" class="page-content">
+            <section class="px-6 mb-6">
+                <div class="bg-purple-gradient rounded-[28px] p-6 shadow-xl relative overflow-hidden">
+                    <p data-i18n="currentBalance" class="text-white text-xs opacity-80 mb-1">Saldo Saat Ini</p>
+                    <div class="flex items-center gap-3">
+                        <h2 id="total-balance" class="text-white text-3xl font-bold tracking-tight">********</h2>
+                        <button onclick="toggleHomeBalance()" class="text-white opacity-80"><svg id="eye-icon-home" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21"></path></svg></button>
+                    </div>
                 </div>
-            </div>
-        </section>
+            </section>
 
-        <section class="px-6 mb-6 grid grid-cols-2 gap-3">
-            <div class="bg-[#6342E8] p-4 rounded-[20px] text-white">
-                <p data-i18n="income" class="text-[10px] opacity-80">Pemasukan</p>
-                <p id="total-income" class="font-bold text-sm">Rp 0</p>
-            </div>
-            <div class="bg-white dark:bg-gray-800 p-4 rounded-[20px] shadow-sm border border-gray-100 dark:border-gray-700">
-                <p data-i18n="expenditure" class="text-[10px] text-gray-400">Pengeluaran</p>
-                <p id="total-expenditure" class="font-bold text-sm dark:text-white">Rp 0</p>
-            </div>
-        </section>
-
-        <section class="px-6 mb-6">
-            <div class="flex gap-2">
-                <button onclick="goToForm('Inflow')" class="flex-1 bg-light-purple dark:bg-gray-800 p-3 rounded-[16px] text-[#6342E8] dark:text-secondary font-bold text-[10px] active:scale-95 transition">TOP UP</button>
-                <button onclick="goToForm('Outflow')" class="flex-1 bg-light-purple dark:bg-gray-800 p-3 rounded-[16px] text-[#6342E8] dark:text-secondary font-bold text-[10px] active:scale-95 transition">PAY</button>
-                <button onclick="goToTransferForm()" class="flex-1 bg-light-purple dark:bg-gray-800 p-3 rounded-[16px] text-[#6342E8] dark:text-secondary font-bold text-[10px] active:scale-95 transition">TRANSFER</button>
-                <button onclick="openUniversalModal('recurring')" class="flex-1 bg-light-purple dark:bg-gray-800 p-3 rounded-[16px] text-[#6342E8] dark:text-secondary font-bold text-[10px] active:scale-95 transition">RECURRING</button>
-            </div>
-        </section>
-
-        <section class="px-6 mb-6 space-y-4">
-            <div class="bg-white dark:bg-gray-800 p-4 rounded-[20px] shadow-sm border dark:border-gray-700">
-                <div class="flex justify-between items-center mb-3">
-                    <h3 data-i18n="savingsGoals" class="font-bold text-sm">Target Tabungan</h3>
-                    <button onclick="openUniversalModal('goal')" class="text-[#6342E8] text-[10px] font-bold">+ BARU</button>
+            <section class="px-6 mb-6 grid grid-cols-2 gap-3">
+                <div class="bg-[#6342E8] p-4 rounded-[20px] text-white">
+                    <p data-i18n="income" class="text-[10px] opacity-80">Pemasukan</p>
+                    <p id="total-income" class="font-bold text-sm">********</p>
                 </div>
-                <div id="goals-container" class="space-y-2"></div>
-            </div>
-            <div class="bg-white dark:bg-gray-800 p-4 rounded-[20px] shadow-sm border dark:border-gray-700">
-                <div class="flex justify-between items-center mb-3">
-                    <h3 data-i18n="debts" class="font-bold text-sm">Utang & Piutang</h3>
-                    <button onclick="openUniversalModal('debt')" class="text-[#6342E8] text-[10px] font-bold">+ CATAT</button>
+                <div class="bg-white dark:bg-gray-800 p-4 rounded-[20px] shadow-sm border dark:border-gray-700">
+                    <p data-i18n="expenditure" class="text-[10px] text-gray-400">Pengeluaran</p>
+                    <p id="total-expenditure" class="font-bold text-sm dark:text-white">********</p>
                 </div>
-                <div id="debts-container" class="space-y-2"></div>
+            </section>
+
+            <section class="px-6 mb-6">
+                <h3 data-i18n="quickMenu" class="font-bold text-gray-900 dark:text-white text-sm mb-3">Menu Cepat</h3>
+                <div class="flex gap-2 overflow-x-auto pb-2 hide-scrollbar">
+                    <button onclick="goToForm('Inflow')" class="flex-none bg-white dark:bg-gray-800 p-4 w-24 rounded-2xl border dark:border-gray-700 flex flex-col items-center gap-2 active:scale-95 transition">
+                        <div class="w-10 h-10 bg-purple-50 dark:bg-gray-700 rounded-full flex items-center justify-center text-[#6342E8]">💰</div>
+                        <span data-i18n="topUp" class="text-[10px] font-bold text-[#6342E8]">Isi Saldo</span>
+                    </button>
+                    <button onclick="goToForm('Outflow')" class="flex-none bg-white dark:bg-gray-800 p-4 w-24 rounded-2xl border dark:border-gray-700 flex flex-col items-center gap-2 active:scale-95 transition">
+                        <div class="w-10 h-10 bg-purple-50 dark:bg-gray-700 rounded-full flex items-center justify-center text-[#6342E8]">💳</div>
+                        <span data-i18n="pay" class="text-[10px] font-bold text-[#6342E8]">Bayar</span>
+                    </button>
+                    <button onclick="goToTransferForm()" class="flex-none bg-white dark:bg-gray-800 p-4 w-24 rounded-2xl border dark:border-gray-700 flex flex-col items-center gap-2 active:scale-95 transition">
+                        <div class="w-10 h-10 bg-purple-50 dark:bg-gray-700 rounded-full flex items-center justify-center text-[#6342E8]">⇄</div>
+                        <span data-i18n="transfer" class="text-[10px] font-bold text-[#6342E8]">Transfer</span>
+                    </button>
+                    <button onclick="openUniversalModal('recurring')" class="flex-none bg-white dark:bg-gray-800 p-4 w-24 rounded-2xl border dark:border-gray-700 flex flex-col items-center gap-2 active:scale-95 transition">
+                        <div class="w-10 h-10 bg-purple-50 dark:bg-gray-700 rounded-full flex items-center justify-center text-[#6342E8]">🔄</div>
+                        <span data-i18n="recurringMenu" class="text-[10px] font-bold text-[#6342E8]">Langganan</span>
+                    </button>
+                </div>
+            </section>
+
+            <section class="px-6 mb-6 space-y-4">
+                <div class="bg-white dark:bg-gray-800 p-5 rounded-[24px] shadow-sm border dark:border-gray-700">
+                    <div class="flex justify-between items-center mb-3">
+                        <h3 data-i18n="savingsGoals" class="font-bold text-sm">Target Tabungan</h3>
+                        <button onclick="openUniversalModal('goal')" class="text-[#6342E8] text-[10px] font-bold">+ BARU</button>
+                    </div>
+                    <div id="goals-container" class="space-y-3"></div>
+                </div>
+                <div class="bg-white dark:bg-gray-800 p-5 rounded-[24px] shadow-sm border dark:border-gray-700">
+                    <div class="flex justify-between items-center mb-3">
+                        <h3 data-i18n="debts" class="font-bold text-sm">Buku Utang & Piutang</h3>
+                        <button onclick="openUniversalModal('debt')" class="text-[#6342E8] text-[10px] font-bold">+ CATAT</button>
+                    </div>
+                    <div id="debts-container" class="space-y-3"></div>
+                </div>
+            </section>
+
+            <section class="px-6 mb-10">
+                <h3 data-i18n="yourAccounts" class="font-bold text-sm mb-3">Daftar Akun</h3>
+                <div id="account-list" class="space-y-3"></div>
+            </section>
+        </div>
+
+        <div id="portfolio-screen" class="hidden-page page-content px-6 pb-24">
+            <h2 data-i18n="myInvestments" class="font-bold text-2xl text-[#6342E8] mt-4 mb-1">Investasi</h2>
+            <div id="portfolio-list" class="mt-6 space-y-4"></div>
+        </div>
+
+        <div id="history-screen" class="hidden-page page-content px-6 pb-24">
+            <div class="flex justify-between items-center mt-4 mb-4">
+                <h2 data-i18n="history" class="font-bold text-2xl">Riwayat</h2>
+                <button onclick="exportToPDF()" class="text-[#6342E8] font-bold text-sm">PDF</button>
             </div>
-        </section>
+            <div id="history-list-container" class="space-y-4"></div>
+        </div>
 
-        <section class="px-6 mb-10">
-            <h3 data-i18n="yourAccounts" class="font-bold text-sm mb-3">Daftar Akun</h3>
-            <div id="account-list" class="space-y-3"></div>
-        </section>
+        <div id="calendar-screen" class="hidden-page page-content px-6 pb-24">
+            <h2 data-i18n="calendar" class="font-bold text-2xl text-[#6342E8] mt-4 mb-4">Kalender</h2>
+            <div id="calendar-grid" class="grid grid-cols-7 gap-1"></div>
+        </div>
+
+        <nav id="bottom-nav" class="fixed bottom-0 left-0 right-0 max-w-md mx-auto bg-white dark:bg-gray-800 border-t dark:border-gray-700 px-6 py-4 flex justify-between items-center rounded-t-[32px] shadow-2xl z-40">
+            <button onclick="goToNav('dashboard')" id="nav-dashboard" class="nav-btn active flex flex-col items-center">
+                <span class="text-xl">🏠</span><span class="text-[8px] font-bold">DASH</span>
+            </button>
+            <button onclick="goToNav('portfolio')" id="nav-portfolio" class="nav-btn flex flex-col items-center">
+                <span class="text-xl">📈</span><span class="text-[8px] font-bold">PORTO</span>
+            </button>
+            <button onclick="goToNav('history')" id="nav-history" class="w-12 h-12 bg-[#6342E8] text-white rounded-full flex items-center justify-center shadow-lg relative -top-6">
+                <span class="text-xl">📑</span>
+            </button>
+            <button onclick="goToNav('calendar')" id="nav-calendar" class="nav-btn flex flex-col items-center">
+                <span class="text-xl">📅</span><span class="text-[8px] font-bold">CAL</span>
+            </button>
+            <button onclick="logout()" class="flex flex-col items-center text-red-400">
+                <span class="text-xl">🚪</span><span class="text-[8px] font-bold">EXIT</span>
+            </button>
+        </nav>
     </div>
-
-    <div id="portfolio-screen" class="hidden-page min-h-screen bg-[#F8F9FA] dark:bg-gray-900 pb-24">
-        <header class="px-6 pt-10 pb-4 bg-white dark:bg-gray-800 sticky top-0 z-10 shadow-sm">
-            <h2 data-i18n="myInvestments" class="font-bold text-xl text-[#6342E8]">Investasi Saya</h2>
-        </header>
-        <div id="portfolio-list" class="px-6 mt-6 space-y-4"></div>
-    </div>
-
-    <div id="history-screen" class="hidden-page min-h-screen bg-[#F8F9FA] dark:bg-gray-900 pb-24">
-        <header class="p-6 flex justify-between bg-white dark:bg-gray-800 border-b dark:border-gray-700 sticky top-0 z-10 shadow-sm">
-            <h2 data-i18n="history" class="font-bold text-2xl">Riwayat</h2>
-            <button onclick="exportToPDF()" class="w-10 h-10 bg-gray-50 dark:bg-gray-700 text-[#6342E8] flex items-center justify-center rounded-xl">PDF</button>
-        </header>
-        <div id="history-list-container" class="p-6 space-y-4"></div>
-    </div>
-
-    <div id="calendar-screen" class="hidden-page min-h-screen bg-[#F8F9FA] dark:bg-gray-900 pb-24">
-        <header class="px-6 pt-10 pb-4 bg-white dark:bg-gray-800 sticky top-0 z-10 shadow-sm">
-            <h2 data-i18n="calendar" class="font-bold text-xl text-[#6342E8]">Kalender</h2>
-        </header>
-        <div id="calendar-grid" class="px-6 mt-4 grid grid-cols-7 gap-1"></div>
-    </div>
-
-    <nav id="bottom-nav" class="hidden-page fixed bottom-0 left-0 right-0 max-w-md mx-auto bg-white dark:bg-gray-800 border-t dark:border-gray-700 px-6 py-4 flex justify-between items-center rounded-t-[32px] shadow-2xl z-40">
-        <button onclick="goToNav('dashboard')" id="nav-dashboard" class="nav-btn active text-gray-400">DASH</button>
-        <button onclick="goToNav('portfolio')" id="nav-portfolio" class="nav-btn text-gray-400">PORTO</button>
-        <button onclick="goToNav('history')" id="nav-history" class="w-12 h-12 bg-[#6342E8] text-white rounded-full flex items-center justify-center relative -top-6">HIST</button>
-        <button onclick="goToNav('calendar')" id="nav-calendar" class="nav-btn text-gray-400">CAL</button>
-        <button onclick="logout()" class="text-red-400">EXIT</button>
-    </nav>
 
     <div id="universal-modal-container" class="fixed inset-0 hidden z-[60] bg-black/60 p-6 flex flex-col justify-end pb-10">
         <div class="bg-white dark:bg-gray-800 w-full rounded-[32px] p-6 shadow-2xl relative">
@@ -164,24 +188,19 @@
         </div>
     </div>
 
-    <div id="form-screen" class="hidden-page min-h-screen bg-white dark:bg-gray-900 absolute inset-0 z-50 p-6">
-        <button onclick="goToNav('dashboard')" class="mb-6">✕ Back</button>
-        <form id="trans-form" class="space-y-6">
-            <div class="text-center"><p data-i18n="amount" class="text-xs text-gray-400">Nominal</p><input type="text" id="jumlah" class="text-4xl font-bold text-center w-full outline-none text-[#6342E8] bg-transparent" placeholder="0" required autofocus></div>
-            <input type="text" id="keterangan" placeholder="Keterangan" class="w-full p-4 bg-gray-50 dark:bg-gray-800 rounded-2xl outline-none" required>
-            <select id="kategori" class="w-full p-4 bg-gray-50 dark:bg-gray-800 rounded-2xl outline-none"></select>
-            <select id="akun" class="w-full p-4 bg-gray-50 dark:bg-gray-800 rounded-2xl outline-none"></select>
-            <button type="submit" class="w-full bg-[#6342E8] text-white py-4 rounded-2xl font-bold">SIMPAN</button>
-        </form>
-    </div>
-
     <script>
         const API_URL = "https://script.google.com/macros/s/AKfycby_UJVN9rtPDxwzeMCC13e9c9dOtDaFBa3YekQEYIM81UO2EbD57ofD3yuOwSnXUAiy/exec";
         
         let currentUser = JSON.parse(localStorage.getItem("fintrack_user"));
-        let allData = {}; let currentLang = "id";
+        let allData = {}; let currentLang = "id"; let isHomeBalanceHidden = true;
 
-        // LOGIC STARTUP
+        const translations = {
+            id: { signIn: "Masuk ke dompet Anda", emailPlaceholder: "Alamat Email", passPlaceholder: "Kata Sandi", btnLogin: "Masuk", hello: "Halo,", currentBalance: "Saldo Saat Ini", quickMenu: "Menu Cepat", topUp: "Isi Saldo", pay: "Bayar", transfer: "Transfer", yourAccounts: "Daftar Akun", savingsGoals: "Target Tabungan", debts: "Buku Utang & Piutang", recurringMenu: "Langganan", myInvestments: "Investasi Saya", history: "Riwayat", calendar: "Kalender", btnSave: "Simpan" },
+            en: { signIn: "Sign in to your wallet", emailPlaceholder: "Email Address", passPlaceholder: "Password", btnLogin: "Login", hello: "Hello,", currentBalance: "Current Balance", quickMenu: "Quick Menu", topUp: "Top up", pay: "Pay", transfer: "Transfer", yourAccounts: "Your Accounts", savingsGoals: "Savings Goals", debts: "Debts & Receivables", recurringMenu: "Recurring", myInvestments: "My Investments", history: "History", calendar: "Calendar", btnSave: "Save" }
+        };
+
+        const t = (k) => translations[currentLang][k] || k;
+
         if (currentUser) { loginSuccess(); } else { document.getElementById('login-screen').classList.remove('hidden-page'); }
 
         async function login(e) {
@@ -200,8 +219,7 @@
 
         function loginSuccess() {
             document.getElementById('login-screen').classList.add('hidden-page');
-            document.getElementById('dashboard-screen').classList.remove('hidden-page');
-            document.getElementById('bottom-nav').classList.remove('hidden-page');
+            document.getElementById('app-ui').classList.remove('hidden-page');
             document.getElementById('user-display-name').innerText = currentUser.nama + "!";
             fetchData();
         }
@@ -212,54 +230,50 @@
                 const res = await fetch(API_URL, { method: 'POST', body: JSON.stringify({ action: "getData", email: currentUser.email }) });
                 allData = await res.json();
                 renderDashboard();
-            } catch (err) { console.error("Error ditarik"); } finally { toggleLoader(false); }
+                renderHistory();
+            } catch (err) { console.error("Error Fetch"); } finally { toggleLoader(false); }
         }
 
         function renderDashboard() {
             const list = document.getElementById('account-list'); list.innerHTML = ""; let total = 0;
-            allData.data.forEach(acc => {
-                total += Number(acc.Saldo_Realtime);
-                list.innerHTML += `<div class="flex justify-between py-2 border-b dark:border-gray-700"><span>${acc.Nama_Akun}</span><span class="font-bold">Rp ${Number(acc.Saldo_Realtime).toLocaleString('id-ID')}</span></div>`;
+            (allData.data || []).forEach(acc => {
+                const val = Number(acc.Saldo_Realtime) || 0; total += val;
+                list.innerHTML += `<div class="bg-white dark:bg-gray-800 p-4 rounded-2xl flex justify-between border dark:border-gray-700 shadow-sm"><span>${acc.Nama_Akun}</span><span class="font-bold">Rp ${val.toLocaleString('id-ID')}</span></div>`;
             });
-            document.getElementById('total-balance').innerText = "Rp " + total.toLocaleString('id-ID');
+            document.getElementById('total-balance').innerText = isHomeBalanceHidden ? "********" : "Rp " + total.toLocaleString('id-ID');
             
-            // Render Target
             const gBox = document.getElementById('goals-container'); gBox.innerHTML = "";
             (allData.targets || []).forEach(g => {
-                const pc = Math.min(100, (g.Terkumpul / g.Nominal_Target) * 100);
-                gBox.innerHTML += `<div class="text-[10px] mb-1 flex justify-between"><span>${g.Nama_Target}</span><span>${pc.toFixed(0)}%</span></div><div class="w-full bg-gray-100 dark:bg-gray-700 h-1 rounded-full overflow-hidden mb-2"><div class="bg-[#6342E8] h-full" style="width:${pc}%"></div></div>`;
+                const pc = Math.min(100, (Number(g.Terkumpul) / Number(g.Nominal_Target)) * 100) || 0;
+                gBox.innerHTML += `<div class="text-[10px] mb-1 flex justify-between"><span>${g.Nama_Target}</span><span class="font-bold">${pc.toFixed(0)}%</span></div><div class="w-full bg-gray-100 dark:bg-gray-700 h-1.5 rounded-full overflow-hidden"><div class="bg-[#6342E8] h-full" style="width:${pc}%"></div></div>`;
             });
         }
 
-        // NAVIGATION
+        function renderHistory() {
+            const hBox = document.getElementById('history-list-container'); hBox.innerHTML = "";
+            (allData.history || []).slice(0, 10).forEach(trx => {
+                const isInc = trx.tipe === "INFLOW";
+                hBox.innerHTML += `<div class="bg-white dark:bg-gray-800 p-4 rounded-2xl flex justify-between border dark:border-gray-700 shadow-sm"><div><p class="font-bold text-sm">${trx.kategori}</p><p class="text-[10px] text-gray-400">${trx.akun}</p></div><div class="text-right"><p class="font-bold ${isInc ? 'text-green-500' : 'text-red-500'}">${isInc ? '+' : '-'}Rp ${Number(trx.jumlah).toLocaleString('id-ID')}</p></div></div>`;
+            });
+        }
+
         function goToNav(id) {
-            ['dashboard', 'portfolio', 'history', 'calendar'].forEach(s => document.getElementById(s + '-screen').classList.add('hidden-page'));
+            document.querySelectorAll('.page-content').forEach(p => p.classList.add('hidden-page'));
             document.getElementById(id + '-screen').classList.remove('hidden-page');
+            document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+            document.getElementById('nav-' + id).classList.add('active');
         }
 
-        function goToForm(type) {
-            document.getElementById('dashboard-screen').classList.add('hidden-page');
-            document.getElementById('form-screen').classList.remove('hidden-page');
-            document.getElementById('form-screen').setAttribute('data-type', type);
-            const selA = document.getElementById('akun'); selA.innerHTML = "";
-            allData.data.forEach(acc => selA.innerHTML += `<option value="${acc.Nama_Akun}">${acc.Nama_Akun}</option>`);
-            const kats = type === 'Inflow' ? ['Gaji', 'Bonus'] : ['Makanan', 'Transport', 'Wifi', 'Listrik'];
-            const selK = document.getElementById('kategori'); selK.innerHTML = "";
-            kats.forEach(k => selK.innerHTML += `<option value="${k}">${k}</option>`);
-        }
-
-        function logout() { localStorage.removeItem("fintrack_user"); location.reload(); }
+        function toggleHomeBalance() { isHomeBalanceHidden = !isHomeBalanceHidden; renderDashboard(); }
+        function toggleTheme() { document.documentElement.classList.toggle('dark'); }
+        function toggleLanguage() { currentLang = currentLang === "id" ? "en" : "id"; document.getElementById('lang-indicator').innerText = currentLang.toUpperCase(); }
         function toggleLoader(s) { document.getElementById('loader-overlay').classList.toggle('hidden', !s); }
         function showToast(m) { const t = document.getElementById('toast'); document.getElementById('toast-msg').innerText = m; t.classList.remove('opacity-0'); setTimeout(() => t.classList.add('opacity-0'), 3000); }
         function openUniversalModal(t) { document.getElementById('universal-modal-container').classList.remove('hidden'); }
         function closeUniversalModal() { document.getElementById('universal-modal-container').classList.add('hidden'); }
-        function toggleTheme() { document.documentElement.classList.toggle('dark'); }
+        function logout() { localStorage.removeItem("fintrack_user"); location.reload(); }
 
         document.getElementById('login-form').onsubmit = login;
-        document.getElementById('jumlah').addEventListener('input', function(e) {
-            let v = this.value.replace(/[^0-9]/g, '');
-            this.value = v ? parseInt(v, 10).toLocaleString('id-ID') : '';
-        });
     </script>
 </body>
 </html>
