@@ -164,24 +164,26 @@
     <div id="history-screen" class="hidden-page min-h-screen bg-[#F8F9FA] dark:bg-gray-900 z-50 pb-24">
         <header class="p-6 flex items-center justify-between bg-white dark:bg-gray-800 border-b border-gray-100 dark:border-gray-700 sticky top-0 z-10 shadow-sm">
             <h2 data-i18n="history" class="font-bold text-gray-900 dark:text-white text-2xl">Riwayat</h2>
-            <button type="button" onclick="exportToPDF()" class="w-10 h-10 bg-gray-50 dark:bg-gray-700 text-[#6342E8] dark:text-secondary flex items-center justify-center rounded-xl border border-gray-200 dark:border-gray-600 active:scale-95 transition" title="Export to PDF">
+            <button type="button" onclick="exportToPDF()" class="w-10 h-10 bg-gray-50 dark:bg-gray-700 text-[#6342E8] dark:text-secondary flex items-center justify-center rounded-xl border border-gray-200 dark:border-gray-600 hover:bg-gray-100 transition shadow-sm focus:outline-none" title="Export to PDF">
                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
             </button>
         </header>
         <div class="p-6">
             <div class="flex gap-2 mb-6 overflow-x-auto pb-2 hide-scrollbar">
-                <button type="button" onclick="applyFilter('month')" id="flt-month" data-i18n="thisMonth" class="filter-tab active px-4 py-2 rounded-full text-xs font-semibold whitespace-nowrap">Bulan Ini</button>
-                <button type="button" onclick="applyFilter('week')" id="flt-week" data-i18n="last7Days" class="filter-tab px-4 py-2 rounded-full text-xs font-semibold whitespace-nowrap">7 Hari Terakhir</button>
-                <button type="button" onclick="applyFilter('all')" id="flt-all" data-i18n="allTime" class="filter-tab px-4 py-2 rounded-full text-xs font-semibold whitespace-nowrap">Semua Waktu</button>
-                <button type="button" onclick="applyFilter('custom')" id="flt-custom" data-i18n="custom" class="filter-tab px-4 py-2 rounded-full text-xs font-semibold whitespace-nowrap">Kustom</button>
+                <button type="button" onclick="applyFilter('month')" id="flt-month" data-i18n="thisMonth" class="filter-tab active px-4 py-2 rounded-full text-xs font-semibold whitespace-nowrap shadow-sm focus:outline-none">Bulan Ini</button>
+                <button type="button" onclick="applyFilter('week')" id="flt-week" data-i18n="last7Days" class="filter-tab px-4 py-2 rounded-full text-xs font-semibold whitespace-nowrap shadow-sm focus:outline-none">7 Hari Terakhir</button>
+                <button type="button" onclick="applyFilter('all')" id="flt-all" data-i18n="allTime" class="filter-tab px-4 py-2 rounded-full text-xs font-semibold whitespace-nowrap shadow-sm focus:outline-none">Semua Waktu</button>
+                <button type="button" onclick="applyFilter('custom')" id="flt-custom" data-i18n="custom" class="filter-tab px-4 py-2 rounded-full text-xs font-semibold whitespace-nowrap shadow-sm focus:outline-none">Kustom</button>
             </div>
             <div id="custom-date-box" class="hidden flex gap-2 items-center mb-6 bg-white dark:bg-gray-800 p-3 rounded-[16px] shadow-sm border border-gray-100 dark:border-gray-700">
-                <input type="date" id="date-start" class="text-xs text-gray-600 dark:text-gray-300 outline-none flex-1 bg-transparent"><span class="text-gray-300 font-bold">-</span><input type="date" id="date-end" class="text-xs text-gray-600 dark:text-gray-300 outline-none flex-1 bg-transparent"><button type="button" onclick="renderHistoryList()" class="bg-[#6342E8] text-white p-2 rounded-lg"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg></button>
+                <input type="date" id="date-start" class="text-xs text-gray-600 dark:text-gray-300 outline-none flex-1 bg-transparent"><span class="text-gray-300 font-bold">-</span><input type="date" id="date-end" class="text-xs text-gray-600 dark:text-gray-300 outline-none flex-1 bg-transparent"><button type="button" onclick="renderHistoryList()" class="bg-[#6342E8] text-white p-2 rounded-lg focus:outline-none"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg></button>
             </div>
+            
             <div id="chart-section" class="bg-white dark:bg-gray-800 p-6 rounded-[24px] shadow-sm border border-gray-100 dark:border-gray-700 mb-6 hidden">
                 <div class="relative w-48 h-48 mx-auto mb-8"><canvas id="expenseChart"></canvas><div class="absolute inset-0 flex flex-col items-center justify-center pointer-events-none mt-2"><p data-i18n="totalExpenses" class="text-[10px] text-gray-400 font-semibold">Total Pengeluaran</p><p id="chart-total-text" class="font-bold text-gray-900 dark:text-white text-sm">Rp 0</p></div></div>
                 <div id="chart-legend" class="space-y-4"></div>
             </div>
+
             <h3 data-i18n="recentTransactions" class="font-bold text-gray-900 dark:text-white text-sm mb-4">Transaksi Terakhir</h3>
             <div id="history-list-container" class="space-y-4"></div>
             <div id="empty-history" class="hidden text-center py-10"><p data-i18n="noTransactions" class="text-gray-400 text-sm">Tidak ada transaksi.</p></div>
@@ -244,7 +246,7 @@
     <div id="form-screen" class="hidden-page min-h-screen bg-[#F8F9FA] dark:bg-gray-900 z-50 absolute inset-0">
         <header class="p-6 flex items-center gap-4 border-b border-gray-100 dark:border-gray-700 bg-white dark:bg-gray-800"><button type="button" onclick="goToNav('dashboard')" class="w-10 h-10 flex items-center justify-center rounded-full border border-gray-200 dark:border-gray-600 text-gray-500 hover:bg-gray-50 focus:outline-none">✕</button><h2 id="form-title" data-i18n="newTransaction" class="font-bold text-gray-900 dark:text-white">Transaksi Baru</h2></header>
         <form id="trans-form" class="p-6 flex flex-col gap-6">
-            <div class="bg-white dark:bg-gray-800 p-8 rounded-[24px] shadow-sm border border-gray-100 dark:border-gray-700 text-center"><p data-i18n="amount" class="text-sm text-gray-400 mb-2">Nominal</p><div class="flex items-center justify-center text-4xl font-bold text-[#6342E8] dark:text-secondary"><span>Rp</span><input type="text" inputmode="numeric" id="jumlah" placeholder="0" class="form-input text-[#6342E8] dark:text-secondary placeholder-purple-200 dark:placeholder-gray-600" required autofocus></div></div>
+            <div class="bg-white dark:bg-gray-800 p-8 rounded-[24px] shadow-sm border border-gray-100 dark:border-gray-700 text-center"><p data-i18n="amount" class="text-sm text-gray-400 mb-2">Nominal</p><div class="flex items-center justify-center text-4xl font-bold text-[#6342E8] dark:text-secondary"><span>Rp</span><input type="text" inputmode="numeric" id="jumlah" placeholder="0" class="form-input text-[#6342E8] dark:text-secondary" required autofocus></div></div>
             <div class="space-y-4">
                 <div class="bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 p-2 shadow-sm"><input type="text" id="keterangan" data-i18n-placeholder="notePlaceholder" placeholder="Untuk apa ini?" class="w-full p-3 text-sm outline-none bg-transparent text-gray-700 dark:text-gray-200" required></div>
                 <div class="bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 p-2 shadow-sm"><select id="kategori" class="w-full p-3 text-sm font-medium text-gray-700 dark:text-gray-200 outline-none bg-transparent appearance-none"></select></div>
@@ -262,7 +264,7 @@
         </div>
     </div>
 
-    <nav class="fixed bottom-0 left-0 right-0 max-w-md mx-auto bg-white dark:bg-gray-800 border-t border-gray-100 dark:border-gray-700 px-6 py-4 flex justify-between items-center rounded-t-[32px] shadow-[0_-10px_40px_rgba(0,0,0,0.05)] z-40 transition-colors">
+    <nav id="bottom-nav" class="hidden-page fixed bottom-0 left-0 right-0 max-w-md mx-auto bg-white dark:bg-gray-800 border-t border-gray-100 dark:border-gray-700 px-6 py-4 flex justify-between items-center rounded-t-[32px] shadow-[0_-10px_40px_rgba(0,0,0,0.05)] z-40 transition-colors">
         <button type="button" onclick="goToNav('dashboard')" id="nav-dashboard" class="nav-btn active text-gray-400 hover:text-[#6342E8] transition focus:outline-none"><svg class="w-6 h-6 fill-current" viewBox="0 0 24 24"><path d="M12 3L4 9v12h5v-7h6v7h5V9l-8-6z"/></svg></button>
         <button type="button" onclick="goToNav('portfolio')" id="nav-portfolio" class="nav-btn text-gray-400 hover:text-[#6342E8] transition focus:outline-none"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z"></path></svg></button>
         <div class="relative -top-8"><button type="button" onclick="goToNav('history')" id="nav-history" class="w-14 h-14 bg-[#6342E8] text-white rounded-full shadow-lg flex items-center justify-center transform hover:-translate-y-1 transition focus:outline-none"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg></button></div>
@@ -365,13 +367,21 @@
             try {
                 const res = await fetch(API_URL, { method: 'POST', body: JSON.stringify({ action: "login", email: document.getElementById('login-email').value, password: document.getElementById('login-password').value }) });
                 const result = await res.json();
-                if (result.status === "success") { localStorage.setItem("fintrack_user", JSON.stringify({ email: result.email, nama: result.nama })); currentUser = result; loginSuccess(); } 
-                else showToast(result.message, 'error');
-            } catch (err) { showToast(t('errSave'), 'error'); } finally { toggleLoader(false); }
+                if (result.status === "success") { 
+                    localStorage.setItem("fintrack_user", JSON.stringify({ email: result.email, nama: result.nama })); 
+                    currentUser = result; 
+                    loginSuccess(); 
+                } else {
+                    showToast(result.message || "Email / Password Salah", 'error');
+                }
+            } catch (err) { showToast("Gagal terhubung ke API", 'error'); } finally { toggleLoader(false); }
         });
 
         function loginSuccess() {
-            document.getElementById('login-screen').style.display = 'none'; document.getElementById('dashboard-screen').classList.remove('hidden-page'); document.getElementById('user-display-name').innerText = currentUser.nama + "!";
+            document.getElementById('login-screen').classList.add('hidden-page'); 
+            document.getElementById('dashboard-screen').classList.remove('hidden-page'); 
+            document.getElementById('bottom-nav').classList.remove('hidden-page'); // Menampilkan navbar bawah
+            document.getElementById('user-display-name').innerText = currentUser.nama + "!";
             fetchData();
         }
 
@@ -391,8 +401,10 @@
                         }
                     });
                     renderDashboard(); applyFilter('month'); renderPortfolio(); renderCalendarGrid();
+                } else {
+                    showToast("Gagal mengambil data", "error");
                 }
-            } catch (err) { console.error("Sync Error", err); } finally { toggleLoader(false); }
+            } catch (err) { showToast("Koneksi internet terputus", "error"); } finally { toggleLoader(false); }
         }
 
         function goToNav(screenId) {
@@ -443,7 +455,7 @@
             const cont = document.getElementById('universal-modal-container'); const form = document.getElementById('universal-form'); cont.classList.remove('hidden');
             if (type === 'goal') {
                 document.getElementById('universal-modal-title').innerText = currentLang === 'id' ? "Buat Target Tabungan" : "Create Savings Goal";
-                form.innerHTML = `<input type="text" id="g-name" placeholder="${currentLang==='id'?'Nama (Misal: Mobil Baru)':'Name (e.g., New Car)'}" class="w-full p-4 bg-gray-50 dark:bg-gray-700 dark:text-white border border-transparent focus:border-primary rounded-xl outline-none" required><input type="text" id="g-nominal" placeholder="${currentLang==='id'?'Target Dana Keseluruhan (Rp)':'Target Amount (Rp)'}" class="w-full p-4 bg-gray-50 dark:bg-gray-700 dark:text-white border border-transparent focus:border-primary rounded-xl outline-none" required><div class="text-xs text-gray-500 font-bold ml-1">${currentLang==='id'?'Tenggat Waktu:':'Deadline:'}</div><input type="date" id="g-date" class="w-full p-4 bg-gray-50 dark:bg-gray-700 dark:text-white border border-transparent focus:border-primary rounded-xl outline-none text-gray-500 dark:text-gray-300" required><button type="submit" class="w-full bg-[#6342E8] text-white py-4 rounded-xl font-bold mt-2 shadow-lg active:scale-95 transition">${t('btnSave')}</button>`;
+                form.innerHTML = `<input type="text" id="g-name" placeholder="${currentLang==='id'?'Nama (Misal: Beli Mobil Baru)':'Name (e.g., New Car)'}" class="w-full p-4 bg-gray-50 dark:bg-gray-700 dark:text-white border border-transparent focus:border-primary rounded-xl outline-none" required><input type="text" id="g-nominal" placeholder="${currentLang==='id'?'Target Dana Keseluruhan (Rp)':'Target Amount (Rp)'}" class="w-full p-4 bg-gray-50 dark:bg-gray-700 dark:text-white border border-transparent focus:border-primary rounded-xl outline-none" required><div class="text-xs text-gray-500 font-bold ml-1">${currentLang==='id'?'Tenggat Waktu:':'Deadline:'}</div><input type="date" id="g-date" class="w-full p-4 bg-gray-50 dark:bg-gray-700 dark:text-white border border-transparent focus:border-primary rounded-xl outline-none text-gray-500 dark:text-gray-300" required><button type="submit" class="w-full bg-[#6342E8] text-white py-4 rounded-xl font-bold mt-2 shadow-lg active:scale-95 transition">${t('btnSave')}</button>`;
                 formatInputNominal(document.getElementById('g-nominal'));
                 form.onsubmit = async (e) => { e.preventDefault(); toggleLoader(true); await fetch(API_URL, { method: 'POST', body: JSON.stringify({ action: "saveTarget", email: currentUser.email, nama: document.getElementById('g-name').value, nominal: document.getElementById('g-nominal').value.replace(/\./g, ''), deadline: document.getElementById('g-date').value }) }); closeUniversalModal(); fetchData(); showToast(t('successSave')); };
             } 
@@ -454,7 +466,7 @@
                 form.onsubmit = async (e) => { e.preventDefault(); toggleLoader(true); await fetch(API_URL, { method: 'POST', body: JSON.stringify({ action: "saveDebt", email: currentUser.email, tipe: document.getElementById('d-type').value, nama: document.getElementById('d-name').value, nominal: document.getElementById('d-nominal').value.replace(/\./g, ''), deadline: document.getElementById('d-date').value }) }); closeUniversalModal(); fetchData(); showToast(t('successSave')); };
             }
             else if (type === 'recurring') {
-                document.getElementById('universal-modal-title').innerText = currentLang === 'id' ? "Langganan Otomatis" : "Auto-Recurring Bills";
+                document.getElementById('universal-modal-title').innerText = currentLang === 'id' ? "Langganan / Tagihan Otomatis" : "Auto-Recurring Bills";
                 form.innerHTML = `<input type="number" id="r-date" min="1" max="31" placeholder="${currentLang==='id'?'Tanggal Ditagih (Isi 1 s.d 31)':'Billing Day (1-31)'}" class="w-full p-4 bg-gray-50 dark:bg-gray-700 dark:text-white border border-transparent focus:border-primary rounded-xl outline-none" required><input type="text" id="r-kategori" placeholder="Kategori (Misal: Tagihan)" class="w-full p-4 bg-gray-50 dark:bg-gray-700 dark:text-white border border-transparent focus:border-primary rounded-xl outline-none" required><input type="text" id="r-akun" placeholder="${currentLang==='id'?'Dipotong Dari Akun (Misal: Bank BNI)':'Deduct From Account'}" class="w-full p-4 bg-gray-50 dark:bg-gray-700 dark:text-white border border-transparent focus:border-primary rounded-xl outline-none" required><input type="text" id="r-nominal" placeholder="Nominal Potongan (Rp)" class="w-full p-4 bg-gray-50 dark:bg-gray-700 dark:text-white border border-transparent focus:border-primary rounded-xl outline-none" required><input type="text" id="r-ket" placeholder="Keterangan (Misal: Netflix)" class="w-full p-4 bg-gray-50 dark:bg-gray-700 dark:text-white border border-transparent focus:border-primary rounded-xl outline-none" required><button type="submit" class="w-full bg-[#6342E8] text-white py-4 rounded-xl font-bold mt-2 shadow-lg active:scale-95 transition">${t('btnSave')}</button>`;
                 formatInputNominal(document.getElementById('r-nominal'));
                 form.onsubmit = async (e) => { e.preventDefault(); toggleLoader(true); await fetch(API_URL, { method: 'POST', body: JSON.stringify({ action: "saveRecurring", email: currentUser.email, tgl: document.getElementById('r-date').value, kategori: document.getElementById('r-kategori').value, akun: document.getElementById('r-akun').value, nominal: document.getElementById('r-nominal').value.replace(/\./g, ''), keterangan: document.getElementById('r-ket').value }) }); closeUniversalModal(); fetchData(); showToast(t('successSave')); };
@@ -472,7 +484,16 @@
         function closeAssetForm() { document.getElementById('asset-form-screen').classList.add('hidden-page'); }
         function goToSellAssetForm(simbol, isCrypto, maxQty) { document.getElementById('sell-asset-form-screen').classList.remove('hidden-page'); document.getElementById('sell-ast-simbol').value = simbol; document.getElementById('sell-ast-kategori').value = isCrypto ? 'Crypto' : 'Saham'; const qtyInput = document.getElementById('sell-ast-jumlah'); qtyInput.max = maxQty; qtyInput.placeholder = (currentLang === 'id' ? "Maks Jual: " : "Max Sell: ") + maxQty; const selAstAkun = document.getElementById('sell-ast-akun'); selAstAkun.innerHTML = `<option value="" disabled selected>${t('destOpt')}</option>`; allAccounts.forEach(acc => selAstAkun.innerHTML += `<option value="${acc.Nama_Akun}">${acc.Nama_Akun}</option>`); }
         function closeSellAssetForm() { document.getElementById('sell-asset-form-screen').classList.add('hidden-page'); }
-        function logout() { if (confirm(t('logoutConfirm'))) { localStorage.removeItem("fintrack_user"); location.reload(); } }
+        
+        function logout() { 
+            if (confirm(t('logoutConfirm'))) { 
+                localStorage.removeItem("fintrack_user"); 
+                document.getElementById('dashboard-screen').classList.add('hidden-page');
+                document.getElementById('bottom-nav').classList.add('hidden-page'); // Sembunyikan navbar
+                document.getElementById('login-screen').classList.remove('hidden-page');
+                location.reload(); 
+            } 
+        }
 
         document.getElementById('trans-form').addEventListener('submit', async (e) => { e.preventDefault(); const tipe = document.getElementById('form-screen').getAttribute('data-type').toUpperCase(); const akun = document.getElementById('akun').value; const jumlah = Number(document.getElementById('jumlah').value.replace(/\./g, '')); if(tipe === "OUTFLOW") { const accObj = allAccounts.find(a => a.Nama_Akun === akun); if(accObj && jumlah > Number(accObj.Saldo_Realtime)) { showToast(t('errInsufficient'), 'error'); return; } } toggleLoader(true); try { await fetch(API_URL, { method: 'POST', body: JSON.stringify({ action: "transaksi", tanggal: new Date().toISOString().split('T')[0], email: currentUser.email, tipe: tipe, akun: akun, kategori: document.getElementById('kategori').value, jumlah: jumlah, keterangan: escapeHTML(document.getElementById('keterangan').value) })}); document.getElementById('trans-form').reset(); await fetchData(); goToNav('dashboard'); showToast(t('successSave'), 'success'); } catch (err) { showToast(t('errSave'), 'error'); toggleLoader(false); } });
         document.getElementById('transfer-form').addEventListener('submit', async (e) => { e.preventDefault(); const sumber = document.getElementById('tf-sumber').value; const tujuan = document.getElementById('tf-tujuan').value; const jumlah = Number(document.getElementById('tf-jumlah').value.replace(/\./g, '')); const admin = Number(document.getElementById('tf-admin').value || 0); if(sumber === tujuan) { showToast(t('errSameAccount'), 'error'); return; } const accObj = allAccounts.find(a => a.Nama_Akun === sumber); if(accObj && (jumlah + admin) > Number(accObj.Saldo_Realtime)) { showToast(t('errInsufficient'), 'error'); return; } toggleLoader(true); try { await fetch(API_URL, { method: 'POST', body: JSON.stringify({ action: "transfer", tanggal: new Date().toISOString().split('T')[0], email: currentUser.email, akunSumber: sumber, akunTujuan: tujuan, jumlah: jumlah, adminFee: admin, keterangan: escapeHTML(document.getElementById('tf-keterangan').value) })}); document.getElementById('transfer-form').reset(); await fetchData(); goToNav('dashboard'); showToast(t('successSave'), 'success'); } catch (err) { showToast(t('errSave'), 'error'); toggleLoader(false); } });
@@ -484,6 +505,7 @@
             allPortfolio.forEach(item => { if(!summary[item.Simbol]) summary[item.Simbol] = { kategori: item.Kategori, jumlah: 0, totalModal: 0 }; summary[item.Simbol].jumlah += Number(item.Jumlah); summary[item.Simbol].totalModal += (Number(item.Jumlah) * Number(item.Harga_Beli)); });
             currentTotalPortfolio = 0; let portoChartDataList = []; const portoChartSection = document.getElementById('porto-chart-section'), portoLegendContainer = document.getElementById('porto-chart-legend');
             try { const rateRes = await fetch("https://open.er-api.com/v6/latest/USD"); const rateData = await rateRes.json(); if(rateData && rateData.rates && rateData.rates.IDR) globalUsdIdrRate = rateData.rates.IDR; } catch(e){}
+
             for (const [simbol, data] of Object.entries(summary)) {
                 if (data.jumlah <= 0) continue; 
                 let avgPrice = data.totalModal / data.jumlah; let currentPrice = avgPrice; let isCrypto = data.kategori === 'Crypto';
@@ -491,6 +513,7 @@
                 let currValue = currentPrice * data.jumlah; currentTotalPortfolio += currValue; let pnl = currValue - data.totalModal; let pnlColor = pnl >= 0 ? 'text-green-500' : 'text-red-500';
                 portoChartDataList.push({ simbol: simbol, isCrypto: isCrypto, value: currValue, avgPrice: avgPrice, currentPrice: currentPrice, pnl: pnl, pnlColor: pnlColor, jumlah: data.jumlah });
             }
+
             if (portoChartDataList.length === 0) { list.innerHTML = `<div class="text-center py-10 bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700"><p class="text-gray-400 text-sm">${t('noRecords')}</p></div>`; portoChartSection.classList.add('hidden'); } 
             else {
                 portoChartSection.classList.remove('hidden'); portoLegendContainer.innerHTML = ""; list.innerHTML = ""; portoChartDataList.sort((a,b) => b.value - a.value); let labels = []; let values = [];
@@ -499,7 +522,7 @@
                     portoLegendContainer.innerHTML += `<div class="flex items-center justify-between hover:bg-gray-50 dark:hover:bg-gray-700 p-1 rounded-lg transition cursor-pointer"><div class="flex items-center gap-3"><div class="w-10 h-10 rounded-full flex items-center justify-center font-black text-lg shadow-sm" style="color: ${color}; background-color: ${color}20">${iconHTML}</div><div><p class="font-bold text-gray-900 dark:text-white text-sm">${escapeHTML(item.simbol)}</p><div class="flex items-center gap-2"><p class="text-xs text-gray-500 font-medium">${percentage}%</p><div class="w-8 h-1.5 rounded-full bg-gray-100 dark:bg-gray-700 overflow-hidden"><div class="h-full rounded-full" style="width: ${percentage}%; background-color: ${color}"></div></div></div></div></div><div class="text-right"><p class="font-bold text-gray-900 dark:text-white text-sm porto-legend-val" data-value="${item.value}">${isPortoBalanceHidden ? "********" : formatRp(item.value)}</p><p class="text-[10px] font-bold ${item.pnlColor} porto-legend-pnl" data-value="${item.pnl}">${isPortoBalanceHidden ? "********" : (item.pnl >= 0 ? '+' : '') + formatRp(item.pnl)}</p></div></div>`;
                     list.innerHTML += `<div class="bg-white dark:bg-gray-800 p-5 rounded-[24px] shadow-sm border border-gray-100 dark:border-gray-700"><div class="flex justify-between items-center mb-3"><div class="flex items-center gap-3"><div class="w-10 h-10 rounded-full ${item.isCrypto ? 'bg-orange-100 dark:bg-orange-900/30 text-orange-500' : 'bg-blue-100 dark:bg-blue-900/30 text-blue-500'} flex items-center justify-center font-bold text-sm shadow-inner">${escapeHTML(item.simbol).substring(0,3)}</div><div><h3 class="font-bold text-gray-900 dark:text-white">${escapeHTML(item.simbol)}</h3><p class="text-[10px] text-gray-400">${item.jumlah} ${t('units')}</p></div></div><div class="text-right"><p class="font-bold text-gray-900 dark:text-white porto-balance" data-value="${item.value}">${isPortoBalanceHidden ? "********" : formatRp(item.value)}</p><p class="text-[11px] font-bold ${item.pnlColor} porto-pnl" data-value="${item.pnl}">${isPortoBalanceHidden ? "********" : (item.pnl >= 0 ? '+' : '') + formatRp(item.pnl)}</p><button type="button" onclick="goToSellAssetForm('${item.simbol}', ${item.isCrypto}, ${item.jumlah})" class="mt-2 text-[10px] bg-red-50 dark:bg-red-900/30 text-red-500 border border-red-100 dark:border-red-900/30 px-3 py-1 rounded-lg font-bold hover:bg-red-100 dark:hover:bg-red-900/50 transition uppercase focus:outline-none">${t('sellAsset')}</button></div></div><div class="flex justify-between text-[10px] text-gray-400 border-t border-gray-50 dark:border-gray-700 pt-2 mt-2"><span>${t('avgBuy')} <span class="porto-avg" data-value="${item.avgPrice}">${isPortoBalanceHidden ? "********" : formatRp(item.avgPrice)}</span></span><span>${t('live')} <span class="porto-live" data-value="${item.currentPrice}">${isPortoBalanceHidden ? "********" : formatRp(item.currentPrice)}</span></span></div></div>`;
                 });
-                const ctx = document.getElementById('portoChart').getContext('2d'); if(portoChartInstance) portoChartInstance.destroy();
+                const ctx = document.getElementById('portoChart').getContext('2d'); if(portoChartInstance) portoChartInstance.destroy(); 
                 portoChartInstance = new Chart(ctx, { type: 'doughnut', data: { labels: labels, datasets: [{ data: values, backgroundColor: chartColors.slice(0, labels.length), borderWidth: 2, borderColor: document.documentElement.classList.contains('dark') ? '#1F2937' : '#ffffff', cutout: '75%', borderRadius: 5 }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } } });
             }
             updatePortoBalanceVisibility();
@@ -533,6 +556,7 @@
                 } else document.getElementById('chart-section').classList.add('hidden');
             }
         }
+
         function exportToPDF() {
             let filteredHistory = getFilteredHistory(); if(filteredHistory.length === 0) { showToast(t('noTransactions'), 'error'); return; }
             const { jsPDF } = window.jspdf; const doc = new jsPDF(); let totalInc = 0; let totalExp = 0;
