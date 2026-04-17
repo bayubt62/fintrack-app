@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Fintrack - Ultimate Wealth UI</title>
     <link rel="icon" href="Logo_Fintrack.png" type="image/png">
     
@@ -198,7 +198,7 @@
     <div id="transfer-form-screen" class="hidden-page min-h-screen bg-[#F8F9FA] z-50 absolute inset-0">
         <header class="p-6 flex items-center gap-4 bg-white border-b border-gray-100"><button type="button" onclick="closeTransferForm()" class="w-10 h-10 flex items-center justify-center rounded-full border border-gray-200 text-gray-500 hover:bg-gray-50 focus:outline-none">✕</button><h2 data-i18n="transferFunds" class="font-bold text-gray-900">Transfer Dana</h2></header>
         <form id="transfer-form" class="p-6 space-y-4">
-            <div class="bg-white p-6 rounded-[24px] shadow-sm border border-gray-100 text-center mb-4"><p data-i18n="transferAmount" class="text-sm text-gray-400 mb-2">Nominal Transfer</p><div class="flex items-center justify-center text-4xl font-bold text-[#6342E8]"><span>Rp</span><input type="number" min="0" id="tf-jumlah" placeholder="0" class="form-input text-[#6342E8]" required autofocus></div></div>
+            <div class="bg-white p-6 rounded-[24px] shadow-sm border border-gray-100 text-center mb-4"><p data-i18n="transferAmount" class="text-sm text-gray-400 mb-2">Nominal Transfer</p><div class="flex items-center justify-center text-4xl font-bold text-[#6342E8]"><span>Rp</span><input type="text" inputmode="numeric" id="tf-jumlah" placeholder="0" class="form-input text-[#6342E8]" required autofocus></div></div>
             <div class="bg-white rounded-2xl border border-gray-100 p-2 shadow-sm"><select id="tf-sumber" class="w-full p-3 text-sm font-medium text-gray-700 outline-none bg-transparent appearance-none" required></select></div>
             <div class="flex justify-center -my-2 z-10 relative pointer-events-none"><div class="bg-[#F0EDFF] text-[#6342E8] p-1.5 rounded-full border-2 border-white"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 14l-7 7m0 0l-7-7m7 7V3"></path></svg></div></div>
             <div class="bg-white rounded-2xl border border-gray-100 p-2 shadow-sm"><select id="tf-tujuan" class="w-full p-3 text-sm font-medium text-gray-700 outline-none bg-transparent appearance-none" required></select></div>
@@ -233,7 +233,7 @@
     <div id="form-screen" class="hidden-page min-h-screen bg-[#F8F9FA] z-50 absolute inset-0">
         <header class="p-6 flex items-center gap-4 border-b border-gray-100 bg-white"><button type="button" onclick="goToNav('dashboard')" class="w-10 h-10 flex items-center justify-center rounded-full border border-gray-200 text-gray-500 hover:bg-gray-50 focus:outline-none">✕</button><h2 id="form-title" data-i18n="newTransaction" class="font-bold text-gray-900">Transaksi Baru</h2></header>
         <form id="trans-form" class="p-6 flex flex-col gap-6">
-            <div class="bg-white p-8 rounded-[24px] shadow-sm border border-gray-100 text-center"><p data-i18n="amount" class="text-sm text-gray-400 mb-2">Nominal</p><div class="flex items-center justify-center text-4xl font-bold text-[#6342E8]"><span>Rp</span><input type="number" min="0" id="jumlah" placeholder="0" class="form-input text-[#6342E8] placeholder-purple-200" required autofocus></div></div>
+            <div class="bg-white p-8 rounded-[24px] shadow-sm border border-gray-100 text-center"><p data-i18n="amount" class="text-sm text-gray-400 mb-2">Nominal</p><div class="flex items-center justify-center text-4xl font-bold text-[#6342E8]"><span>Rp</span><input type="text" inputmode="numeric" id="jumlah" placeholder="0" class="form-input text-[#6342E8] placeholder-purple-200" required autofocus></div></div>
             <div class="space-y-4">
                 <div class="bg-white rounded-2xl border border-gray-100 p-2 shadow-sm"><input type="text" id="keterangan" data-i18n-placeholder="notePlaceholder" placeholder="Untuk apa ini?" class="w-full p-3 text-sm outline-none text-gray-700" required></div>
                 <div class="bg-white rounded-2xl border border-gray-100 p-2 shadow-sm"><select id="kategori" class="w-full p-3 text-sm font-medium text-gray-700 outline-none bg-transparent appearance-none"></select></div>
@@ -464,8 +464,18 @@
                 const result = await res.json();
                 if (result.status === "success") {
                     allAccounts = result.data; allHistory = result.history || []; allPortfolio = result.portofolio || [];
-                    currentTotalIncome = result.summary.income;
-                    currentTotalExpenditure = result.summary.expenditure;
+                    
+                    // PERBAIKAN: Hitung ulang secara manual dari History untuk mengabaikan tipe mutasi/transfer
+                    currentTotalIncome = 0;
+                    currentTotalExpenditure = 0;
+                    allHistory.forEach(trx => {
+                        const cat = trx.kategori ? trx.kategori.toLowerCase() : "";
+                        if (!cat.includes("mutasi") && trx.kategori !== "Transfer") {
+                            if (trx.tipe === "INFLOW") currentTotalIncome += Number(trx.jumlah);
+                            else if (trx.tipe === "OUTFLOW") currentTotalExpenditure += Number(trx.jumlah);
+                        }
+                    });
+
                     renderDashboard(); applyFilter('month'); renderPortfolio(); renderCalendarGrid();
                 }
             } catch (err) { console.error("Sync Error"); } finally { toggleLoader(false); }
@@ -519,7 +529,15 @@
                 filteredHistory.forEach(trx => {
                     const d = new Date(trx.tanggal); const dateStr = d.toLocaleDateString(currentLang === 'id' ? 'id-ID' : 'en-US', { day: 'numeric', month: 'short', year: 'numeric' });
                     const isIncome = trx.tipe === "INFLOW"; const amountColor = isIncome ? "text-green-500" : "text-gray-900"; const amountPrefix = isIncome ? "+" : "-";
-                    if(!isIncome && trx.kategori !== "Mutasi Keluar") { totalExpenses += trx.jumlah; if(!expenseByCategory[trx.kategori]) expenseByCategory[trx.kategori] = 0; expenseByCategory[trx.kategori] += trx.jumlah; }
+                    
+                    // PERBAIKAN: Jangan masukkan kategori Mutasi atau Transfer ke total pie chart
+                    const catLower = trx.kategori ? trx.kategori.toLowerCase() : "";
+                    if(!isIncome && trx.kategori !== "Mutasi Keluar" && !catLower.includes("mutasi") && trx.kategori !== "Transfer") { 
+                        totalExpenses += trx.jumlah; 
+                        if(!expenseByCategory[trx.kategori]) expenseByCategory[trx.kategori] = 0; 
+                        expenseByCategory[trx.kategori] += trx.jumlah; 
+                    }
+
                     const logoPath = logoMap[trx.akun]; let iconHTML = logoPath ? `<img src="${logoPath}" class="w-8 h-8 object-contain">` : `<span class="font-bold text-[#6342E8]">${escapeHTML(trx.akun).charAt(0).toUpperCase()}</span>`;
                     container.innerHTML += `<div class="bg-white p-4 rounded-[20px] shadow-sm border border-gray-100 flex items-center justify-between hover:bg-gray-50 transition cursor-pointer"><div class="flex items-center gap-3"><div class="w-12 h-12 bg-gray-50 rounded-[16px] flex items-center justify-center border border-gray-100 shadow-sm">${iconHTML}</div><div><p class="font-bold text-gray-900 text-sm truncate w-32">${escapeHTML(trx.kategori)}</p><p class="text-[10px] text-gray-400">${dateStr} • ${escapeHTML(trx.akun)}</p></div></div><div class="text-right"><p class="font-bold ${amountColor} text-sm">${amountPrefix}${formatRp(trx.jumlah)}</p><p class="text-[10px] text-gray-400 truncate w-20">${escapeHTML(trx.keterangan)}</p></div></div>`;
                 });
@@ -544,10 +562,14 @@
             const { jsPDF } = window.jspdf;
             const doc = new jsPDF();
             let totalInc = 0; let totalExp = 0;
+            
+            // PERBAIKAN: Total PDF mengabaikan transfer/mutasi
             filteredHistory.forEach(trx => {
-                if (trx.tipe === "INFLOW" && trx.kategori !== "Mutasi Masuk") totalInc += trx.jumlah;
-                if (trx.tipe === "OUTFLOW" && trx.kategori !== "Mutasi Keluar") totalExp += trx.jumlah;
+                const cat = trx.kategori ? trx.kategori.toLowerCase() : "";
+                if (trx.tipe === "INFLOW" && !cat.includes("mutasi") && trx.kategori !== "Transfer") totalInc += trx.jumlah;
+                if (trx.tipe === "OUTFLOW" && !cat.includes("mutasi") && trx.kategori !== "Transfer") totalExp += trx.jumlah;
             });
+
             const reportTitle = currentLang === 'id' ? "Laporan Transaksi Fintrack" : "Fintrack Transaction Report";
             let activeTabLabel = "";
             document.querySelectorAll('.filter-tab').forEach(t => { if(t.classList.contains('active')) activeTabLabel = t.innerText; });
@@ -610,7 +632,15 @@
             for(let i = 1; i <= daysInMonth; i++) {
                 const dateStr = year + "-" + String(month + 1).padStart(2, '0') + "-" + String(i).padStart(2, '0');
                 let dailyInc = 0; let dailyExp = 0;
-                allHistory.filter(item => item.tanggal === dateStr).forEach(trx => { if(trx.tipe === "INFLOW") dailyInc += trx.jumlah; else dailyExp += trx.jumlah; });
+                
+                // PERBAIKAN: Hitung jumlah harian tanpa transfer/mutasi
+                allHistory.filter(item => item.tanggal === dateStr).forEach(trx => { 
+                    const cat = trx.kategori ? trx.kategori.toLowerCase() : "";
+                    if (!cat.includes("mutasi") && trx.kategori !== "Transfer") {
+                        if(trx.tipe === "INFLOW") dailyInc += trx.jumlah; else dailyExp += trx.jumlah; 
+                    }
+                });
+
                 const incStr = formatCompact(dailyInc); const expStr = formatCompact(dailyExp);
                 const isToday = (year === today.getFullYear() && month === today.getMonth() && i === today.getDate()); const isSelected = (year === selectedCalendarDate.getFullYear() && month === selectedCalendarDate.getMonth() && i === selectedCalendarDate.getDate());
                 let cellClasses = "min-h-[64px] p-1 rounded-xl flex flex-col border transition cursor-pointer active:scale-95 overflow-hidden ";
@@ -632,7 +662,14 @@
             else {
                 emptyState.classList.add('hidden');
                 dailyHistory.forEach(trx => {
-                    const isIncome = trx.tipe === "INFLOW"; if(isIncome) dailyInc += trx.jumlah; else dailyExp += trx.jumlah;
+                    const isIncome = trx.tipe === "INFLOW"; 
+                    
+                    // PERBAIKAN: Hitung jumlah daily summary tanpa mutasi/transfer
+                    const cat = trx.kategori ? trx.kategori.toLowerCase() : "";
+                    if (!cat.includes("mutasi") && trx.kategori !== "Transfer") {
+                        if(isIncome) dailyInc += trx.jumlah; else dailyExp += trx.jumlah;
+                    }
+
                     const amountColor = isIncome ? "text-green-500" : "text-gray-900"; const amountPrefix = isIncome ? "+" : "-";
                     const logoPath = logoMap[trx.akun]; let iconHTML = logoPath ? `<img src="${logoPath}" class="w-8 h-8 object-contain">` : `<span class="font-bold text-[#6342E8]">${escapeHTML(trx.akun).charAt(0).toUpperCase()}</span>`;
                     container.innerHTML += `<div class="bg-white p-4 rounded-[20px] shadow-sm border border-gray-100 flex items-center justify-between"><div class="flex items-center gap-3"><div class="w-12 h-12 bg-gray-50 rounded-[16px] flex items-center justify-center border border-gray-100 shadow-sm">${iconHTML}</div><div><p class="font-bold text-gray-900 text-sm truncate w-32">${escapeHTML(trx.kategori)}</p><p class="text-[10px] text-gray-400">${escapeHTML(trx.akun)}</p></div></div><div class="text-right"><p class="font-bold ${amountColor} text-sm">${amountPrefix}${formatRp(trx.jumlah)}</p><p class="text-[10px] text-gray-400 truncate w-20">${escapeHTML(trx.keterangan)}</p></div></div>`;
@@ -653,7 +690,9 @@
             e.preventDefault(); 
             const sumber = document.getElementById('tf-sumber').value; 
             const tujuan = document.getElementById('tf-tujuan').value;
-            const jumlah = Number(document.getElementById('tf-jumlah').value);
+            
+            // PERBAIKAN: Bersihkan titik sebelum mengubah jadi Number
+            const jumlah = Number(document.getElementById('tf-jumlah').value.replace(/\./g, ''));
             const admin = Number(document.getElementById('tf-admin').value || 0);
             
             if(sumber === tujuan) { showToast(t('errSameAccount'), 'error'); return; }
@@ -727,7 +766,9 @@
             e.preventDefault(); 
             const tipe = document.getElementById('form-screen').getAttribute('data-type').toUpperCase();
             const akun = document.getElementById('akun').value;
-            const jumlah = Number(document.getElementById('jumlah').value);
+            
+            // PERBAIKAN: Bersihkan titik sebelum mengubah jadi Number
+            const jumlah = Number(document.getElementById('jumlah').value.replace(/\./g, ''));
 
             // Validasi Saldo saat pengeluaran (OUTFLOW)
             if(tipe === "OUTFLOW") {
@@ -746,6 +787,19 @@
             if (confirm(t('logoutConfirm'))) { localStorage.removeItem("fintrack_user"); location.reload(); }
         }
         function toggleLoader(show) { document.getElementById('loader-overlay').style.display = show ? 'flex' : 'none'; }
+
+        // PERBAIKAN: Fungsi format titik ribuan realtime
+        function formatRupiahInput(e) {
+            let val = this.value.replace(/[^0-9]/g, '');
+            if (val) {
+                this.value = parseInt(val, 10).toLocaleString('id-ID');
+            } else {
+                this.value = '';
+            }
+        }
+        document.getElementById('jumlah').addEventListener('input', formatRupiahInput);
+        document.getElementById('tf-jumlah').addEventListener('input', formatRupiahInput);
+
     </script>
 </body>
 </html>
