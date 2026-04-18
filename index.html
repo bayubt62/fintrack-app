@@ -5,6 +5,11 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0, viewport-fit=cover">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="Fintrack">
+    
+    <link rel="apple-touch-icon" href="Display_Logo.png">
+    <link rel="icon" type="image/png" href="Display_Logo.png">
+    
     <title>Fintrack Enterprise V4.5 - Bilingual Edition</title>
     <script src="https://cdn.tailwindcss.com"></script>
     
@@ -119,7 +124,7 @@
     <section id="login-page" class="fixed inset-0 z-[100] flex flex-col justify-center items-center px-6 bg-[#F8F9FA] dark:bg-[#121212] hidden-page">
         <div class="w-full max-w-md space-y-10">
             <div class="text-center flex flex-col items-center">
-                <img src="Logo_Fintrack.png" alt="Fintrack Logo" class="h-16 md:h-24 mb-4 object-contain drop-shadow-sm transition-transform">
+                <img src="Logo_Fintrack.png" alt="Fintrack Logo" class="h-20 md:h-28 mb-4 object-contain drop-shadow-sm transition-transform">
                 <p class="text-sm text-gray-500 dark:text-gray-400" data-i18n="app-desc">Enterprise Wealth Management</p>
             </div>
             <div class="bg-white dark:bg-[#1e1e1e] p-8 rounded-[32px] shadow-xl border border-gray-100 dark:border-[#2d2d2d] space-y-5">
@@ -985,7 +990,7 @@
 
         async function handleLogin() {
             const email = document.getElementById('login-email').value.trim(), password = document.getElementById('login-password').value.trim();
-            if(!email || !password) return;
+            if(!email || !password) return; // Silent return
             showLoading(true);
             try {
                 const response = await fetch(API_URL, { method: 'POST', body: JSON.stringify({ action: 'login', email: email, password: password }) });
@@ -1142,11 +1147,13 @@
 
         // === UI RENDERER MAIN ===
         function renderAllHTMLData() { 
+            // Anti-Crash Pattern: Render texts first
             renderDashboard(); 
             renderAccounts(); 
             renderGoals(); 
             renderRecurring();
             
+            // Try rendering canvas parts, silently fail if hidden
             try { renderPortfolioScreen(false); } catch(e) {}
             try { renderHistoryScreen(false); } catch(e) {}
             try { renderCalendar(); } catch(e) {}
