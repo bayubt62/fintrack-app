@@ -27,7 +27,6 @@
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
-        /* FIX ANDROID SCROLL: Menghapus touch-action manipulation dan overscroll-behavior-y none */
         html, body { 
             font-family: 'Poppins', sans-serif; 
             -webkit-text-size-adjust: 100%; 
@@ -1028,7 +1027,6 @@
 
         async function apiPost(payload) { showLoading(true); try { const response = await fetch(API_URL, { method: 'POST', body: JSON.stringify(payload) }); const result = await response.json(); if(result.status === 'success') return true; else { alert(result.message); return false; } } catch(e) { return false; } finally { showLoading(false); } }
 
-        // FIXED SUBMIT LOGIC: UI Closes first before fetching data (No more lag)
         async function submitTransaction() {
             const amount = extractNumber(document.getElementById('form-trx-amount').value), account = document.getElementById('form-trx-account').value, type = document.getElementById('form-trx-tipe').value, category = document.getElementById('form-trx-category').value;
             if(amount <= 0 || !account || !category) return;
@@ -1083,7 +1081,6 @@
             }
         }
 
-        // UPDATED: submitBuyAsset with Admin Fee
         async function submitBuyAsset() {
             const jenis = document.getElementById('form-asset-jenis').value, simbol = document.getElementById('form-asset-simbol').value.toUpperCase();
             const jumlah = parseFloat(document.getElementById('form-asset-jumlah').value.replace(/,/g, '.')) || 0;
@@ -1107,7 +1104,6 @@
             }
         }
 
-        // UPDATED: submitSellAsset with Admin Fee
         async function submitSellAsset() {
             const idAset = document.getElementById('form-sell-asset-id').value;
             const simbol = document.getElementById('form-sell-asset-simbol').value;
@@ -1255,9 +1251,10 @@
         function renderPortfolioScreen(drawChart = true) {
             const assetContainer = document.getElementById('asset-list'), goalContainer = document.getElementById('porto-goals-list');
             const porto = appData.M_Portofolio || [], goals = (appData.M_Goals || []).filter(g => getProp(g, 'Status') !== 'COMPLETED');
+            const aggregatedAssets = {};
+
             if(porto.length === 0) assetContainer.innerHTML = `<p class="text-center text-xs text-gray-400 italic py-4">${t('no-asset')}</p>`;
             else {
-                let html = '';
                 porto.forEach(a => {
                     const idAset = getProp(a, 'ID_Aset', 'ID Aset');
                     const simbol = getProp(a, 'Simbol', 'Nama Aset') || 'Aset';
@@ -1266,13 +1263,34 @@
                     const hargaBeli = extractNumber(getProp(a, 'Harga_Beli', 'Harga Beli'));
                     const hargaLiveRaw = getProp(a, 'Harga_Saat_Ini', 'Harga Saat Ini');
                     const hargaSekarang = (hargaLiveRaw !== undefined && hargaLiveRaw !== null && hargaLiveRaw !== "") ? extractNumber(hargaLiveRaw) : hargaBeli;
-                    const totalValSekarang = jumlah * hargaSekarang, totalValBeli = jumlah * hargaBeli;
-                    const pnl = totalValBeli > 0 ? ((totalValSekarang - totalValBeli) / totalValBeli) * 100 : 0;
-                    const pnlColor = pnl >= 0 ? 'text-green-500' : 'text-red-500', pnlSign = pnl > 0 ? '+' : '';
-                    html += `<div class="flex items-center justify-between p-4 bg-white dark:bg-[#1e1e1e] border border-gray-50 dark:border-gray-800 rounded-2xl shadow-sm mb-2 hover:shadow-md transition duration-300"><div class="flex items-center gap-3"><div class="w-10 h-10 bg-purple-50 dark:bg-purple-900/30 flex items-center justify-center rounded-xl font-bold text-[#6342E8]">${simbol.substring(0,1)}</div><div><p class="text-sm font-bold dark:text-gray-200">${simbol}</p><p class="text-[10px] text-gray-500">${jumlahRaw} ${t('unit')}</p><p class="text-[10px] text-[#6342E8] dark:text-[#a78bfa] font-semibold mt-1">${t('live')}: ${toRp(hargaSekarang)}</p></div></div><div class="text-right"><p class="text-sm font-bold privacy-mask" data-value="${totalValSekarang}">${isPrivate?'********':toRp(totalValSekarang)}</p><p class="text-[10px] font-semibold ${pnlColor} mb-1">${pnlSign}${pnl.toFixed(2)}% <span class="text-gray-400 font-normal">| ${t('avg')}: ${toRp(hargaBeli)}</span></p><button onclick="prepareSellAsset('${idAset}', '${simbol}', ${jumlah}, ${hargaSekarang})" class="text-[10px] font-bold bg-red-50 text-red-500 dark:bg-red-900/30 dark:text-red-400 px-3 py-1 rounded shadow-sm hover:scale-95 transition">Jual</button></div></div>`;
+                    const totalValBeli = jumlah * hargaBeli;
+
+                    if (!aggregatedAssets[simbol]) {
+                        aggregatedAssets[simbol] = {
+                            idAset: idAset,
+                            simbol: simbol,
+                            totalJumlah: 0,
+                            totalInvestasi: 0,
+                            hargaSekarang: hargaSekarang
+                        };
+                    }
+                    aggregatedAssets[simbol].totalJumlah += jumlah;
+                    aggregatedAssets[simbol].totalInvestasi += totalValBeli;
+                });
+
+                let html = '';
+                Object.values(aggregatedAssets).forEach(a => {
+                    const avgHargaBeli = a.totalJumlah > 0 ? (a.totalInvestasi / a.totalJumlah) : 0;
+                    const totalValSekarang = a.totalJumlah * a.hargaSekarang;
+                    const pnl = a.totalInvestasi > 0 ? ((totalValSekarang - a.totalInvestasi) / a.totalInvestasi) * 100 : 0;
+                    const pnlColor = pnl >= 0 ? 'text-green-500' : 'text-red-500';
+                    const pnlSign = pnl > 0 ? '+' : '';
+
+                    html += `<div class="flex items-center justify-between p-4 bg-white dark:bg-[#1e1e1e] border border-gray-50 dark:border-gray-800 rounded-2xl shadow-sm mb-2 hover:shadow-md transition duration-300"><div class="flex items-center gap-3"><div class="w-10 h-10 bg-purple-50 dark:bg-purple-900/30 flex items-center justify-center rounded-xl font-bold text-[#6342E8]">${a.simbol.substring(0,1)}</div><div><p class="text-sm font-bold dark:text-gray-200">${a.simbol}</p><p class="text-[10px] text-gray-500">${a.totalJumlah.toLocaleString('en-US', {maximumFractionDigits: 6})} ${t('unit')}</p><p class="text-[10px] text-[#6342E8] dark:text-[#a78bfa] font-semibold mt-1">${t('live')}: ${toRp(a.hargaSekarang)}</p></div></div><div class="text-right"><p class="text-sm font-bold privacy-mask" data-value="${totalValSekarang}">${isPrivate?'********':toRp(totalValSekarang)}</p><p class="text-[10px] font-semibold ${pnlColor} mb-1">${pnlSign}${pnl.toFixed(2)}% <span class="text-gray-400 font-normal">| ${t('avg')}: ${toRp(avgHargaBeli)}</span></p><button onclick="prepareSellAsset('${a.idAset}', '${a.simbol}', ${a.totalJumlah}, ${a.hargaSekarang})" class="text-[10px] font-bold bg-red-50 text-red-500 dark:bg-red-900/30 dark:text-red-400 px-3 py-1 rounded shadow-sm hover:scale-95 transition">Jual</button></div></div>`;
                 });
                 assetContainer.innerHTML = html;
             }
+
             if(goals.length === 0) goalContainer.innerHTML = `<div class="bg-white dark:bg-[#1e1e1e] p-6 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-800 text-center"><p class="text-xs text-gray-400 italic">${t('no-goal')}</p></div>`;
             else {
                 let html = '';
@@ -1283,22 +1301,23 @@
                 });
                 goalContainer.innerHTML = html;
             }
+
             let labels = [], dataValues = [], totalGoalSavings = goals.reduce((s, g) => s + extractNumber(getProp(g, 'Terkumpul')), 0);
             if(totalGoalSavings > 0) { labels.push('Tabungan Target'); dataValues.push(totalGoalSavings); }
-            porto.forEach(p => { 
-                const jumlah = parseFloat((getProp(p, 'Jumlah', 'Unit') || "0").toString().replace(',', '.')) || 0;
-                const hargaBeli = extractNumber(getProp(p, 'Harga_Beli', 'Harga Beli'));
-                const hargaLiveRaw = getProp(p, 'Harga_Saat_Ini', 'Harga Saat Ini');
-                const hargaSekarang = (hargaLiveRaw !== undefined && hargaLiveRaw !== null && hargaLiveRaw !== "") ? extractNumber(hargaLiveRaw) : hargaBeli;
-                labels.push(getProp(p, 'Simbol', 'Nama Aset') || 'Aset'); dataValues.push(jumlah * hargaSekarang); 
+            
+            Object.values(aggregatedAssets).forEach(p => { 
+                labels.push(p.simbol); 
+                dataValues.push(p.totalJumlah * p.hargaSekarang); 
             });
+            
             const totalNetAsset = dataValues.reduce((a,b)=>a+b, 0);
             document.getElementById('porto-center-val').setAttribute('data-value', totalNetAsset);
             document.getElementById('porto-center-val').innerText = isPrivate ? '********' : toRp(totalNetAsset);
+
             if(drawChart) {
                 const ctx = document.getElementById('portfolioChart').getContext('2d');
                 if (portoChartInstance) portoChartInstance.destroy();
-                portoChartInstance = new Chart(ctx, { type: 'doughnut', data: { labels: labels.length > 0 ? labels : ['Kosong'], datasets: [{ data: dataValues.length > 0 ? dataValues : [1], backgroundColor: dataValues.length > 0 ? CHART_COLORS : ['#e5e7eb'], borderWidth: 0, hoverOffset: 4 }] }, options: { responsive: true, maintainAspectRatio: false, cutout: '80%', plugins: { legend: { display: false } }, animation: { animateScale: true, animateRotate: true } } });
+                portoChartInstance = new Chart(ctx, { type: 'doughnut', data: { labels: labels.length > 0 ? labels : ['Kosong'], datasets: [{ data: dataValues.length > 0 ? dataValues : [1], backgroundColor: dataValues.length > 0 ? CHART_COLORS : ['#e5e7eb'], borderWidth: 0, hoverOffset: 4 }] }, options: { responsive: true, maintainAspectRatio: false, cutout: '80%', plugins: { legend: { display: false }, tooltip: { callbacks: { label: function(context) { if(dataValues.length === 0) return ' Tidak ada aset'; return ' ' + (context.label || '') + ': ' + toRp(context.raw || 0); } } } }, animation: { animateScale: true, animateRotate: true } } });
             }
         }
 
