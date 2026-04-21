@@ -27,11 +27,10 @@
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
+        /* FIX ANDROID SCROLL: Menghapus touch-action manipulation dan overscroll-behavior-y none */
         html, body { 
             font-family: 'Poppins', sans-serif; 
-            touch-action: manipulation; 
             -webkit-text-size-adjust: 100%; 
-            overscroll-behavior-y: none;
             -webkit-tap-highlight-color: transparent;
         }
         
@@ -57,7 +56,6 @@
         .cal-cell.active-date { border-color: #6342E8; background-color: #F0EDFF; }
         html.dark .cal-cell.active-date { border-color: #a78bfa; background-color: rgba(99, 66, 232, 0.15); }
 
-        /* Efek 3D Koin Loading */
         .coin-spinner {
             animation: flipCoin 1.5s infinite linear;
             transform-style: preserve-3d;
@@ -67,7 +65,6 @@
             100% { transform: rotateY(360deg); }
         }
 
-        /* Transisi Pindah Halaman Halus */
         .page-content {
             display: none;
             opacity: 0;
@@ -82,7 +79,6 @@
             100% { opacity: 1; transform: translateY(0) scale(1); }
         }
 
-        /* Animasi Navbar Bawah */
         .nav-btn { position: relative; }
         .nav-btn .icon-bg {
             position: absolute; width: 48px; height: 48px; border-radius: 16px;
@@ -510,6 +506,14 @@
                 <label class="text-xs text-gray-500 dark:text-gray-300 font-semibold flex-1 uppercase tracking-wider" data-i18n="lbl-cut">Deduct From</label>
                 <select id="form-asset-account" class="w-1/2 bg-transparent outline-none text-sm font-bold appearance-none text-right text-[#6342E8] dark:text-[#a78bfa]"></select>
             </div>
+
+            <div class="bg-white dark:bg-[#2d2d2d] p-5 rounded-2xl shadow-sm flex items-center justify-between">
+                <label class="text-xs text-gray-500 dark:text-gray-300 font-semibold flex-1" data-i18n="lbl-admin">Admin Fee</label>
+                <div class="flex items-center justify-end w-1/2 border-b border-gray-200 dark:border-gray-600 pb-1">
+                    <span class="text-sm font-bold text-gray-600 dark:text-gray-300 mr-1">Rp</span>
+                    <input type="text" inputmode="numeric" id="form-buy-asset-admin" placeholder="0" oninput="formatRupiahInput(this)" class="text-sm font-bold text-right bg-transparent outline-none w-full dark:text-white">
+                </div>
+            </div>
         </div>
         <div class="p-6 pb-10">
             <button onclick="submitBuyAsset()" class="w-full bg-[#6342E8] text-white py-5 rounded-[20px] font-bold text-lg active:scale-95 transition shadow-[0_10px_20px_rgba(99,66,232,0.25)]" data-i18n="btn-confirm-buy">Confirm Purchase</button>
@@ -541,6 +545,14 @@
             <div class="bg-white dark:bg-[#2d2d2d] p-5 rounded-2xl shadow-sm flex items-center justify-between">
                 <label class="text-xs text-gray-500 dark:text-gray-300 font-semibold flex-1 uppercase tracking-wider" data-i18n="lbl-cair">Liquidate To</label>
                 <select id="form-sell-asset-account" class="w-1/2 bg-transparent outline-none text-sm font-bold appearance-none text-right text-[#6342E8] dark:text-[#a78bfa]"></select>
+            </div>
+
+            <div class="bg-white dark:bg-[#2d2d2d] p-5 rounded-2xl shadow-sm flex items-center justify-between">
+                <label class="text-xs text-gray-500 dark:text-gray-300 font-semibold flex-1" data-i18n="lbl-admin">Admin Fee</label>
+                <div class="flex items-center justify-end w-1/2 border-b border-gray-200 dark:border-gray-600 pb-1">
+                    <span class="text-sm font-bold text-gray-600 dark:text-gray-300 mr-1">Rp</span>
+                    <input type="text" inputmode="numeric" id="form-sell-asset-admin" placeholder="0" oninput="formatRupiahInput(this)" class="text-sm font-bold text-right bg-transparent outline-none w-full dark:text-white">
+                </div>
             </div>
         </div>
         <div class="p-6 pb-10">
@@ -606,7 +618,6 @@
     </div>
 
     <script>
-        // === KAMUS TERJEMAHAN (I18N) ===
         const i18n = {
             en: {
                 "app-desc": "Enterprise Wealth Management",
@@ -847,8 +858,7 @@
             }
         };
 
-        // State Global
-        let currentLang = 'en'; // Akan diset di initApp
+        let currentLang = 'en'; 
         const API_URL = "https://script.google.com/macros/s/AKfycbx5QKPwG7auSpUI--xScR1uHZuGaDMt23gpPasBQB2LNGT8bB0pD_1M20LYIU5kN9OYiQ/exec"; 
         const KATEGORI_INFLOW = ["Gaji & Pemasukan", "Hasil Usaha", "Pemberian"];
         const KATEGORI_OUTFLOW = ["Makanan", "Hiburan", "Tabungan & Investasi", "Kewajiban & Sosial", "Transportasi", "Lainnya"];
@@ -863,7 +873,6 @@
         let currentCalYear = new Date().getFullYear();
         let activeCalDay = new Date().getDate();
 
-        // Helper Fungsi Translasi
         function t(key) { return i18n[currentLang][key] || key; }
 
         function toggleLanguage() {
@@ -887,14 +896,11 @@
                     }
                 }
             });
-            
-            // Re-apply special dynamic texts if present
             if(document.getElementById('lbl-hello')) {
                 document.getElementById('lbl-hello').innerText = t('txt-hello');
             }
         }
 
-        // === FUNGSI CERDAS (ERROR HANDLERS) ===
         function getProp(obj, ...possibleKeys) {
             if (!obj) return undefined;
             const keys = Object.keys(obj);
@@ -958,29 +964,20 @@
             return map[cat] || "🏷️";
         }
 
-        // === INISIALISASI ===
         function initApp() {
-            // SETTING DEFAULT: Light Mode
             if(localStorage.getItem('fintrack_theme') === 'dark') {
                 document.documentElement.classList.add('dark'); document.getElementById('theme-icon').innerText = '☀️';
             } else {
                 document.documentElement.classList.remove('dark'); document.getElementById('theme-icon').innerText = '🌙';
                 localStorage.setItem('fintrack_theme', 'light');
             }
-            
-            // SETTING DEFAULT: English
-            if(!localStorage.getItem('fintrack_lang')) {
-                localStorage.setItem('fintrack_lang', 'en');
-            }
+            if(!localStorage.getItem('fintrack_lang')) { localStorage.setItem('fintrack_lang', 'en'); }
             currentLang = localStorage.getItem('fintrack_lang');
             applyLanguage();
-
             sessionEmail = localStorage.getItem('fintrack_session_email');
             sessionName = localStorage.getItem('fintrack_session_name');
-            
             const today = new Date(), lastMonth = new Date(today); lastMonth.setDate(today.getDate() - 30);
             document.getElementById('date-end').valueAsDate = today; document.getElementById('date-start').valueAsDate = lastMonth;
-
             if(sessionEmail) {
                 document.getElementById('user-display').innerText = sessionName + "!";
                 document.getElementById('app-wrapper').classList.remove('hidden-page');
@@ -990,7 +987,7 @@
 
         async function handleLogin() {
             const email = document.getElementById('login-email').value.trim(), password = document.getElementById('login-password').value.trim();
-            if(!email || !password) return; // Silent return
+            if(!email || !password) return;
             showLoading(true);
             try {
                 const response = await fetch(API_URL, { method: 'POST', body: JSON.stringify({ action: 'login', email: email, password: password }) });
@@ -1020,25 +1017,27 @@
             }
         }
 
-        // === DB & POST ===
         async function fetchAllData() { 
             showLoading(true); 
             try { 
                 const response = await fetch(API_URL, { method: 'POST', body: JSON.stringify({ action: 'getData', email: sessionEmail }) }); 
                 const result = await response.json(); 
-                if(result.status === 'success') { 
-                    appData = result.data; 
-                    renderAllHTMLData(); 
-                } 
+                if(result.status === 'success') { appData = result.data; renderAllHTMLData(); } 
             } catch (e) { console.error("DB Loss:", e); } finally { showLoading(false); } 
         }
+
         async function apiPost(payload) { showLoading(true); try { const response = await fetch(API_URL, { method: 'POST', body: JSON.stringify(payload) }); const result = await response.json(); if(result.status === 'success') return true; else { alert(result.message); return false; } } catch(e) { return false; } finally { showLoading(false); } }
 
-        // === FUNGSI SUBMIT ===
+        // FIXED SUBMIT LOGIC: UI Closes first before fetching data (No more lag)
         async function submitTransaction() {
             const amount = extractNumber(document.getElementById('form-trx-amount').value), account = document.getElementById('form-trx-account').value, type = document.getElementById('form-trx-tipe').value, category = document.getElementById('form-trx-category').value;
             if(amount <= 0 || !account || !category) return;
-            if(await apiPost({ action: 'addTransaction', email: sessionEmail, tipe: type, akun: account, jumlah: amount, kategori: category, keterangan: document.getElementById('form-trx-desc').value })) { await fetchAllData(); closeModal('modal-trx'); document.getElementById('form-trx-amount').value = ''; document.getElementById('form-trx-desc').value = ''; }
+            if(await apiPost({ action: 'addTransaction', email: sessionEmail, tipe: type, akun: account, jumlah: amount, kategori: category, keterangan: document.getElementById('form-trx-desc').value })) { 
+                closeModal('modal-trx'); 
+                document.getElementById('form-trx-amount').value = ''; 
+                document.getElementById('form-trx-desc').value = ''; 
+                await fetchAllData(); 
+            }
         }
 
         async function submitTransfer() {
@@ -1050,58 +1049,65 @@
                 await fetch(API_URL, { method: 'POST', body: JSON.stringify({ action: 'addTransaction', email: sessionEmail, tipe: 'OUTFLOW', akun: fromAcc, jumlah: amount, kategori: 'Transfer Keluar', keterangan: descRaw ? descRaw : `Tf ke ${toAcc}` })});
                 await fetch(API_URL, { method: 'POST', body: JSON.stringify({ action: 'addTransaction', email: sessionEmail, tipe: 'INFLOW', akun: toAcc, jumlah: amount, kategori: 'Transfer Masuk', keterangan: descRaw ? descRaw : `Tf dari ${fromAcc}` })});
                 if (admin > 0) await fetch(API_URL, { method: 'POST', body: JSON.stringify({ action: 'addTransaction', email: sessionEmail, tipe: 'OUTFLOW', akun: fromAcc, jumlah: admin, kategori: 'Biaya Admin', keterangan: `Admin tf ke ${toAcc}` })});
-                await fetchAllData(); closeModal('modal-transfer'); document.getElementById('form-tf-amount').value = ''; document.getElementById('form-tf-admin').value = ''; document.getElementById('form-tf-desc').value = '';
+                
+                closeModal('modal-transfer'); 
+                document.getElementById('form-tf-amount').value = ''; document.getElementById('form-tf-admin').value = ''; document.getElementById('form-tf-desc').value = '';
+                await fetchAllData(); 
             } catch(e) {} finally { showLoading(false); }
         }
 
         async function submitRecurring() {
             const name = document.getElementById('form-rec-name').value, amount = extractNumber(document.getElementById('form-rec-amount').value), type = document.getElementById('form-rec-tipe').value, date = document.getElementById('form-rec-date').value, account = document.getElementById('form-rec-account').value;
             if(!name || amount <= 0 || !date || !account) return;
-            if(await apiPost({ action: 'addRecurring', email: sessionEmail, nama: name, nominal: amount, frekuensi: type, tgl_tagihan: date, akun: account })) { await fetchAllData(); closeModal('modal-recurring'); }
+            if(await apiPost({ action: 'addRecurring', email: sessionEmail, nama: name, nominal: amount, frekuensi: type, tgl_tagihan: date, akun: account })) { 
+                closeModal('modal-recurring'); 
+                await fetchAllData(); 
+            }
         }
 
         async function submitGoal() {
             const name = document.getElementById('form-goal-name').value, amount = extractNumber(document.getElementById('form-goal-amount').value);
             if(!name || amount <= 0) return;
-            if(await apiPost({ action: 'addGoal', email: sessionEmail, nama: name, target: amount })) { await fetchAllData(); closeModal('modal-goal'); }
+            if(await apiPost({ action: 'addGoal', email: sessionEmail, nama: name, target: amount })) { 
+                closeModal('modal-goal'); 
+                await fetchAllData(); 
+            }
         }
         
         async function submitDebt() {
             const name = document.getElementById('form-debt-name').value, amount = extractNumber(document.getElementById('form-debt-amount').value);
             if(!name || amount <= 0) return;
-            if(await apiPost({ action: 'addDebt', email: sessionEmail, tipe: document.getElementById('form-debt-tipe').value, kontak: name, jumlah: amount })) { await fetchAllData(); closeModal('modal-debt'); }
+            if(await apiPost({ action: 'addDebt', email: sessionEmail, tipe: document.getElementById('form-debt-tipe').value, kontak: name, jumlah: amount })) { 
+                closeModal('modal-debt'); 
+                await fetchAllData(); 
+            }
         }
 
+        // UPDATED: submitBuyAsset with Admin Fee
         async function submitBuyAsset() {
             const jenis = document.getElementById('form-asset-jenis').value, simbol = document.getElementById('form-asset-simbol').value.toUpperCase();
             const jumlah = parseFloat(document.getElementById('form-asset-jumlah').value.replace(/,/g, '.')) || 0;
             const harga = extractNumber(document.getElementById('form-asset-harga').value), akun = document.getElementById('form-asset-account').value;
+            const admin = extractNumber(document.getElementById('form-buy-asset-admin').value) || 0;
+            
             if(!simbol || jumlah <= 0 || harga <= 0 || !akun) return;
             
             const accData = (appData.M_Akun || []).find(a => getProp(a, 'Nama_Akun', 'Nama Akun') === akun);
-            if(accData && extractNumber(getProp(accData, 'Saldo_Realtime', 'Saldo Realtime', 'Saldo_Awal', 'Saldo Awal')) < (harga * jumlah)) {
+            if(accData && extractNumber(getProp(accData, 'Saldo_Realtime', 'Saldo Realtime', 'Saldo_Awal', 'Saldo Awal')) < ((harga * jumlah) + admin)) {
                 return alert(currentLang === 'id' ? "Saldo tidak mencukupi." : "Insufficient balance.");
             }
 
             if(await apiPost({ action: 'buyAsset', email: sessionEmail, jenis: jenis, simbol: simbol, jumlah: jumlah, harga: harga, totalHarga: harga * jumlah, akun: akun })) { 
-                await fetchAllData(); closeModal('modal-buy-asset'); 
-                document.getElementById('form-asset-simbol').value = ''; document.getElementById('form-asset-jumlah').value = ''; document.getElementById('form-asset-harga').value = '';
+                if (admin > 0) {
+                    await fetch(API_URL, { method: 'POST', body: JSON.stringify({ action: 'addTransaction', email: sessionEmail, tipe: 'OUTFLOW', akun: akun, jumlah: admin, kategori: 'Biaya Admin', keterangan: `Admin beli aset ${simbol}` })});
+                }
+                closeModal('modal-buy-asset'); 
+                document.getElementById('form-asset-simbol').value = ''; document.getElementById('form-asset-jumlah').value = ''; document.getElementById('form-asset-harga').value = ''; document.getElementById('form-buy-asset-admin').value = '';
+                await fetchAllData(); 
             }
         }
 
-        function prepareSellAsset(idAset, simbol, maxUnit, hargaSaatIni) {
-            document.getElementById('sell-asset-simbol-display').innerText = simbol;
-            document.getElementById('sell-asset-max-display').innerText = maxUnit;
-            document.getElementById('form-sell-asset-id').value = idAset;
-            document.getElementById('form-sell-asset-simbol').value = simbol;
-            
-            const hargaInput = document.getElementById('form-sell-asset-harga');
-            hargaInput.value = hargaSaatIni;
-            formatRupiahInput(hargaInput);
-            
-            document.getElementById('modal-sell-asset').classList.remove('hidden-page', 'hidden');
-        }
-
+        // UPDATED: submitSellAsset with Admin Fee
         async function submitSellAsset() {
             const idAset = document.getElementById('form-sell-asset-id').value;
             const simbol = document.getElementById('form-sell-asset-simbol').value;
@@ -1109,6 +1115,7 @@
             const hargaJual = extractNumber(document.getElementById('form-sell-asset-harga').value);
             const akunTujuan = document.getElementById('form-sell-asset-account').value;
             const maxUnit = parseFloat(document.getElementById('sell-asset-max-display').innerText) || 0;
+            const admin = extractNumber(document.getElementById('form-sell-asset-admin').value) || 0;
 
             if (unitDijual <= 0 || hargaJual <= 0 || !akunTujuan || unitDijual > maxUnit) return;
 
@@ -1116,15 +1123,13 @@
                 action: 'sellAsset', email: sessionEmail, idAset: idAset, simbol: simbol, 
                 jumlahJual: unitDijual, totalDapat: unitDijual * hargaJual, akunTujuan: akunTujuan 
             })) { 
-                await fetchAllData(); closeModal('modal-sell-asset'); 
-                document.getElementById('form-sell-asset-jumlah').value = ''; 
+                if (admin > 0) {
+                    await fetch(API_URL, { method: 'POST', body: JSON.stringify({ action: 'addTransaction', email: sessionEmail, tipe: 'OUTFLOW', akun: akunTujuan, jumlah: admin, kategori: 'Biaya Admin', keterangan: `Admin jual aset ${simbol}` })});
+                }
+                closeModal('modal-sell-asset'); 
+                document.getElementById('form-sell-asset-jumlah').value = ''; document.getElementById('form-sell-asset-admin').value = '';
+                await fetchAllData(); 
             }
-        }
-
-        function prepareGoalAction(actionType, goalName) {
-            activeGoalName = goalName;
-            if(actionType === 'withdraw') { document.getElementById('withdraw-goal-name-display').innerText = goalName; document.getElementById('modal-withdraw-goal').classList.remove('hidden'); } 
-            else { document.getElementById('add-savings-goal-name').innerText = goalName; document.getElementById('modal-add-savings').classList.remove('hidden'); }
         }
 
         async function processGoalAction(actionType, isAchieved) {
@@ -1140,24 +1145,20 @@
             }
 
             if(await apiPost({ action: 'manageGoalFunds', email: sessionEmail, namaGoal: activeGoalName, tipeAksi: actionType, nominal: amount, isAchieved: isAchieved, akun: account })) { 
-                await fetchAllData(); closeModal('modal-withdraw-goal'); closeModal('modal-add-savings'); 
+                closeModal('modal-withdraw-goal'); closeModal('modal-add-savings'); 
                 document.getElementById('form-withdraw-amount').value = ''; document.getElementById('form-add-savings-amount').value = '';
+                await fetchAllData(); 
             }
         }
 
-        // === UI RENDERER MAIN ===
         function renderAllHTMLData() { 
-            // Anti-Crash Pattern: Render texts first
             renderDashboard(); 
             renderAccounts(); 
             renderGoals(); 
             renderRecurring();
-            
-            // Try rendering canvas parts, silently fail if hidden
             try { renderPortfolioScreen(false); } catch(e) {}
             try { renderHistoryScreen(false); } catch(e) {}
             try { renderCalendar(); } catch(e) {}
-            
             applyPrivacyMasks(); 
         }
 
@@ -1169,11 +1170,9 @@
                 let valAwal = getProp(acc, 'Saldo_Awal', 'Saldo Awal', 'Saldo_Awal');
                 totalBalance += extractNumber((valReal !== undefined && valReal !== null && valReal !== "") ? valReal : valAwal);
             });
-            
             const balEl = document.getElementById('main-balance');
             balEl.setAttribute('data-value', totalBalance);
             balEl.innerText = isPrivate ? '********' : toRp(totalBalance);
-            
             let inc = 0, exp = 0;
             (appData.T_Transaksi || []).forEach(t => {
                 const val = extractNumber(getProp(t, 'Jumlah'));
@@ -1184,7 +1183,6 @@
             });
             document.getElementById('summary-income').setAttribute('data-value', inc); document.getElementById('summary-income').innerText = isPrivate ? '********' : toRp(inc);
             document.getElementById('summary-expense').setAttribute('data-value', exp); document.getElementById('summary-expense').innerText = isPrivate ? '********' : toRp(exp);
-            
             let dIn = 0, dOut = 0;
             (appData.M_Debt || []).forEach(d => { 
                 const val = extractNumber(getProp(d, 'Sisa', 'Sisa Saldo')); 
@@ -1201,11 +1199,8 @@
             const selAst = document.getElementById('form-asset-account'), selSellAst = document.getElementById('form-sell-asset-account');
             const selWdGoal = document.getElementById('form-withdraw-account'), selAddGoal = document.getElementById('form-add-savings-account');
             const selRec = document.getElementById('form-rec-account'); 
-            
             let accounts = appData.M_Akun || [];
-            
             if(accounts.length === 0) return container.innerHTML = `<p class="p-6 text-center text-xs text-gray-400">${t('no-acc')}</p>`;
-            
             let sortedAccounts = accounts.map(acc => {
                 const namaAkun = getProp(acc, 'Nama_Akun', 'Nama Akun') || 'Akun';
                 const tipeAkun = getProp(acc, 'Tipe_Akun', 'Tipe Akun') || '';
@@ -1216,7 +1211,6 @@
                 let nominal = extractNumber(valRaw);
                 return { acc, namaAkun, tipeAkun, initial, nominal };
             }).sort((a, b) => b.nominal - a.nominal);
-
             let html = '', opts = '';
             sortedAccounts.forEach(item => {
                 const logoSrc = getAccountLogo(item.namaAkun);
@@ -1224,7 +1218,6 @@
                 html += `<div class="flex items-center justify-between p-4 border-b border-gray-50 dark:border-gray-800 last:border-0 hover:bg-gray-50 dark:hover:bg-[#2d2d2d] transition-colors duration-200"><div class="flex items-center gap-3">${iconHtml}<div><p class="text-sm font-bold">${item.namaAkun}</p><p class="text-[10px] text-gray-500">${item.tipeAkun}</p></div></div><p class="text-sm font-bold privacy-mask" data-value="${item.nominal}">${isPrivate?'********':toRp(item.nominal)}</p></div>`;
                 opts += `<option value="${item.namaAkun}">${item.namaAkun}</option>`;
             });
-            
             container.innerHTML = html; 
             if(selectTrx) selectTrx.innerHTML = opts; 
             if(selectTfFrom) selectTfFrom.innerHTML = opts; 
@@ -1238,7 +1231,7 @@
 
         function renderGoals() {
             const container = document.getElementById('goals-list'), goals = (appData.M_Goals || []).filter(g => getProp(g, 'Status') !== 'COMPLETED');
-            if(goals.length === 0) return container.innerHTML = `<div class="bg-white dark:bg-[#1e1e1e] p-6 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-800 text-center"><p class="text-xs text-gray-400 italic">${t('no-goal')}</p></div>`;
+            if(goals.length === 0) return;
             let html = '';
             goals.forEach(g => {
                 const nama = getProp(g, 'Nama_Goal', 'Nama Goal') || 'Target';
@@ -1254,14 +1247,7 @@
             let html = '';
             recs.forEach(r => {
                 const nominal = extractNumber(getProp(r, 'Nominal'));
-                html += `
-                <div class="bg-white dark:bg-[#1e1e1e] p-4 rounded-2xl shadow-sm border border-gray-100 dark:border-[#2d2d2d] flex items-center justify-between hover:shadow-md transition duration-300">
-                    <div class="flex items-center gap-3">
-                        <div class="w-10 h-10 rounded-full bg-purple-50 dark:bg-purple-900/30 text-[#6342E8] flex items-center justify-center font-bold text-lg">↻</div>
-                        <div><p class="text-sm font-bold">${getProp(r, 'Nama') || '-'}</p><p class="text-[10px] text-gray-500">Tgl ${getProp(r, 'Tgl_Tagihan')} • Potong ${getProp(r, 'Akun_Sumber', 'Akun')}</p></div>
-                    </div>
-                    <p class="text-sm font-bold text-red-500 dark:text-red-400 privacy-mask" data-value="${nominal}">${isPrivate?'********':toRp(nominal)}</p>
-                </div>`;
+                html += `<div class="bg-white dark:bg-[#1e1e1e] p-4 rounded-2xl shadow-sm border border-gray-100 dark:border-[#2d2d2d] flex items-center justify-between hover:shadow-md transition duration-300"><div class="flex items-center gap-3"><div class="w-10 h-10 rounded-full bg-purple-50 dark:bg-purple-900/30 text-[#6342E8] flex items-center justify-center font-bold text-lg">↻</div><div><p class="text-sm font-bold">${getProp(r, 'Nama') || '-'}</p><p class="text-[10px] text-gray-500">Tgl ${getProp(r, 'Tgl_Tagihan')} • Potong ${getProp(r, 'Akun_Sumber', 'Akun')}</p></div></div><p class="text-sm font-bold text-red-500 dark:text-red-400 privacy-mask" data-value="${nominal}">${isPrivate?'********':toRp(nominal)}</p></div>`;
             });
             container.innerHTML = html;
         }
@@ -1269,7 +1255,6 @@
         function renderPortfolioScreen(drawChart = true) {
             const assetContainer = document.getElementById('asset-list'), goalContainer = document.getElementById('porto-goals-list');
             const porto = appData.M_Portofolio || [], goals = (appData.M_Goals || []).filter(g => getProp(g, 'Status') !== 'COMPLETED');
-
             if(porto.length === 0) assetContainer.innerHTML = `<p class="text-center text-xs text-gray-400 italic py-4">${t('no-asset')}</p>`;
             else {
                 let html = '';
@@ -1278,38 +1263,16 @@
                     const simbol = getProp(a, 'Simbol', 'Nama Aset') || 'Aset';
                     const jumlahRaw = (getProp(a, 'Jumlah', 'Unit') || "0").toString();
                     const jumlah = parseFloat(jumlahRaw.replace(',', '.')) || 0;
-                    
                     const hargaBeli = extractNumber(getProp(a, 'Harga_Beli', 'Harga Beli'));
                     const hargaLiveRaw = getProp(a, 'Harga_Saat_Ini', 'Harga Saat Ini');
                     const hargaSekarang = (hargaLiveRaw !== undefined && hargaLiveRaw !== null && hargaLiveRaw !== "") ? extractNumber(hargaLiveRaw) : hargaBeli;
-                    
-                    const totalValSekarang = jumlah * hargaSekarang;
-                    const totalValBeli = jumlah * hargaBeli;
-                    
+                    const totalValSekarang = jumlah * hargaSekarang, totalValBeli = jumlah * hargaBeli;
                     const pnl = totalValBeli > 0 ? ((totalValSekarang - totalValBeli) / totalValBeli) * 100 : 0;
-                    const pnlColor = pnl >= 0 ? 'text-green-500' : 'text-red-500';
-                    const pnlSign = pnl > 0 ? '+' : '';
-
-                    html += `
-                    <div class="flex items-center justify-between p-4 bg-white dark:bg-[#1e1e1e] border border-gray-50 dark:border-gray-800 rounded-2xl shadow-sm mb-2 hover:shadow-md transition duration-300">
-                        <div class="flex items-center gap-3">
-                            <div class="w-10 h-10 bg-purple-50 dark:bg-purple-900/30 flex items-center justify-center rounded-xl font-bold text-[#6342E8]">${simbol.substring(0,1)}</div>
-                            <div>
-                                <p class="text-sm font-bold dark:text-gray-200">${simbol}</p>
-                                <p class="text-[10px] text-gray-500">${jumlahRaw} ${t('unit')}</p>
-                                <p class="text-[10px] text-[#6342E8] dark:text-[#a78bfa] font-semibold mt-1">${t('live')}: ${toRp(hargaSekarang)}</p>
-                            </div>
-                        </div>
-                        <div class="text-right">
-                            <p class="text-sm font-bold privacy-mask" data-value="${totalValSekarang}">${isPrivate?'********':toRp(totalValSekarang)}</p>
-                            <p class="text-[10px] font-semibold ${pnlColor} mb-1">${pnlSign}${pnl.toFixed(2)}% <span class="text-gray-400 font-normal">| ${t('avg')}: ${toRp(hargaBeli)}</span></p>
-                            <button onclick="prepareSellAsset('${idAset}', '${simbol}', ${jumlah}, ${hargaSekarang})" class="text-[10px] font-bold bg-red-50 text-red-500 dark:bg-red-900/30 dark:text-red-400 px-3 py-1 rounded shadow-sm hover:scale-95 transition">Jual</button>
-                        </div>
-                    </div>`;
+                    const pnlColor = pnl >= 0 ? 'text-green-500' : 'text-red-500', pnlSign = pnl > 0 ? '+' : '';
+                    html += `<div class="flex items-center justify-between p-4 bg-white dark:bg-[#1e1e1e] border border-gray-50 dark:border-gray-800 rounded-2xl shadow-sm mb-2 hover:shadow-md transition duration-300"><div class="flex items-center gap-3"><div class="w-10 h-10 bg-purple-50 dark:bg-purple-900/30 flex items-center justify-center rounded-xl font-bold text-[#6342E8]">${simbol.substring(0,1)}</div><div><p class="text-sm font-bold dark:text-gray-200">${simbol}</p><p class="text-[10px] text-gray-500">${jumlahRaw} ${t('unit')}</p><p class="text-[10px] text-[#6342E8] dark:text-[#a78bfa] font-semibold mt-1">${t('live')}: ${toRp(hargaSekarang)}</p></div></div><div class="text-right"><p class="text-sm font-bold privacy-mask" data-value="${totalValSekarang}">${isPrivate?'********':toRp(totalValSekarang)}</p><p class="text-[10px] font-semibold ${pnlColor} mb-1">${pnlSign}${pnl.toFixed(2)}% <span class="text-gray-400 font-normal">| ${t('avg')}: ${toRp(hargaBeli)}</span></p><button onclick="prepareSellAsset('${idAset}', '${simbol}', ${jumlah}, ${hargaSekarang})" class="text-[10px] font-bold bg-red-50 text-red-500 dark:bg-red-900/30 dark:text-red-400 px-3 py-1 rounded shadow-sm hover:scale-95 transition">Jual</button></div></div>`;
                 });
                 assetContainer.innerHTML = html;
             }
-
             if(goals.length === 0) goalContainer.innerHTML = `<div class="bg-white dark:bg-[#1e1e1e] p-6 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-800 text-center"><p class="text-xs text-gray-400 italic">${t('no-goal')}</p></div>`;
             else {
                 let html = '';
@@ -1320,7 +1283,6 @@
                 });
                 goalContainer.innerHTML = html;
             }
-
             let labels = [], dataValues = [], totalGoalSavings = goals.reduce((s, g) => s + extractNumber(getProp(g, 'Terkumpul')), 0);
             if(totalGoalSavings > 0) { labels.push('Tabungan Target'); dataValues.push(totalGoalSavings); }
             porto.forEach(p => { 
@@ -1328,22 +1290,18 @@
                 const hargaBeli = extractNumber(getProp(p, 'Harga_Beli', 'Harga Beli'));
                 const hargaLiveRaw = getProp(p, 'Harga_Saat_Ini', 'Harga Saat Ini');
                 const hargaSekarang = (hargaLiveRaw !== undefined && hargaLiveRaw !== null && hargaLiveRaw !== "") ? extractNumber(hargaLiveRaw) : hargaBeli;
-                
                 labels.push(getProp(p, 'Simbol', 'Nama Aset') || 'Aset'); dataValues.push(jumlah * hargaSekarang); 
             });
-            
             const totalNetAsset = dataValues.reduce((a,b)=>a+b, 0);
             document.getElementById('porto-center-val').setAttribute('data-value', totalNetAsset);
             document.getElementById('porto-center-val').innerText = isPrivate ? '********' : toRp(totalNetAsset);
-
             if(drawChart) {
                 const ctx = document.getElementById('portfolioChart').getContext('2d');
                 if (portoChartInstance) portoChartInstance.destroy();
-                portoChartInstance = new Chart(ctx, { type: 'doughnut', data: { labels: labels.length > 0 ? labels : ['Kosong'], datasets: [{ data: dataValues.length > 0 ? dataValues : [1], backgroundColor: dataValues.length > 0 ? CHART_COLORS : ['#e5e7eb'], borderWidth: 0, hoverOffset: 4 }] }, options: { responsive: true, maintainAspectRatio: false, cutout: '80%', plugins: { legend: { display: false }, tooltip: { callbacks: { label: function(context) { if(dataValues.length === 0) return ' Tidak ada aset'; return ' ' + (context.label || '') + ': ' + toRp(context.raw || 0); } } } }, animation: { animateScale: true, animateRotate: true } } });
+                portoChartInstance = new Chart(ctx, { type: 'doughnut', data: { labels: labels.length > 0 ? labels : ['Kosong'], datasets: [{ data: dataValues.length > 0 ? dataValues : [1], backgroundColor: dataValues.length > 0 ? CHART_COLORS : ['#e5e7eb'], borderWidth: 0, hoverOffset: 4 }] }, options: { responsive: true, maintainAspectRatio: false, cutout: '80%', plugins: { legend: { display: false } }, animation: { animateScale: true, animateRotate: true } } });
             }
         }
 
-        // === ENGINE CALENDAR ===
         function changeCalMonth(step) {
             currentCalMonth += step;
             if(currentCalMonth > 11) { currentCalMonth = 0; currentCalYear++; }
@@ -1355,61 +1313,34 @@
         function renderCalendar() {
             const monthNames = i18n[currentLang]['month-names'];
             document.getElementById('calendar-month-year').innerText = `${monthNames[currentCalMonth]} ${currentCalYear}`;
-
             const firstDay = new Date(currentCalYear, currentCalMonth, 1).getDay();
             const daysInMonth = new Date(currentCalYear, currentCalMonth + 1, 0).getDate();
-            
             const dailyData = {};
             (appData.T_Transaksi || []).forEach(t => {
-                const tglRaw = getProp(t, 'Tanggal');
-                if(!tglRaw) return;
+                const tglRaw = getProp(t, 'Tanggal'); if(!tglRaw) return;
                 const tgl = new Date(tglRaw);
-                
                 if(tgl.getMonth() === currentCalMonth && tgl.getFullYear() === currentCalYear) {
-                    const dateNum = tgl.getDate();
-                    if(!dailyData[dateNum]) dailyData[dateNum] = { in: 0, out: 0 };
-                    
-                    const tipe = (getProp(t, 'Tipe') || '').toString().trim().toUpperCase();
-                    const kategori = (getProp(t, 'Kategori') || '').toString().trim();
-                    const val = extractNumber(getProp(t, 'Jumlah'));
-                    
+                    const dateNum = tgl.getDate(); if(!dailyData[dateNum]) dailyData[dateNum] = { in: 0, out: 0 };
+                    const tipe = (getProp(t, 'Tipe') || '').toString().trim().toUpperCase(), kategori = (getProp(t, 'Kategori') || '').toString().trim(), val = extractNumber(getProp(t, 'Jumlah'));
                     if(tipe === 'INFLOW' && kategori !== 'Transfer Masuk') dailyData[dateNum].in += val;
                     if(tipe === 'OUTFLOW' && kategori !== 'Transfer Keluar') dailyData[dateNum].out += val;
                 }
             });
-
             let html = '';
             for(let i = 0; i < firstDay; i++) { html += `<div class="aspect-[4/5] rounded-xl"></div>`; }
-            
             const today = new Date();
             const isCurrentMonthReal = today.getMonth() === currentCalMonth && today.getFullYear() === currentCalYear;
             const currentDayReal = today.getDate();
-
             for(let i = 1; i <= daysInMonth; i++) {
-                let isToday = isCurrentMonthReal && i === currentDayReal;
-                let isActive = i === activeCalDay;
-                
-                let dateClass = isToday 
-                    ? "bg-[#6342E8] text-white w-6 h-6 rounded-full flex items-center justify-center shadow-md mb-1" 
-                    : "text-gray-700 dark:text-gray-300 w-6 h-6 flex items-center justify-center mb-1 transition-colors";
-                
+                let isToday = isCurrentMonthReal && i === currentDayReal, isActive = i === activeCalDay;
+                let dateClass = isToday ? "bg-[#6342E8] text-white w-6 h-6 rounded-full flex items-center justify-center shadow-md mb-1" : "text-gray-700 dark:text-gray-300 w-6 h-6 flex items-center justify-center mb-1 transition-colors";
                 let dataHtml = '';
                 if(dailyData[i]) {
                     if(dailyData[i].in > 0) dataHtml += `<p class="text-[8px] text-green-500 dark:text-green-400 font-bold leading-tight truncate w-full text-center">+${formatShortNumber(dailyData[i].in)}</p>`;
                     if(dailyData[i].out > 0) dataHtml += `<p class="text-[8px] text-red-500 dark:text-red-400 font-bold leading-tight truncate w-full text-center">-${formatShortNumber(dailyData[i].out)}</p>`;
                 }
-
-                let cellClass = isActive 
-                    ? "border-[#6342E8]/50 dark:border-[#a78bfa]/50 bg-purple-50/50 dark:bg-purple-900/20 scale-105 shadow-sm z-10 relative" 
-                    : "border-gray-50 dark:border-gray-800 bg-white dark:bg-[#1e1e1e] hover:bg-gray-50 dark:hover:bg-[#2d2d2d]";
-
-                html += `
-                <div class="cal-cell flex flex-col items-center justify-start pt-1 pb-1 px-0.5 rounded-xl border ${cellClass} overflow-hidden cursor-pointer" onclick="showDailyDetail(${i})">
-                    <div class="${dateClass} text-xs font-semibold">${i}</div>
-                    <div class="flex flex-col w-full px-0.5 mt-auto pb-1">
-                        ${dataHtml}
-                    </div>
-                </div>`;
+                let cellClass = isActive ? "border-[#6342E8]/50 dark:border-[#a78bfa]/50 bg-purple-50/50 dark:bg-purple-900/20 scale-105 shadow-sm z-10 relative" : "border-gray-50 dark:border-gray-800 bg-white dark:bg-[#1e1e1e] hover:bg-gray-50 dark:hover:bg-[#2d2d2d]";
+                html += `<div class="cal-cell flex flex-col items-center justify-start pt-1 pb-1 px-0.5 rounded-xl border ${cellClass} overflow-hidden cursor-pointer" onclick="showDailyDetail(${i})"><div class="${dateClass} text-xs font-semibold">${i}</div><div class="flex flex-col w-full px-0.5 mt-auto pb-1">${dataHtml}</div></div>`;
             }
             document.getElementById('calendar-grid').innerHTML = html;
             if(isCurrentMonthReal && activeCalDay === currentDayReal) showDailyDetail(currentDayReal, false);
@@ -1418,64 +1349,39 @@
         function showDailyDetail(day, refreshCalendarUI = true) {
             activeCalDay = day;
             if(refreshCalendarUI) renderCalendar(); 
-
             const monthNames = i18n[currentLang]['month-names'];
-            // Ex: Transaksi 15 April 2026 / Transactions 15 April 2026
             document.getElementById('daily-detail-title').innerText = `${t('nav-hist')} ${day} ${monthNames[currentCalMonth]} ${currentCalYear}`;
-
             const trxs = appData.T_Transaksi || [];
             const dailyTrxs = trxs.filter(t => {
-                const tglRaw = getProp(t, 'Tanggal');
-                if(!tglRaw) return false;
+                const tglRaw = getProp(t, 'Tanggal'); if(!tglRaw) return false;
                 const tgl = new Date(tglRaw);
                 return tgl.getDate() === day && tgl.getMonth() === currentCalMonth && tgl.getFullYear() === currentCalYear;
             });
-
             const listContainer = document.getElementById('daily-transaction-list');
-            
-            if(dailyTrxs.length === 0) {
-                listContainer.innerHTML = `<p class="text-center text-xs text-gray-400 py-4 bg-white dark:bg-[#1e1e1e] rounded-2xl shadow-sm border border-gray-50 dark:border-gray-800 transition-all">${t('no-trx-today') || t('no-trx')}</p>`;
-                return;
-            }
-
+            if(dailyTrxs.length === 0) { listContainer.innerHTML = `<p class="text-center text-xs text-gray-400 py-4 bg-white dark:bg-[#1e1e1e] rounded-2xl shadow-sm border border-gray-50 dark:border-gray-800 transition-all">${t('no-trx-today') || t('no-trx')}</p>`; return; }
             let html = '';
-            const sortedDaily = [...dailyTrxs].sort((a, b) => {
-                const dateA = new Date(getProp(a, 'Tanggal') || 0).getTime();
-                const dateB = new Date(getProp(b, 'Tanggal') || 0).getTime();
-                return dateB - dateA;
-            });
-
+            const sortedDaily = [...dailyTrxs].sort((a, b) => new Date(getProp(b, 'Tanggal') || 0).getTime() - new Date(getProp(a, 'Tanggal') || 0).getTime());
             sortedDaily.forEach(tobj => {
                 const isOut = (getProp(tobj, 'Tipe')||'').toString().trim().toUpperCase() === 'OUTFLOW', sign = isOut ? '-' : '+';
-                const kategori = getProp(tobj, 'Kategori') || '';
-                const akun = getProp(tobj, 'Akun') || '';
+                const kategori = getProp(tobj, 'Kategori') || '', akun = getProp(tobj, 'Akun') || '';
                 let color = isOut ? 'text-red-500 dark:text-red-400' : 'text-green-500 dark:text-green-400';
                 if(kategori === 'Transfer Keluar' || kategori === 'Transfer Masuk' || kategori === 'Biaya Admin') color = 'text-blue-500 dark:text-blue-400';
-                
                 const logoSrc = getAccountLogo(akun);
                 let iconHtml = logoSrc ? `<img src="${logoSrc}" class="w-10 h-10 object-contain rounded-full bg-white dark:bg-[#1e1e1e] border border-gray-100 dark:border-gray-700 p-1">` : `<div class="w-10 h-10 rounded-full ${isOut ? 'bg-red-50 text-red-500 dark:bg-red-900/30' : 'bg-green-50 text-green-500 dark:bg-green-900/30'} flex items-center justify-center"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="${isOut ? 'M19 9l-7 7-7-7' : 'M5 15l7-7 7 7'}"></path></svg></div>`;
                 const val = extractNumber(getProp(tobj, 'Jumlah'));
-
-                html += `
-                <div class="flex items-center justify-between p-4 bg-white dark:bg-[#1e1e1e] border border-gray-50 dark:border-gray-800 rounded-2xl shadow-sm mb-2 hover:bg-gray-50 dark:hover:bg-[#2d2d2d] transition-colors duration-200">
-                    <div class="flex items-center gap-3">${iconHtml}<div class="overflow-hidden"><p class="text-sm font-bold truncate w-32 dark:text-white">${kategori}</p><p class="text-[10px] text-gray-500 truncate w-32">${getProp(tobj, 'Keterangan') || akun}</p></div></div>
-                    <p class="text-sm font-bold ${color} whitespace-nowrap">${sign} <span class="privacy-mask" data-value="${val}">${isPrivate?'********':toRp(val)}</span></p>
-                </div>`;
+                html += `<div class="flex items-center justify-between p-4 bg-white dark:bg-[#1e1e1e] border border-gray-50 dark:border-gray-800 rounded-2xl shadow-sm mb-2 hover:bg-gray-50 dark:hover:bg-[#2d2d2d] transition-colors duration-200"><div class="flex items-center gap-3">${iconHtml}<div class="overflow-hidden"><p class="text-sm font-bold truncate w-32 dark:text-white">${kategori}</p><p class="text-[10px] text-gray-500 truncate w-32">${getProp(tobj, 'Keterangan') || akun}</p></div></div><p class="text-sm font-bold ${color} whitespace-nowrap">${sign} <span class="privacy-mask" data-value="${val}">${isPrivate?'********':toRp(val)}</span></p></div>`;
             });
             listContainer.innerHTML = html;
             applyPrivacyMasks();
         }
 
-        // === ENGINE HISTORY ===
         function setHistoryFilter(filterType) {
             histFilterTime = filterType;
             document.querySelectorAll('#history-page button[id^="filter-"]').forEach(b => { 
-                b.classList.remove('bg-[#6342E8]', 'text-white', 'shadow-md'); 
-                b.classList.add('bg-white', 'dark:bg-[#1e1e1e]', 'text-gray-600', 'dark:text-gray-300', 'shadow-sm'); 
+                b.classList.remove('bg-[#6342E8]', 'text-white', 'shadow-md'); b.classList.add('bg-white', 'dark:bg-[#1e1e1e]', 'text-gray-600', 'dark:text-gray-300', 'shadow-sm'); 
             });
             const btn = document.getElementById('filter-' + filterType); 
-            btn.classList.remove('bg-white', 'dark:bg-[#1e1e1e]', 'text-gray-600', 'dark:text-gray-300', 'shadow-sm'); 
-            btn.classList.add('bg-[#6342E8]', 'text-white', 'shadow-md');
+            btn.classList.remove('bg-white', 'dark:bg-[#1e1e1e]', 'text-gray-600', 'dark:text-gray-300', 'shadow-sm'); btn.classList.add('bg-[#6342E8]', 'text-white', 'shadow-md');
             const customPanel = document.getElementById('custom-date-container');
             if (filterType === 'custom') { customPanel.classList.remove('hidden'); customPanel.classList.add('grid'); } else { customPanel.classList.add('hidden'); customPanel.classList.remove('grid'); }
             renderHistoryScreen();
@@ -1494,8 +1400,7 @@
         function getFilteredTransactions() {
             let trxs = appData.T_Transaksi || []; const today = new Date();
             return trxs.filter(t => {
-                const tgl = getProp(t, 'Tanggal');
-                if(!tgl) return false; const txDate = new Date(tgl);
+                const tgl = getProp(t, 'Tanggal'); if(!tgl) return false; const txDate = new Date(tgl);
                 if (histFilterTime === 'month') return txDate.getMonth() === today.getMonth() && txDate.getFullYear() === today.getFullYear();
                 else if (histFilterTime === '7days') { const s = new Date(today); s.setDate(today.getDate() - 7); return txDate >= s && txDate <= today; }
                 else if (histFilterTime === 'custom') { const s = document.getElementById('date-start').valueAsDate, e = document.getElementById('date-end').valueAsDate; if(!s || !e) return true; e.setHours(23, 59, 59, 999); return txDate >= s && txDate <= e; }
@@ -1508,52 +1413,35 @@
             let sumIn = 0, sumOut = 0;
             filteredData.forEach(t => {
                 const val = extractNumber(getProp(t, 'Jumlah'));
-                const tipe = (getProp(t, 'Tipe') || '').toString().trim().toUpperCase();
-                const kategori = (getProp(t, 'Kategori') || '').toString().trim();
+                const tipe = (getProp(t, 'Tipe') || '').toString().trim().toUpperCase(), kategori = (getProp(t, 'Kategori') || '').toString().trim();
                 if(tipe === 'INFLOW' && kategori !== 'Transfer Masuk') sumIn += val;
                 if(tipe === 'OUTFLOW' && kategori !== 'Transfer Keluar') sumOut += val;
             });
             const diff = sumIn - sumOut;
             document.getElementById('hist-sum-in').setAttribute('data-value', sumIn); document.getElementById('hist-sum-in').innerText = isPrivate ? '********' : toRp(sumIn);
             document.getElementById('hist-sum-out').setAttribute('data-value', sumOut); document.getElementById('hist-sum-out').innerText = isPrivate ? '********' : toRp(sumOut);
-            
             const diffEl = document.getElementById('hist-sum-diff'); diffEl.setAttribute('data-value', diff); diffEl.innerText = isPrivate ? '********' : toRp(diff);
             diffEl.className = `font-bold text-lg privacy-mask ${diff < 0 ? 'text-red-500' : 'text-gray-800 dark:text-white'}`;
-
             let chartDataRaw = [], listDataRaw = [], centerLabel = '';
-            if (histToggleType === 'INFLOW') {
-                chartDataRaw = filteredData.filter(t => (getProp(t, 'Tipe')||'').toString().trim().toUpperCase() === 'INFLOW' && getProp(t, 'Kategori') !== 'Transfer Masuk'); listDataRaw = chartDataRaw; centerLabel = t('tot-inc');
-            } else if (histToggleType === 'OUTFLOW') {
-                chartDataRaw = filteredData.filter(t => (getProp(t, 'Tipe')||'').toString().trim().toUpperCase() === 'OUTFLOW' && getProp(t, 'Kategori') !== 'Transfer Keluar'); listDataRaw = chartDataRaw; centerLabel = t('tot-exp');
-            } else if (histToggleType === 'TRANSFER') {
-                chartDataRaw = filteredData.filter(t => getProp(t, 'Kategori') === 'Transfer Masuk'); 
-                listDataRaw = filteredData.filter(t => getProp(t, 'Kategori') === 'Transfer Keluar' || getProp(t, 'Kategori') === 'Transfer Masuk' || getProp(t, 'Kategori') === 'Biaya Admin'); centerLabel = t('tot-tf');
-            }
-
+            if (histToggleType === 'INFLOW') { chartDataRaw = filteredData.filter(t => (getProp(t, 'Tipe')||'').toString().trim().toUpperCase() === 'INFLOW' && getProp(t, 'Kategori') !== 'Transfer Masuk'); listDataRaw = chartDataRaw; centerLabel = t('tot-inc'); } 
+            else if (histToggleType === 'OUTFLOW') { chartDataRaw = filteredData.filter(t => (getProp(t, 'Tipe')||'').toString().trim().toUpperCase() === 'OUTFLOW' && getProp(t, 'Kategori') !== 'Transfer Keluar'); listDataRaw = chartDataRaw; centerLabel = t('tot-exp'); } 
+            else if (histToggleType === 'TRANSFER') { chartDataRaw = filteredData.filter(t => getProp(t, 'Kategori') === 'Transfer Masuk'); listDataRaw = filteredData.filter(t => getProp(t, 'Kategori') === 'Transfer Keluar' || getProp(t, 'Kategori') === 'Transfer Masuk' || getProp(t, 'Kategori') === 'Biaya Admin'); centerLabel = t('tot-tf'); }
             const categorySums = {}, categoryCounts = {}; let grandTotalChart = 0;
             chartDataRaw.forEach(t => {
-                const groupKey = histToggleType === 'TRANSFER' ? getProp(t, 'Akun') : getProp(t, 'Kategori'); const val = extractNumber(getProp(t, 'Jumlah'));
+                const groupKey = histToggleType === 'TRANSFER' ? getProp(t, 'Akun') : getProp(t, 'Kategori'), val = extractNumber(getProp(t, 'Jumlah'));
                 if(!categorySums[groupKey]) { categorySums[groupKey] = 0; categoryCounts[groupKey] = 0; }
                 categorySums[groupKey] += val; categoryCounts[groupKey] += 1; grandTotalChart += val;
             });
-
             const sortedCategories = Object.keys(categorySums).map(cat => ({ name: cat, total: categorySums[cat], count: categoryCounts[cat], percent: grandTotalChart > 0 ? ((categorySums[cat] / grandTotalChart) * 100).toFixed(1) : 0 })).sort((a, b) => b.total - a.total);
-            document.getElementById('chart-center-val').setAttribute('data-value', grandTotalChart); 
-            document.getElementById('chart-center-val').innerText = isPrivate ? '********' : toRp(grandTotalChart);
+            document.getElementById('chart-center-val').setAttribute('data-value', grandTotalChart); document.getElementById('chart-center-val').innerText = isPrivate ? '********' : toRp(grandTotalChart);
             document.getElementById('chart-center-label').innerText = centerLabel;
-            
             if(drawChart) {
                 if (myChartInstance) myChartInstance.destroy();
-                myChartInstance = new Chart(document.getElementById('categoryChart').getContext('2d'), {
-                    type: 'doughnut', data: { labels: sortedCategories.length > 0 ? sortedCategories.map(c => c.name) : ['Kosong'], datasets: [{ data: sortedCategories.length > 0 ? sortedCategories.map(c => c.total) : [1], backgroundColor: sortedCategories.length > 0 ? CHART_COLORS : ['#e5e7eb'], borderWidth: 0, hoverOffset: 4 }] },
-                    options: { responsive: true, maintainAspectRatio: false, cutout: '75%', plugins: { legend: { display: false }, tooltip: { callbacks: { label: function(context) { if(data.length === 0) return ` ${t('no-trx')}`; return ' ' + (context.label || '') + ': ' + toRp(context.raw || 0); } } } } }
-                });
+                myChartInstance = new Chart(document.getElementById('categoryChart').getContext('2d'), { type: 'doughnut', data: { labels: sortedCategories.length > 0 ? sortedCategories.map(c => c.name) : ['Kosong'], datasets: [{ data: sortedCategories.length > 0 ? sortedCategories.map(c => c.total) : [1], backgroundColor: sortedCategories.length > 0 ? CHART_COLORS : ['#e5e7eb'], borderWidth: 0, hoverOffset: 4 }] }, options: { responsive: true, maintainAspectRatio: false, cutout: '75%', plugins: { legend: { display: false } } } });
             }
-
             const catListContainer = document.getElementById('history-category-list'); catListContainer.innerHTML = '';
-            if(sortedCategories.length === 0) {
-                catListContainer.innerHTML = `<p class="text-center text-xs text-gray-400 py-6">${t('no-data-period')}</p>`;
-            } else {
+            if(sortedCategories.length === 0) { catListContainer.innerHTML = `<p class="text-center text-xs text-gray-400 py-6">${t('no-data-period')}</p>`; } 
+            else {
                 sortedCategories.forEach((cat, index) => {
                     const color = CHART_COLORS[index % CHART_COLORS.length]; let iconHtml = '';
                     if (histToggleType === 'TRANSFER') {
@@ -1561,50 +1449,29 @@
                         if (logoSrc) iconHtml = `<img src="${logoSrc}" class="w-10 h-10 object-contain rounded-full bg-white dark:bg-[#1e1e1e] border border-gray-100 dark:border-gray-700 p-1">`;
                         else iconHtml = `<div class="w-10 h-10 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center text-blue-600 font-bold text-xs">${cat.name ? cat.name.substring(0,2).toUpperCase() : 'BK'}</div>`;
                     } else { iconHtml = `<div class="w-10 h-10 rounded-xl flex items-center justify-center text-lg shadow-sm" style="background-color: ${color}20; color: ${color};">${getCategoryIcon(cat.name)}</div>`; }
-
-                    catListContainer.innerHTML += `
-                        <div class="flex items-center justify-between py-3 border-b border-gray-50 dark:border-gray-800 last:border-0">
-                            <div class="flex items-center gap-3">${iconHtml}<div><p class="text-sm font-bold text-gray-700 dark:text-gray-200">${cat.name}</p><p class="text-[10px] text-gray-500">${t('from-trx')} ${cat.count} ${t('transactions')}</p></div></div>
-                            <div class="text-right"><p class="text-sm font-bold text-gray-800 dark:text-white privacy-mask" data-value="${cat.total}">${isPrivate?'********':toRp(cat.total)}</p><p class="text-[10px] font-semibold text-gray-400">${cat.percent}%</p></div>
-                        </div>`;
+                    catListContainer.innerHTML += `<div class="flex items-center justify-between py-3 border-b border-gray-50 dark:border-gray-800 last:border-0"><div class="flex items-center gap-3">${iconHtml}<div><p class="text-sm font-bold text-gray-700 dark:text-gray-200">${cat.name}</p><p class="text-[10px] text-gray-500">${t('from-trx')} ${cat.count} ${t('transactions')}</p></div></div><div class="text-right"><p class="text-sm font-bold text-gray-800 dark:text-white privacy-mask" data-value="${cat.total}">${isPrivate?'********':toRp(cat.total)}</p><p class="text-[10px] font-semibold text-gray-400">${cat.percent}%</p></div></div>`;
                 });
             }
-
             const historyListContainer = document.getElementById('history-list');
             if(listDataRaw.length === 0) historyListContainer.innerHTML = `<div class="text-center p-6"><p class="text-xs text-gray-400">${t('no-trx')}</p></div>`;
             else {
                 let html = '';
-                
-                const sortedTransactions = [...listDataRaw].sort((a, b) => {
-                    const dateA = new Date(getProp(a, 'Tanggal') || 0).getTime();
-                    const dateB = new Date(getProp(b, 'Tanggal') || 0).getTime();
-                    return dateB - dateA; 
-                });
-
+                const sortedTransactions = [...listDataRaw].sort((a, b) => new Date(getProp(b, 'Tanggal') || 0).getTime() - new Date(getProp(a, 'Tanggal') || 0).getTime());
                 sortedTransactions.forEach(tobj => {
                     const isOut = (getProp(tobj, 'Tipe')||'').toString().trim().toUpperCase() === 'OUTFLOW', sign = isOut ? '-' : '+';
-                    const kategori = getProp(tobj, 'Kategori') || '';
-                    const akun = getProp(tobj, 'Akun') || '';
+                    const kategori = getProp(tobj, 'Kategori') || '', akun = getProp(tobj, 'Akun') || '';
                     let color = isOut ? 'text-red-500 dark:text-red-400' : 'text-green-500 dark:text-green-400';
                     if(kategori === 'Transfer Keluar' || kategori === 'Transfer Masuk' || kategori === 'Biaya Admin') color = 'text-blue-500 dark:text-blue-400';
-                    const tgl = getProp(tobj, 'Tanggal');
-                    const dateStr = tgl ? new Date(tgl).toLocaleDateString(currentLang === 'id' ? 'id-ID' : 'en-US', {day: 'numeric', month: 'short'}) : '';
+                    const tgl = getProp(tobj, 'Tanggal'), dateStr = tgl ? new Date(tgl).toLocaleDateString(currentLang === 'id' ? 'id-ID' : 'en-US', {day: 'numeric', month: 'short'}) : '';
                     const logoSrc = getAccountLogo(akun);
                     let iconHtml = logoSrc ? `<img src="${logoSrc}" class="w-10 h-10 object-contain rounded-full bg-white dark:bg-[#1e1e1e] border border-gray-100 dark:border-gray-700 p-1">` : `<div class="w-10 h-10 rounded-full ${isOut ? 'bg-red-50 text-red-500 dark:bg-red-900/30' : 'bg-green-50 text-green-500 dark:bg-green-900/30'} flex items-center justify-center"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="${isOut ? 'M19 9l-7 7-7-7' : 'M5 15l7-7 7 7'}"></path></svg></div>`;
-                    
                     const val = extractNumber(getProp(tobj, 'Jumlah'));
-
-                    html += `
-                    <div class="flex items-center justify-between p-4 border-b border-gray-50 dark:border-gray-800 last:border-0 hover:bg-gray-50 dark:hover:bg-[#2d2d2d] transition-colors duration-200">
-                        <div class="flex items-center gap-3">${iconHtml}<div class="overflow-hidden"><p class="text-sm font-bold truncate w-32 dark:text-white">${kategori}</p><p class="text-[10px] text-gray-500 truncate w-32">${getProp(tobj, 'Keterangan') || akun} • ${dateStr}</p></div></div>
-                        <p class="text-sm font-bold ${color} whitespace-nowrap">${sign} <span class="privacy-mask" data-value="${val}">${isPrivate?'********':toRp(val)}</span></p>
-                    </div>`;
+                    html += `<div class="flex items-center justify-between p-4 border-b border-gray-50 dark:border-gray-800 last:border-0 hover:bg-gray-50 dark:hover:bg-[#2d2d2d] transition-colors duration-200"><div class="flex items-center gap-3">${iconHtml}<div class="overflow-hidden"><p class="text-sm font-bold truncate w-32 dark:text-white">${kategori}</p><p class="text-[10px] text-gray-500 truncate w-32">${getProp(tobj, 'Keterangan') || akun} • ${dateStr}</p></div></div><p class="text-sm font-bold ${color} whitespace-nowrap">${sign} <span class="privacy-mask" data-value="${val}">${isPrivate?'********':toRp(val)}</span></p></div>`;
                 });
                 historyListContainer.innerHTML = html;
             }
         }
 
-        // === NAVIGATION & UTILS ===
         function openModal(id, type = null) {
             document.getElementById(id).classList.remove('hidden-page', 'hidden'); 
             if(id === 'modal-trx') {
@@ -1614,55 +1481,36 @@
             }
         }
         function closeModal(id) { document.getElementById(id).classList.add('hidden-page', 'hidden'); }
-        
         function showPage(pageId) {
-            document.querySelectorAll('main > section').forEach(s => {
-                s.classList.remove('active-page');
-                s.classList.add('hidden-page');
-            });
-            
+            document.querySelectorAll('main > section').forEach(s => { s.classList.remove('active-page'); s.classList.add('hidden-page'); });
             const target = document.getElementById(pageId + '-page');
-            if (target) {
-                target.classList.remove('hidden-page');
-                void target.offsetWidth; 
-                target.classList.add('active-page');
-            }
-            
-            document.querySelectorAll('nav button').forEach(b => { 
-                b.classList.remove('active-nav', 'text-[#6342E8]'); 
-                b.classList.add('text-gray-400'); 
-            });
+            if (target) { target.classList.remove('hidden-page'); void target.offsetWidth; target.classList.add('active-page'); }
+            document.querySelectorAll('nav button').forEach(b => { b.classList.remove('active-nav', 'text-[#6342E8]'); b.classList.add('text-gray-400'); });
             const navTarget = document.getElementById('nav-' + pageId);
-            if (navTarget) { 
-                navTarget.classList.add('active-nav'); 
-                navTarget.classList.remove('text-gray-400'); 
-            }
-            
-            setTimeout(() => {
-                if(pageId === 'history') { try{ renderHistoryScreen(true); }catch(e){} }
-                if(pageId === 'portfolio') { try{ renderPortfolioScreen(true); }catch(e){} }
-                if(pageId === 'calendar') { try{ renderCalendar(); }catch(e){} }
-            }, 50);
+            if (navTarget) { navTarget.classList.add('active-nav'); navTarget.classList.remove('text-gray-400'); }
+            setTimeout(() => { if(pageId === 'history') renderHistoryScreen(true); if(pageId === 'portfolio') renderPortfolioScreen(true); if(pageId === 'calendar') renderCalendar(); }, 50);
         }
-
-        function toggleDarkMode() { 
-            const isDark = document.documentElement.classList.toggle('dark'); 
-            localStorage.setItem('fintrack_theme', isDark ? 'dark' : 'light'); 
-            document.getElementById('theme-icon').innerText = isDark ? '☀️' : '🌙'; 
-        }
-        
+        function toggleDarkMode() { const isDark = document.documentElement.classList.toggle('dark'); localStorage.setItem('fintrack_theme', isDark ? 'dark' : 'light'); document.getElementById('theme-icon').innerText = isDark ? '☀️' : '🌙'; }
         function togglePrivacy() {
             isPrivate = !isPrivate; applyPrivacyMasks();
-            document.getElementById('privacy-icon').innerHTML = isPrivate ? 
-                '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21"></path>' : 
-                '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>';
+            document.getElementById('privacy-icon').innerHTML = isPrivate ? '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21"></path>' : '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>';
         }
+        function applyPrivacyMasks() { document.querySelectorAll('.privacy-mask').forEach(el => { if(isPrivate) el.innerText = '********'; else el.innerText = toRp(Number(el.getAttribute('data-value')) || 0); }); }
         
-        function applyPrivacyMasks() { 
-            document.querySelectorAll('.privacy-mask').forEach(el => { 
-                if(isPrivate) el.innerText = '********'; 
-                else el.innerText = toRp(Number(el.getAttribute('data-value')) || 0); 
-            }); 
+        function prepareSellAsset(idAset, simbol, maxUnit, hargaSaatIni) {
+            document.getElementById('sell-asset-simbol-display').innerText = simbol;
+            document.getElementById('sell-asset-max-display').innerText = maxUnit;
+            document.getElementById('form-sell-asset-id').value = idAset;
+            document.getElementById('form-sell-asset-simbol').value = simbol;
+            const hargaInput = document.getElementById('form-sell-asset-harga');
+            hargaInput.value = hargaSaatIni; formatRupiahInput(hargaInput);
+            document.getElementById('modal-sell-asset').classList.remove('hidden-page', 'hidden');
+        }
+
+        function prepareGoalAction(actionType, goalName) {
+            activeGoalName = goalName;
+            if(actionType === 'withdraw') { document.getElementById('withdraw-goal-name-display').innerText = goalName; document.getElementById('modal-withdraw-goal').classList.remove('hidden'); } 
+            else { document.getElementById('add-savings-goal-name').innerText = goalName; document.getElementById('modal-add-savings').classList.remove('hidden'); }
         }
     </script>
 </body>
