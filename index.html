@@ -31,7 +31,7 @@
             font-family: 'Poppins', sans-serif; 
             -webkit-text-size-adjust: 100%; 
             -webkit-tap-highlight-color: transparent;
-            overscroll-behavior-y: none; /* Mematikan native pull-to-refresh browser */
+            overscroll-behavior-y: none;
         }
         
         .hidden-page { display: none !important; }
@@ -359,7 +359,7 @@
 
                 <div>
                     <h3 class="text-sm font-semibold mb-3 dark:text-gray-200" data-i18n="hist-list">Transaction List</h3>
-                    <div class="bg-white dark:bg-[#1e1e1e] rounded-3xl shadow-sm border border-gray-100 dark:border-gray-800 overflow-hidden transition-all duration-300" id="history-list"></div>
+                    <div class="bg-white dark:bg-[#1e1e1e] rounded-3xl shadow-sm border border-gray-100 dark:border-gray-800 overflow-hidden transition-all duration-300 relative" id="history-list"></div>
                 </div>
             </section>
         </main>
@@ -388,6 +388,43 @@
         </nav>
     </div>
 
+    <!-- MODAL DETAIL TRANSAKSI (NEW) -->
+    <div id="modal-trx-detail" class="fixed inset-0 bg-[#F8F9FA]/95 dark:bg-[#121212]/95 backdrop-blur-md z-50 flex flex-col hidden-page transition-all duration-300 overflow-hidden max-w-md mx-auto">
+        <div class="px-6 py-5 flex items-center border-b border-gray-100 dark:border-gray-800">
+            <button onclick="closeModal('modal-trx-detail')" class="w-10 h-10 flex items-center justify-center rounded-full bg-white dark:bg-[#1e1e1e] shadow-sm hover:scale-105 transition">
+                <svg class="w-5 h-5 text-gray-700 dark:text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path></svg>
+            </button>
+            <h3 class="font-bold text-lg flex-1 text-center pr-10 dark:text-white" id="detail-title">Detail</h3>
+        </div>
+        <div class="flex-1 px-8 pb-6 pt-10 space-y-6 flex flex-col items-center overflow-y-auto">
+            <div id="detail-icon" class="w-20 h-20 rounded-full flex items-center justify-center shadow-md mb-2"></div>
+            
+            <h2 id="detail-merchant" class="text-sm font-bold text-center text-gray-500 dark:text-gray-400 uppercase tracking-wider">Merchant Name</h2>
+            <h1 id="detail-amount" class="text-4xl font-bold text-center mt-1 mb-8">Rp 0</h1>
+            
+            <div class="w-full text-left pt-6 border-t border-gray-200 dark:border-gray-800 space-y-5">
+                <p class="text-xs font-bold text-gray-800 dark:text-gray-200 mb-2 uppercase tracking-wide" data-i18n="dtl-title">Detail transaksi</p>
+                <div class="flex justify-between items-center border-b border-gray-100 dark:border-gray-800 pb-3">
+                    <span class="text-xs text-gray-500" data-i18n="dtl-date">Tanggal dan waktu</span>
+                    <span id="detail-date" class="text-xs font-medium dark:text-gray-200"></span>
+                </div>
+                <div class="flex justify-between items-center border-b border-gray-100 dark:border-gray-800 pb-3">
+                    <span class="text-xs text-gray-500" data-i18n="dtl-type">Tipe transaksi</span>
+                    <span id="detail-type" class="text-xs font-medium dark:text-gray-200"></span>
+                </div>
+                <div class="flex justify-between items-center border-b border-gray-100 dark:border-gray-800 pb-3">
+                    <span class="text-xs text-gray-500" data-i18n="dtl-cat">Kategori</span>
+                    <span id="detail-cat" class="text-xs font-medium dark:text-gray-200"></span>
+                </div>
+                <div class="flex justify-between items-center pb-3">
+                    <span class="text-xs text-gray-500" data-i18n="dtl-acc">Sumber dana</span>
+                    <span id="detail-account" class="text-xs font-bold text-[#6342E8] dark:text-[#a78bfa]"></span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL NEW TRANSACTION -->
     <div id="modal-trx" class="fixed inset-0 bg-[#F8F9FA]/90 dark:bg-[#121212]/90 backdrop-blur-md z-50 flex flex-col hidden-page transition-all overflow-hidden max-w-md mx-auto">
         <div class="px-6 py-5 flex items-center">
             <button onclick="closeModal('modal-trx')" class="w-10 h-10 flex items-center justify-center rounded-full border border-gray-200 dark:border-gray-700 text-gray-500 bg-white dark:bg-[#1e1e1e] hover:scale-105 transition">✕</button>
@@ -419,6 +456,7 @@
         </div>
     </div>
 
+    <!-- OTHER MODALS (Transfer, Recurring, Buy/Sell Asset, Goal, Debt) KEPT UNCHANGED -->
     <div id="modal-transfer" class="fixed inset-0 bg-[#F8F9FA]/90 dark:bg-[#121212]/90 backdrop-blur-md z-50 flex flex-col hidden-page transition-all overflow-hidden max-w-md mx-auto">
         <div class="px-6 py-5 flex items-center">
             <button onclick="closeModal('modal-transfer')" class="w-10 h-10 flex items-center justify-center rounded-full border border-gray-200 dark:border-gray-700 text-gray-500 bg-white dark:bg-[#1e1e1e] hover:scale-105 transition">✕</button>
@@ -752,7 +790,14 @@
                 "tot-tf": "Total Transfer",
                 "month-names": ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"],
                 "freq-mo": "Monthly",
-                "freq-yr": "Yearly"
+                "freq-yr": "Yearly",
+                "dtl-title": "Transaction Detail",
+                "dtl-date": "Date and Time",
+                "dtl-type": "Transaction Type",
+                "dtl-cat": "Category",
+                "dtl-acc": "Source of Funds",
+                "type-inc": "Income",
+                "type-exp": "Expenditure"
             },
             id: {
                 "app-desc": "Manajemen Kekayaan Enterprise",
@@ -870,7 +915,14 @@
                 "tot-tf": "Total Transfer",
                 "month-names": ["Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli", "Agustus", "September", "Oktober", "November", "Desember"],
                 "freq-mo": "Bulanan",
-                "freq-yr": "Tahunan"
+                "freq-yr": "Tahunan",
+                "dtl-title": "Detail transaksi",
+                "dtl-date": "Tanggal dan waktu",
+                "dtl-type": "Tipe transaksi",
+                "dtl-cat": "Kategori",
+                "dtl-acc": "Sumber dana",
+                "type-inc": "Pemasukan",
+                "type-exp": "Pengeluaran"
             }
         };
 
@@ -995,7 +1047,7 @@
             const today = new Date(), lastMonth = new Date(today); lastMonth.setDate(today.getDate() - 30);
             document.getElementById('date-end').valueAsDate = today; document.getElementById('date-start').valueAsDate = lastMonth;
             
-            initPTR(); // Initialize Pull-to-Refresh
+            initPTR(); 
 
             if(sessionEmail) {
                 document.getElementById('user-display').innerText = sessionName + "!";
@@ -1004,7 +1056,6 @@
             } else { document.getElementById('login-page').classList.remove('hidden-page'); }
         }
 
-        // === PULL-TO-REFRESH LOGIC ===
         let ptrStartY = 0;
         let ptrCurrentY = 0;
         let isPtrPulling = false;
@@ -1029,14 +1080,14 @@
                 
                 if (pullDist > 0 && window.scrollY <= 0) {
                     const moveY = Math.min(pullDist * 0.4, 120); 
-                    ptrEl.style.transform = `translateY(${moveY - 80}px)`; // Muncul dari atas
+                    ptrEl.style.transform = `translateY(${moveY - 80}px)`; 
                     
                     if (coin) {
-                        coin.style.animation = 'none'; // Stop auto spin saat ditarik manual
+                        coin.style.animation = 'none'; 
                         coin.style.transform = `rotateY(${pullDist * 3}deg)`;
                     }
                 } else if (pullDist < 0) {
-                    isPtrPulling = false; // Batal kalau malah scroll ke bawah
+                    isPtrPulling = false; 
                 }
             }, { passive: true });
 
@@ -1049,14 +1100,13 @@
                 
                 if (pullDist > 100 && window.scrollY <= 0 && sessionEmail) {
                     isPtrRefreshing = true;
-                    ptrEl.style.transform = `translateY(30px)`; // Kunci spinner di posisi terlihat
+                    ptrEl.style.transform = `translateY(30px)`; 
                     
                     if (coin) {
                         coin.style.transform = '';
-                        coin.style.animation = 'flipCoin 1s infinite linear'; // Putar cepat saat loading
+                        coin.style.animation = 'flipCoin 1s infinite linear'; 
                     }
                     
-                    // Fetch data secara background tanpa nutupin layar full
                     try {
                         const response = await fetch(API_URL, { method: 'POST', body: JSON.stringify({ action: 'getData', email: sessionEmail }) }); 
                         const result = await response.json(); 
@@ -1064,11 +1114,11 @@
                     } catch (e) { 
                         console.error("Sync Error:", e); 
                     } finally {
-                        ptrEl.style.transform = `translateY(-80px)`; // Sembunyikan lagi
+                        ptrEl.style.transform = `translateY(-80px)`; 
                         setTimeout(() => { isPtrRefreshing = false; }, 300);
                     }
                 } else {
-                    ptrEl.style.transform = `translateY(-80px)`; // Batal, sembunyikan
+                    ptrEl.style.transform = `translateY(-80px)`; 
                     if (coin) {
                         coin.style.transform = '';
                         coin.style.animation = 'flipCoin 1.5s infinite linear';
@@ -1077,7 +1127,6 @@
                 ptrStartY = 0; ptrCurrentY = 0;
             });
         }
-        // =============================
 
         async function handleLogin() {
             const email = document.getElementById('login-email').value.trim(), password = document.getElementById('login-password').value.trim();
@@ -1148,7 +1197,6 @@
             let transferKeluar = amount;
             let transferMasuk = amount;
             
-            // Logic khusus jika dari RDN: Admin fee memotong nominal transfer
             if (fromAcc.toUpperCase().includes('RDN') && admin > 0) {
                 if (amount <= admin) {
                     return alert(currentLang === 'id' ? "Nominal transfer harus lebih besar dari biaya admin." : "Transfer amount must be greater than admin fee.");
@@ -1280,7 +1328,6 @@
             let totalBalance = 0;
             accounts.forEach(acc => {
                 let namaAkun = getProp(acc, 'Nama_Akun', 'Nama Akun');
-                // Mengecualikan SEMUA akun yang mengandung kata "RDN" dari saldo total dashboard
                 if (namaAkun && namaAkun.toUpperCase().includes('RDN')) return; 
                 
                 let valReal = getProp(acc, 'Saldo_Realtime', 'Saldo Realtime', 'Saldo_Realtime');
@@ -1290,16 +1337,30 @@
             const balEl = document.getElementById('main-balance');
             balEl.setAttribute('data-value', totalBalance);
             balEl.innerText = isPrivate ? '********' : toRp(totalBalance);
+            
             let inc = 0, exp = 0;
+            const currentMonth = new Date().getMonth();
+            const currentYear = new Date().getFullYear();
+
             (appData.T_Transaksi || []).forEach(t => {
-                const val = extractNumber(getProp(t, 'Jumlah'));
-                const tipe = (getProp(t, 'Tipe') || '').toString().trim().toUpperCase();
-                const kategori = (getProp(t, 'Kategori') || '').toString().trim();
-                if(tipe === 'INFLOW' && kategori !== 'Transfer Masuk') inc += val;
-                if(tipe === 'OUTFLOW' && kategori !== 'Transfer Keluar') exp += val;
+                const tglRaw = getProp(t, 'Tanggal');
+                if(!tglRaw) return;
+                
+                const tgl = new Date(tglRaw);
+                
+                if(tgl.getMonth() === currentMonth && tgl.getFullYear() === currentYear) {
+                    const val = extractNumber(getProp(t, 'Jumlah'));
+                    const tipe = (getProp(t, 'Tipe') || '').toString().trim().toUpperCase();
+                    const kategori = (getProp(t, 'Kategori') || '').toString().trim();
+                    
+                    if(tipe === 'INFLOW' && kategori !== 'Transfer Masuk') inc += val;
+                    if(tipe === 'OUTFLOW' && kategori !== 'Transfer Keluar') exp += val;
+                }
             });
+            
             document.getElementById('summary-income').setAttribute('data-value', inc); document.getElementById('summary-income').innerText = isPrivate ? '********' : toRp(inc);
-            document.getElementById('summary-expense').setAttribute('data-value', exp); document.getElementById('summary-expense').setAttribute('data-value', exp); document.getElementById('summary-expense').innerText = isPrivate ? '********' : toRp(exp);
+            document.getElementById('summary-expense').setAttribute('data-value', exp); document.getElementById('summary-expense').innerText = isPrivate ? '********' : toRp(exp);
+            
             let dIn = 0, dOut = 0;
             (appData.M_Debt || []).forEach(d => { 
                 const val = extractNumber(getProp(d, 'Sisa', 'Sisa Saldo')); 
@@ -1336,14 +1397,12 @@
                 const logoSrc = getAccountLogo(item.namaAkun);
                 let iconHtml = logoSrc ? `<img src="${logoSrc}" class="w-10 h-10 object-contain rounded-full bg-white dark:bg-[#1e1e1e] border border-gray-100 dark:border-gray-700 p-1">` : `<div class="w-10 h-10 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center text-blue-600 font-bold text-xs">${item.initial}</div>`;
                 
-                // Exclude RDN dari List Dashboard
                 if (!isRdn) {
                     html += `<div class="flex items-center justify-between p-4 border-b border-gray-50 dark:border-gray-800 last:border-0 hover:bg-gray-50 dark:hover:bg-[#2d2d2d] transition-colors duration-200"><div class="flex items-center gap-3">${iconHtml}<div><p class="text-sm font-bold">${item.namaAkun}</p><p class="text-[10px] text-gray-500">${item.tipeAkun}</p></div></div><p class="text-sm font-bold privacy-mask" data-value="${item.nominal}">${isPrivate?'********':toRp(item.nominal)}</p></div>`;
                 }
                 
                 optsAll += `<option value="${item.namaAkun}">${item.namaAkun}</option>`;
                 
-                // Exclude RDN dari Transaksi Biasa dan Langganan
                 if (!isRdn) {
                     optsRegular += `<option value="${item.namaAkun}">${item.namaAkun}</option>`;
                 }
@@ -1421,13 +1480,7 @@
                     const totalValBeli = jumlah * hargaBeli;
 
                     if (!aggregatedAssets[simbol]) {
-                        aggregatedAssets[simbol] = {
-                            idAset: idAset,
-                            simbol: simbol,
-                            totalJumlah: 0,
-                            totalInvestasi: 0,
-                            hargaSekarang: hargaSekarang
-                        };
+                        aggregatedAssets[simbol] = { idAset: idAset, simbol: simbol, totalJumlah: 0, totalInvestasi: 0, hargaSekarang: hargaSekarang };
                     }
                     aggregatedAssets[simbol].totalJumlah += jumlah;
                     aggregatedAssets[simbol].totalInvestasi += totalValBeli;
@@ -1542,12 +1595,15 @@
             sortedDaily.forEach(tobj => {
                 const isOut = (getProp(tobj, 'Tipe')||'').toString().trim().toUpperCase() === 'OUTFLOW', sign = isOut ? '-' : '+';
                 const kategori = getProp(tobj, 'Kategori') || '', akun = getProp(tobj, 'Akun') || '';
-                let color = isOut ? 'text-red-500 dark:text-red-400' : 'text-green-500 dark:text-green-400';
-                if(kategori === 'Transfer Keluar' || kategori === 'Transfer Masuk' || kategori === 'Biaya Admin') color = 'text-blue-500 dark:text-blue-400';
+                let color = isOut ? 'text-gray-800 dark:text-gray-100' : 'text-green-500 dark:text-green-400';
+                if(kategori === 'Transfer Keluar' || kategori === 'Transfer Masuk' || kategori === 'Biaya Admin') color = 'text-gray-800 dark:text-gray-100';
                 const logoSrc = getAccountLogo(akun);
-                let iconHtml = logoSrc ? `<img src="${logoSrc}" class="w-10 h-10 object-contain rounded-full bg-white dark:bg-[#1e1e1e] border border-gray-100 dark:border-gray-700 p-1">` : `<div class="w-10 h-10 rounded-full ${isOut ? 'bg-red-50 text-red-500 dark:bg-red-900/30' : 'bg-green-50 text-green-500 dark:bg-green-900/30'} flex items-center justify-center"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="${isOut ? 'M19 9l-7 7-7-7' : 'M5 15l7-7 7 7'}"></path></svg></div>`;
+                let iconHtml = logoSrc ? `<img src="${logoSrc}" class="w-10 h-10 object-contain rounded-full bg-white dark:bg-[#1e1e1e] border border-gray-100 dark:border-gray-700 p-1">` : `<div class="w-10 h-10 rounded-full ${isOut ? 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-300' : 'bg-green-50 text-green-500 dark:bg-green-900/30'} flex items-center justify-center"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="${isOut ? 'M19 9l-7 7-7-7' : 'M5 15l7-7 7 7'}"></path></svg></div>`;
                 const val = extractNumber(getProp(tobj, 'Jumlah'));
-                html += `<div class="flex items-center justify-between p-4 bg-white dark:bg-[#1e1e1e] border border-gray-50 dark:border-gray-800 rounded-2xl shadow-sm mb-2 hover:bg-gray-50 dark:hover:bg-[#2d2d2d] transition-colors duration-200"><div class="flex items-center gap-3">${iconHtml}<div class="overflow-hidden"><p class="text-sm font-bold truncate w-32 dark:text-white">${kategori}</p><p class="text-[10px] text-gray-500 truncate w-32">${getProp(tobj, 'Keterangan') || akun}</p></div></div><p class="text-sm font-bold ${color} whitespace-nowrap">${sign} <span class="privacy-mask" data-value="${val}">${isPrivate?'********':toRp(val)}</span></p></div>`;
+                
+                const tobjJSON = encodeURIComponent(JSON.stringify(tobj));
+                
+                html += `<div onclick="openTransactionDetail('${tobjJSON}')" class="cursor-pointer flex items-center justify-between p-4 bg-white dark:bg-[#1e1e1e] border border-gray-50 dark:border-gray-800 rounded-2xl shadow-sm mb-2 hover:bg-gray-50 dark:hover:bg-[#2d2d2d] active:scale-[0.98] transition-all duration-200"><div class="flex items-center gap-3">${iconHtml}<div class="overflow-hidden"><p class="text-sm font-bold truncate w-32 dark:text-white">${kategori}</p><p class="text-[10px] text-gray-500 truncate w-32 uppercase tracking-wide">${getProp(tobj, 'Keterangan') || akun}</p></div></div><p class="text-sm font-bold ${color} whitespace-nowrap">${sign} <span class="privacy-mask" data-value="${val}">${isPrivate?'********':toRp(val)}</span></p></div>`;
             });
             listContainer.innerHTML = html;
             applyPrivacyMasks();
@@ -1631,22 +1687,92 @@
                 });
             }
             const historyListContainer = document.getElementById('history-list');
-            if(listDataRaw.length === 0) historyListContainer.innerHTML = `<div class="text-center p-6"><p class="text-xs text-gray-400">${t('no-trx')}</p></div>`;
-            else {
+            if(listDataRaw.length === 0) {
+                historyListContainer.innerHTML = `<div class="text-center p-6"><p class="text-xs text-gray-400">${t('no-trx')}</p></div>`;
+            } else {
                 let html = '';
                 const sortedTransactions = [...listDataRaw].sort((a, b) => new Date(getProp(b, 'Tanggal') || 0).getTime() - new Date(getProp(a, 'Tanggal') || 0).getTime());
+                
+                let currentDateGroup = '';
+
                 sortedTransactions.forEach(tobj => {
+                    const tglRaw = getProp(tobj, 'Tanggal');
+                    const tglObj = tglRaw ? new Date(tglRaw) : null;
+                    
+                    let dateString = '';
+                    if(tglObj) {
+                        const day = tglObj.getDate().toString().padStart(2, '0');
+                        const month = i18n[currentLang]['month-names'][tglObj.getMonth()];
+                        const year = tglObj.getFullYear();
+                        dateString = `${day} ${month} ${year}`;
+                    } else {
+                        dateString = 'Tanggal Tidak Diketahui';
+                    }
+
+                    if(dateString !== currentDateGroup) {
+                        html += `<div class="px-4 py-2 bg-gray-50/90 dark:bg-[#121212]/90 backdrop-blur-sm sticky top-0 z-10 border-y border-gray-100 dark:border-gray-800"><span class="text-[11px] font-bold text-gray-600 dark:text-gray-400 uppercase tracking-wider">${dateString}</span></div>`;
+                        currentDateGroup = dateString;
+                    }
+
                     const isOut = (getProp(tobj, 'Tipe')||'').toString().trim().toUpperCase() === 'OUTFLOW', sign = isOut ? '-' : '+';
                     const kategori = getProp(tobj, 'Kategori') || '', akun = getProp(tobj, 'Akun') || '';
-                    let color = isOut ? 'text-red-500 dark:text-red-400' : 'text-green-500 dark:text-green-400';
-                    if(kategori === 'Transfer Keluar' || kategori === 'Transfer Masuk' || kategori === 'Biaya Admin') color = 'text-blue-500 dark:text-blue-400';
-                    const tgl = getProp(tobj, 'Tanggal'), dateStr = tgl ? new Date(tgl).toLocaleDateString(currentLang === 'id' ? 'id-ID' : 'en-US', {day: 'numeric', month: 'short'}) : '';
+                    let color = isOut ? 'text-gray-800 dark:text-gray-100' : 'text-green-500 dark:text-green-400';
+                    if(kategori === 'Transfer Keluar' || kategori === 'Transfer Masuk' || kategori === 'Biaya Admin') color = 'text-gray-800 dark:text-gray-100';
+                    
                     const logoSrc = getAccountLogo(akun);
-                    let iconHtml = logoSrc ? `<img src="${logoSrc}" class="w-10 h-10 object-contain rounded-full bg-white dark:bg-[#1e1e1e] border border-gray-100 dark:border-gray-700 p-1">` : `<div class="w-10 h-10 rounded-full ${isOut ? 'bg-red-50 text-red-500 dark:bg-red-900/30' : 'bg-green-50 text-green-500 dark:bg-green-900/30'} flex items-center justify-center"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="${isOut ? 'M19 9l-7 7-7-7' : 'M5 15l7-7 7 7'}"></path></svg></div>`;
+                    let iconHtml = logoSrc ? `<img src="${logoSrc}" class="w-10 h-10 object-contain rounded-full bg-white dark:bg-[#1e1e1e] border border-gray-100 dark:border-gray-700 p-1">` : `<div class="w-10 h-10 rounded-full ${isOut ? 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-300' : 'bg-green-50 text-green-500 dark:bg-green-900/30'} flex items-center justify-center"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="${isOut ? 'M19 9l-7 7-7-7' : 'M5 15l7-7 7 7'}"></path></svg></div>`;
                     const val = extractNumber(getProp(tobj, 'Jumlah'));
-                    html += `<div class="flex items-center justify-between p-4 border-b border-gray-50 dark:border-gray-800 last:border-0 hover:bg-gray-50 dark:hover:bg-[#2d2d2d] transition-colors duration-200"><div class="flex items-center gap-3">${iconHtml}<div class="overflow-hidden"><p class="text-sm font-bold truncate w-32 dark:text-white">${kategori}</p><p class="text-[10px] text-gray-500 truncate w-32">${getProp(tobj, 'Keterangan') || akun} • ${dateStr}</p></div></div><p class="text-sm font-bold ${color} whitespace-nowrap">${sign} <span class="privacy-mask" data-value="${val}">${isPrivate?'********':toRp(val)}</span></p></div>`;
+                    
+                    const tobjJSON = encodeURIComponent(JSON.stringify(tobj));
+
+                    html += `<div onclick="openTransactionDetail('${tobjJSON}')" class="cursor-pointer flex items-center justify-between p-4 border-b border-gray-50 dark:border-gray-800 last:border-0 hover:bg-gray-50 dark:hover:bg-[#2d2d2d] active:scale-[0.98] transition-all duration-200"><div class="flex items-center gap-3">${iconHtml}<div class="overflow-hidden"><p class="text-sm font-bold truncate w-32 dark:text-white">${kategori}</p><p class="text-[10px] text-gray-500 truncate w-32 uppercase tracking-wide">${getProp(tobj, 'Keterangan') || akun}</p></div></div><p class="text-sm font-bold ${color} whitespace-nowrap">${sign} <span class="privacy-mask" data-value="${val}">${isPrivate?'********':toRp(val)}</span></p></div>`;
                 });
                 historyListContainer.innerHTML = html;
+            }
+        }
+
+        function openTransactionDetail(encodedData) {
+            try {
+                const tobj = JSON.parse(decodeURIComponent(encodedData));
+                const isOut = (getProp(tobj, 'Tipe')||'').toString().trim().toUpperCase() === 'OUTFLOW';
+                const sign = isOut ? '-' : '+';
+                const kategori = getProp(tobj, 'Kategori') || '';
+                const akun = getProp(tobj, 'Akun') || '';
+                const keterangan = getProp(tobj, 'Keterangan') || akun;
+                const val = extractNumber(getProp(tobj, 'Jumlah'));
+                const tglRaw = getProp(tobj, 'Tanggal');
+                
+                let dateStrLong = '';
+                if(tglRaw) {
+                    const d = new Date(tglRaw);
+                    const day = d.getDate().toString().padStart(2, '0');
+                    const month = i18n[currentLang]['month-names'][d.getMonth()];
+                    const year = d.getFullYear();
+                    const hours = d.getHours().toString().padStart(2, '0');
+                    const mins = d.getMinutes().toString().padStart(2, '0');
+                    const secs = d.getSeconds().toString().padStart(2, '0');
+                    dateStrLong = `${day} ${month} ${year} • ${hours}:${mins}:${secs}`;
+                }
+
+                let colorClass = isOut ? 'text-gray-800 dark:text-white' : 'text-green-500 dark:text-green-400';
+                if(kategori === 'Transfer Keluar' || kategori === 'Transfer Masuk' || kategori === 'Biaya Admin') colorClass = 'text-gray-800 dark:text-white';
+                
+                document.getElementById('detail-title').innerText = kategori;
+                document.getElementById('detail-merchant').innerText = keterangan;
+                document.getElementById('detail-amount').innerText = `${sign}${toRp(val)}`;
+                document.getElementById('detail-amount').className = `text-4xl font-bold text-center mt-1 mb-8 ${colorClass}`;
+                document.getElementById('detail-date').innerText = dateStrLong;
+                document.getElementById('detail-type').innerText = isOut ? t('type-exp') : t('type-inc');
+                document.getElementById('detail-cat').innerText = kategori;
+                document.getElementById('detail-account').innerText = akun;
+
+                const logoSrc = getAccountLogo(akun);
+                let bigIconHtml = logoSrc ? `<img src="${logoSrc}" class="w-14 h-14 object-contain rounded-full bg-white dark:bg-[#1e1e1e] border border-gray-100 dark:border-gray-700 p-2">` : `<div class="w-14 h-14 rounded-full ${isOut ? 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-300' : 'bg-green-50 text-green-500 dark:bg-green-900/30'} flex items-center justify-center"><svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="${isOut ? 'M19 9l-7 7-7-7' : 'M5 15l7-7 7 7'}"></path></svg></div>`;
+                document.getElementById('detail-icon').innerHTML = bigIconHtml;
+
+                document.getElementById('modal-trx-detail').classList.remove('hidden-page', 'hidden');
+            } catch(e) {
+                console.error("Error displaying detail", e);
             }
         }
 
