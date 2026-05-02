@@ -877,7 +877,7 @@
         let currentLang = 'en'; 
         const API_URL = "https://script.google.com/macros/s/AKfycbx5QKPwG7auSpUI--xScR1uHZuGaDMt23gpPasBQB2LNGT8bB0pD_1M20LYIU5kN9OYiQ/exec"; 
         const KATEGORI_INFLOW = ["Gaji & Pemasukan", "Hasil Usaha", "Pemberian"];
-        const KATEGORI_OUTFLOW = ["Makanan", "Hiburan", "Tabungan & Investasi", "Kewajiban & Sosial", "Transportasi", "Lainnya"];
+        const KATEGORI_OUTFLOW = ["Makanan", "Hiburan", "Tagihan", "Tabungan & Investasi", "Kewajiban & Sosial", "Transportasi", "Lainnya"];
         const CHART_COLORS = ['#6342E8', '#8B5CF6', '#A78BFA', '#C084FC', '#38BDF8', '#818CF8', '#4F46E5', '#E879F9'];
 
         let sessionEmail = null, sessionName = null, appData = {}, isPrivate = false;
@@ -976,7 +976,7 @@
         }
 
         function getCategoryIcon(cat) {
-            const map = { "Makanan": "🍽️", "Hiburan": "🎬", "Tabungan & Investasi": "📈", "Kewajiban & Sosial": "🧾", "Transportasi": "🚗", "Gaji & Pemasukan": "💼", "Hasil Usaha": "🏪", "Pemberian": "🎁", "Biaya Admin": "🏦" };
+            const map = { "Makanan": "🍽️", "Hiburan": "🎬", "Tagihan": "🧾", "Tabungan & Investasi": "📈", "Kewajiban & Sosial": "🧾", "Transportasi": "🚗", "Gaji & Pemasukan": "💼", "Hasil Usaha": "🏪", "Pemberian": "🎁", "Biaya Admin": "🏦" };
             return map[cat] || "🏷️";
         }
 
@@ -1299,7 +1299,7 @@
                 if(tipe === 'OUTFLOW' && kategori !== 'Transfer Keluar') exp += val;
             });
             document.getElementById('summary-income').setAttribute('data-value', inc); document.getElementById('summary-income').innerText = isPrivate ? '********' : toRp(inc);
-            document.getElementById('summary-expense').setAttribute('data-value', exp); document.getElementById('summary-expense').innerText = isPrivate ? '********' : toRp(exp);
+            document.getElementById('summary-expense').setAttribute('data-value', exp); document.getElementById('summary-expense').setAttribute('data-value', exp); document.getElementById('summary-expense').innerText = isPrivate ? '********' : toRp(exp);
             let dIn = 0, dOut = 0;
             (appData.M_Debt || []).forEach(d => { 
                 const val = extractNumber(getProp(d, 'Sisa', 'Sisa Saldo')); 
