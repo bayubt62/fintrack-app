@@ -121,7 +121,7 @@
             <div class="coin-spinner w-16 h-16 rounded-full bg-gradient-to-tr from-[#6342E8] to-[#A88FFF] shadow-[0_10px_30px_rgba(99,66,232,0.4)] flex items-center justify-center border-4 border-[#E0D7FF] dark:border-[#8B5CF6]">
                 <span class="text-white font-bold text-2xl">Rp</span>
             </div>
-            <p class="text-sm font-semibold text-[#6342E8] dark:text-[#a78bfa] animate-pulse tracking-widest" data-i18n="sync">SYNCHRONIZING...</p>
+            <p id="loading-text" class="text-sm font-semibold text-[#6342E8] dark:text-[#a78bfa] animate-pulse tracking-widest" data-i18n="sync">SYNCHRONIZING...</p>
         </div>
     </div>
 
@@ -365,24 +365,38 @@
         </main>
 
         <nav class="fixed bottom-0 left-0 right-0 max-w-md mx-auto bg-white/90 backdrop-blur-md border-t border-gray-100 dark:bg-[#1e1e1e]/90 dark:border-[#2d2d2d] px-6 h-[80px] flex justify-between items-center rounded-t-[32px] shadow-[0_-15px_40px_rgba(0,0,0,0.06)] z-30 transition-colors duration-300">
-            <button onclick="showPage('dashboard')" class="nav-btn w-14 h-full flex flex-col items-center justify-center text-gray-400 active-nav group" id="nav-dashboard">
+            <button onclick="showPage('dashboard')" class="nav-btn w-12 h-full flex flex-col items-center justify-center text-gray-400 active-nav group" id="nav-dashboard">
                 <div class="icon-bg"></div>
                 <svg class="w-[22px] h-[22px]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"></path></svg>
                 <span data-i18n="nav-home">Home</span>
             </button>
-            <button onclick="showPage('calendar')" class="nav-btn w-14 h-full flex flex-col items-center justify-center text-gray-400 group" id="nav-calendar">
+            <button onclick="showPage('calendar')" class="nav-btn w-12 h-full flex flex-col items-center justify-center text-gray-400 group" id="nav-calendar">
                 <div class="icon-bg"></div>
                 <svg class="w-[22px] h-[22px]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
                 <span data-i18n="nav-cal">Calendar</span>
             </button>
-            <button onclick="showPage('portfolio')" class="nav-btn w-14 h-full flex flex-col items-center justify-center text-gray-400 group" id="nav-portfolio">
+            
+            <!-- TOMBOL FAB TENGAH (SCAN NOTA) -->
+            <div class="relative w-14 h-full flex justify-center z-50">
+                <div class="absolute -top-6">
+                    <input type="file" accept="image/*" capture="environment" id="receipt-camera" class="hidden" onchange="processReceiptImage(event)">
+                    <button onclick="document.getElementById('receipt-camera').click()" class="w-[60px] h-[60px] bg-[#6342E8] rounded-full flex items-center justify-center text-white shadow-[0_10px_25px_rgba(99,66,232,0.5)] hover:scale-105 active:scale-95 transition-all duration-300">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"></path>
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+
+            <button onclick="showPage('portfolio')" class="nav-btn w-12 h-full flex flex-col items-center justify-center text-gray-400 group" id="nav-portfolio">
                 <div class="icon-bg"></div>
                 <svg class="w-[22px] h-[22px]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 3.055A9.001 9.001 0 1020.945 13H11V3.055z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.488 9H15V3.512A9.025 9.025 0 0120.488 9z"></path></svg>
                 <span data-i18n="nav-port">Assets</span>
             </button>
-            <button onclick="showPage('history')" class="nav-btn w-14 h-full flex flex-col items-center justify-center text-gray-400 group" id="nav-history">
+            <button onclick="showPage('history')" class="nav-btn w-12 h-full flex flex-col items-center justify-center text-gray-400 group" id="nav-history">
                 <div class="icon-bg"></div>
-                <svg class="w-[22px] h-[22px]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"></path></svg>
+                <svg class="w-[22px] h-[22px]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"></path></svg>
                 <span data-i18n="nav-hist">History</span>
             </button>
         </nav>
@@ -430,13 +444,14 @@
             <button onclick="closeModal('modal-trx')" class="w-10 h-10 flex items-center justify-center rounded-full border border-gray-200 dark:border-gray-700 text-gray-500 bg-white dark:bg-[#1e1e1e] hover:scale-105 transition">✕</button>
             <h3 class="font-bold text-lg flex-1 text-center pr-10 dark:text-white" id="modal-trx-title" data-i18n="mod-trx-title">New Transaction</h3>
         </div>
-        <div class="flex-1 px-6 pb-6 pt-2 space-y-5 overflow-y-auto">
+        <div class="flex-1 px-6 pb-6 pt-2 space-y-5 overflow-y-auto relative">
             <input type="hidden" id="form-trx-tipe">
-            <div class="bg-white dark:bg-[#1e1e1e] rounded-[32px] p-8 shadow-xl border-0 text-center flex flex-col items-center justify-center min-h-[140px] transition-all">
+            
+            <div class="bg-white dark:bg-[#1e1e1e] rounded-[32px] p-8 shadow-xl border-0 text-center flex flex-col items-center justify-center min-h-[140px] transition-all transition-colors duration-300" id="form-trx-amount-container">
                 <label class="text-xs text-gray-400 font-medium tracking-wide mb-3" data-i18n="lbl-amount">Amount</label>
                 <div class="flex items-center justify-center gap-2">
-                    <span class="text-5xl font-bold text-[#6342E8]">Rp</span>
-                    <input type="text" inputmode="numeric" id="form-trx-amount" placeholder="0" oninput="formatRupiahInput(this)" class="text-5xl font-bold text-[#6342E8] bg-transparent outline-none w-[200px] text-left placeholder-purple-200 dark:placeholder-purple-900/50">
+                    <span class="text-5xl font-bold text-[#6342E8]" id="form-trx-currency">Rp</span>
+                    <input type="text" inputmode="numeric" id="form-trx-amount" placeholder="0" oninput="formatRupiahInput(this)" class="text-5xl font-bold text-[#6342E8] bg-transparent outline-none w-[200px] text-left placeholder-purple-200 dark:placeholder-purple-900/50 transition-colors duration-300">
                 </div>
             </div>
             <input type="text" id="form-trx-desc" data-i18n="ph-desc" placeholder="What is this for?" class="w-full p-5 rounded-2xl bg-white dark:bg-[#2d2d2d] dark:text-white border-0 shadow-sm outline-none text-sm font-medium focus:ring-2 focus:ring-[#6342E8] transition">
@@ -797,7 +812,12 @@
                 "dtl-cat": "Category",
                 "dtl-acc": "Source of Funds",
                 "type-inc": "Income",
-                "type-exp": "Expenditure"
+                "type-exp": "Expenditure",
+                "txt-analyze": "ANALYZING RECEIPT...",
+                "txt-extract": "EXTRACTING DATA...",
+                "err-scan-fail": "Failed to read receipt: ",
+                "err-scan-sys": "System error occurred during scan.",
+                "txt-unknown-merchant": "UNKNOWN MERCHANT"
             },
             id: {
                 "app-desc": "Manajemen Kekayaan Enterprise",
@@ -922,7 +942,12 @@
                 "dtl-cat": "Kategori",
                 "dtl-acc": "Sumber dana",
                 "type-inc": "Pemasukan",
-                "type-exp": "Pengeluaran"
+                "type-exp": "Pengeluaran",
+                "txt-analyze": "MENGANALISA NOTA...",
+                "txt-extract": "MENGEKSTRAK DATA...",
+                "err-scan-fail": "Gagal membaca nota: ",
+                "err-scan-sys": "Terjadi kesalahan sistem saat scan.",
+                "txt-unknown-merchant": "TOKO TIDAK TERBACA"
             }
         };
 
@@ -1159,6 +1184,104 @@
                 setTimeout(() => el.classList.add('hidden'), 300);
             }
         }
+
+        // ==========================================
+        // LOGIKA KOMPRESI GAMBAR DAN SCAN NOTA
+        // ==========================================
+        function compressImage(file, maxWidth, quality) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.readAsDataURL(file);
+                reader.onload = event => {
+                    const img = new Image();
+                    img.src = event.target.result;
+                    img.onload = () => {
+                        const canvas = document.createElement('canvas');
+                        let width = img.width;
+                        let height = img.height;
+
+                        if (width > maxWidth) {
+                            height = Math.round((height * maxWidth) / width);
+                            width = maxWidth;
+                        }
+
+                        canvas.width = width;
+                        canvas.height = height;
+                        const ctx = canvas.getContext('2d');
+                        ctx.drawImage(img, 0, 0, width, height);
+
+                        resolve(canvas.toDataURL('image/jpeg', quality));
+                    };
+                    img.onerror = error => reject(error);
+                };
+                reader.onerror = error => reject(error);
+            });
+        }
+
+        async function processReceiptImage(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            const loadingTextEl = document.getElementById('loading-text');
+            loadingTextEl.innerText = t('txt-analyze');
+            showLoading(true);
+
+            try {
+                const compressedBase64 = await compressImage(file, 800, 0.6);
+                loadingTextEl.innerText = t('txt-extract');
+                
+                const response = await fetch(API_URL, {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        action: 'scanReceipt',
+                        email: sessionEmail,
+                        imageB64: compressedBase64
+                    })
+                });
+                
+                const result = await response.json();
+                
+                if (result.status === 'success') {
+                    let merchant = result.data.merchant;
+                    if (merchant === "TOKO TIDAK TERBACA") merchant = t('txt-unknown-merchant');
+                    const total = result.data.total;
+                    
+                    openModal('modal-trx', 'OUTFLOW');
+                    
+                    document.getElementById('form-trx-desc').value = merchant;
+                    
+                    const amountInput = document.getElementById('form-trx-amount');
+                    amountInput.value = total;
+                    formatRupiahInput(amountInput); 
+
+                    const amountContainer = document.getElementById('form-trx-amount-container');
+                    const currencyLabel = document.getElementById('form-trx-currency');
+                    
+                    amountContainer.classList.remove('bg-white', 'dark:bg-[#1e1e1e]');
+                    amountContainer.classList.add('bg-purple-100', 'dark:bg-purple-900/50');
+                    amountInput.classList.add('animate-pulse');
+                    currencyLabel.classList.add('animate-pulse');
+
+                    setTimeout(() => {
+                        amountContainer.classList.add('bg-white', 'dark:bg-[#1e1e1e]');
+                        amountContainer.classList.remove('bg-purple-100', 'dark:bg-purple-900/50');
+                        amountInput.classList.remove('animate-pulse');
+                        currencyLabel.classList.remove('animate-pulse');
+                    }, 2000);
+                    
+                } else {
+                    alert(t('err-scan-fail') + result.message);
+                }
+            } catch (err) {
+                console.error(err);
+                alert(t('err-scan-sys'));
+            } finally {
+                loadingTextEl.innerText = t('sync');
+                showLoading(false);
+                e.target.value = ''; 
+            }
+        }
+        // ==========================================
 
         async function fetchAllData() { 
             showLoading(true); 
@@ -1780,7 +1903,10 @@
             document.getElementById(id).classList.remove('hidden-page', 'hidden'); 
             if(id === 'modal-trx') {
                 document.getElementById('modal-trx-title').innerText = type === 'INFLOW' ? t('mod-trx-in') : t('mod-trx-out');
-                document.getElementById('form-trx-tipe').value = type; const catSel = document.getElementById('form-trx-category'); catSel.innerHTML = '';
+                document.getElementById('form-trx-tipe').value = type; 
+                
+                const catSel = document.getElementById('form-trx-category'); 
+                catSel.innerHTML = '';
                 (type === 'INFLOW' ? KATEGORI_INFLOW : KATEGORI_OUTFLOW).forEach(opt => catSel.innerHTML += `<option value="${opt}">${opt}</option>`);
             }
         }
@@ -1789,7 +1915,7 @@
             document.querySelectorAll('main > section').forEach(s => { s.classList.remove('active-page'); s.classList.add('hidden-page'); });
             const target = document.getElementById(pageId + '-page');
             if (target) { target.classList.remove('hidden-page'); void target.offsetWidth; target.classList.add('active-page'); }
-            document.querySelectorAll('nav button').forEach(b => { b.classList.remove('active-nav', 'text-[#6342E8]'); b.classList.add('text-gray-400'); });
+            document.querySelectorAll('nav button.nav-btn').forEach(b => { b.classList.remove('active-nav', 'text-[#6342E8]'); b.classList.add('text-gray-400'); });
             const navTarget = document.getElementById('nav-' + pageId);
             if (navTarget) { navTarget.classList.add('active-nav'); navTarget.classList.remove('text-gray-400'); }
             setTimeout(() => { if(pageId === 'history') renderHistoryScreen(true); if(pageId === 'portfolio') renderPortfolioScreen(true); if(pageId === 'calendar') renderCalendar(); }, 50);
