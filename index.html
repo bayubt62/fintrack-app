@@ -445,6 +445,12 @@
                     <span class="text-xs text-gray-500" data-i18n="dtl-acc">Sumber dana</span>
                     <span id="detail-account" class="text-xs font-bold text-[#6342E8] dark:text-[#a78bfa]"></span>
                 </div>
+                
+                <!-- BAGIAN BARU UNTUK RINCIAN ITEM NOTA (BUG 2 FIX) -->
+                <div id="detail-items-section" class="hidden border-t border-gray-100 dark:border-gray-800 pt-3 mt-1">
+                    <p class="text-xs font-bold text-gray-800 dark:text-gray-200 mb-3 uppercase tracking-wide" data-i18n="dtl-items">Rincian Barang</p>
+                    <div id="detail-items-container" class="space-y-3"></div>
+                </div>
             </div>
         </div>
     </div>
@@ -887,6 +893,7 @@
                 "dtl-type": "Transaction Type",
                 "dtl-cat": "Category",
                 "dtl-acc": "Source of Funds",
+                "dtl-items": "Purchased Items",
                 "type-inc": "Income",
                 "type-exp": "Expenditure",
                 "txt-analyze": "ANALYZING RECEIPT...",
@@ -1040,6 +1047,7 @@
                 "dtl-type": "Tipe transaksi",
                 "dtl-cat": "Kategori",
                 "dtl-acc": "Sumber dana",
+                "dtl-items": "Rincian Barang",
                 "type-inc": "Pemasukan",
                 "type-exp": "Pengeluaran",
                 "txt-analyze": "MENGANALISA NOTA...",
@@ -1476,15 +1484,7 @@
                 if (admin > 0) {
                     await fetch(API_URL, { method: 'POST', body: JSON.stringify({ action: 'addTransaction', email: sessionEmail, tipe: 'OUTFLOW', akun: account, jumlah: admin, kategori: 'Biaya Admin', keterangan: `Admin trx ${category}`, tanggal: combinedDateTime })});
                 }
-                closeModal('modal-trx'); 
-                
-                currentScannedItems = [];
-                const itemListSec = document.getElementById('itemListSection');
-                if (itemListSec) itemListSec.classList.add('hidden');
-                
-                document.getElementById('form-trx-amount').value = ''; 
-                document.getElementById('form-trx-desc').value = ''; 
-                if(document.getElementById('form-trx-admin')) document.getElementById('form-trx-admin').value = '';
+                closeModal('modal-trx', true); 
                 await fetchAllData(); 
             }
         }
@@ -2071,6 +2071,57 @@
                 document.getElementById('detail-cat').innerText = kategori;
                 document.getElementById('detail-account').innerText = akun;
 
+                const trxId = getProp(tobj, 'ID_Trx', 'ID Transaksi', 'ID_Transaksi');
+                const detailItemsContainer = document.getElementById('detail-items-container');
+                const detailItemsSection = document.getElementById('detail-items-section');
+
+                if (detailItemsContainer && detailItemsSection) {
+                    detailItemsContainer.innerHTML = '';
+                    let hasItems = false;
+
+                    if (appData.T_Transaksi_Detail && trxId) {
+                        const items = appData.T_Transaksi_Detail.filter(item => getProp(item, 'ID_Transaksi', 'ID_Trx', 'ID Transaksi') === trxId);
+                        if (items.length > 0) {
+                            hasItems = true;
+                            items.forEach(item => {
+                                const itemName = getProp(item, 'Nama_Item', 'Nama Item', 'Item', 'Nama') || 'Item';
+                                
+                                // FIX: Menghindari array mapping yang salah, kita ambil dari index object langsung. 
+                                // Karena data dari sheet masuk sebagai object, dan di sheet Anda (Kolom E & F)
+                                // Kolom E (index ke-4) adalah Qty, Kolom F (index ke-5) kemungkinan kosong, dan Kolom G (index ke-6 atau nama lain) adalah Harga.
+                                // Kita akan extract value terbesar yang masuk akal sebagai harga
+                                let itemPrice = 0;
+                                let itemQty = 1;
+                                
+                                // Deteksi otomatis nilai Harga yang sesungguhnya (mengabaikan nilai '1' dari Qty)
+                                Object.keys(item).forEach(key => {
+                                    let val = extractNumber(item[key]);
+                                    if(val > 100) { // Jika ada angka lebih dari 100, hampir pasti ini adalah nominal harga
+                                        itemPrice = val;
+                                    } else if (val > 0 && val <= 100) { // Angka kecil kemungkinan besar Qty
+                                        itemQty = val;
+                                    }
+                                });
+
+                                const qtyStr = itemQty > 1 ? `${itemQty}x ` : '';
+
+                                detailItemsContainer.innerHTML += `
+                                    <div class="flex justify-between items-center border-b border-gray-50 dark:border-gray-800/50 pb-2 mb-2 last:border-0 last:mb-0 last:pb-0">
+                                        <span class="text-xs text-gray-500 uppercase pr-4">${qtyStr}${itemName}</span>
+                                        <span class="text-xs font-medium text-gray-800 dark:text-gray-200 whitespace-nowrap">${toRp(itemPrice)}</span>
+                                    </div>
+                                `;
+                            });
+                        }
+                    }
+
+                    if (hasItems) {
+                        detailItemsSection.classList.remove('hidden');
+                    } else {
+                        detailItemsSection.classList.add('hidden');
+                    }
+                }
+
                 const logoSrc = getAccountLogo(akun);
                 let bigIconHtml = logoSrc ? `<img src="${logoSrc}" class="w-14 h-14 object-contain rounded-full bg-white dark:bg-[#1e1e1e] border border-gray-100 dark:border-gray-700 p-2">` : `<div class="w-14 h-14 rounded-full ${isOut ? 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-300' : 'bg-green-50 text-green-500 dark:bg-green-900/30'} flex items-center justify-center"><svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="${isOut ? 'M19 9l-7 7-7-7' : 'M5 15l7-7 7 7'}"></path></svg></div>`;
                 document.getElementById('detail-icon').innerHTML = bigIconHtml;
@@ -2102,10 +2153,12 @@
                 renderExportModal();
             }
         }
-        function closeModal(id) { 
+        function closeModal(id, forceClose = false) { 
             if (id === 'modal-trx') {
-                const confirmMsg = i18n[currentLang]['confirm-close-trx'] || "Are you sure you want to close? Unsaved data will be lost.";
-                if (!confirm(confirmMsg)) return;
+                if (!forceClose) {
+                    const confirmMsg = i18n[currentLang]['confirm-close-trx'] || "Are you sure you want to close? Unsaved data will be lost.";
+                    if (!confirm(confirmMsg)) return;
+                }
                 
                 // Reset form fields
                 document.getElementById('form-trx-amount').value = '';
@@ -2496,7 +2549,6 @@
 
                 // Fungsi untuk menggambar Footer di setiap halaman
                 const drawFooter = (data) => {
-                    const pageCount = doc.internal.getNumberOfPages();
                     const footerY = doc.internal.pageSize.height - 15;
                     
                     doc.setDrawColor(220, 220, 220);
@@ -2578,12 +2630,6 @@
                 if (typeof doc.putTotalPages === 'function') {
                     doc.putTotalPages(totalPagesExp);
                 }
-
-                // Render Footer text with accurate page count
-                // const pageCount = doc.internal.getNumberOfPages();
-                // for(let i = 1; i <= pageCount; i++) {
-                //     doc.setPage(i);
-                // }
 
                 // Save PDF
                 const fileName = `Mutasi_${selectedAccount}_${i18n[currentLang]['month-names'][monthIdx]}_${year}.pdf`;
