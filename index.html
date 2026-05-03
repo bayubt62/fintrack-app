@@ -839,7 +839,8 @@
                 "txt-extract": "EXTRACTING DATA...",
                 "err-scan-fail": "Failed to read receipt: ",
                 "err-scan-sys": "System error occurred during scan.",
-                "txt-unknown-merchant": "UNKNOWN MERCHANT"
+                "txt-unknown-merchant": "UNKNOWN MERCHANT",
+                "confirm-close-trx": "Are you sure you want to close? Unsaved data will be lost."
             },
             id: {
                 "app-desc": "Manajemen Kekayaan Enterprise",
@@ -969,7 +970,8 @@
                 "txt-extract": "MENGEKSTRAK DATA...",
                 "err-scan-fail": "Gagal membaca nota: ",
                 "err-scan-sys": "Terjadi kesalahan sistem saat scan.",
-                "txt-unknown-merchant": "TOKO TIDAK TERBACA"
+                "txt-unknown-merchant": "TOKO TIDAK TERBACA",
+                "confirm-close-trx": "Apakah Anda yakin ingin menutup? Data yang belum disimpan akan hilang."
             }
         };
 
@@ -1989,7 +1991,28 @@
                 if (itemListSec) itemListSec.classList.add('hidden');
             }
         }
-        function closeModal(id) { document.getElementById(id).classList.add('hidden-page', 'hidden'); }
+        function closeModal(id) { 
+            if (id === 'modal-trx') {
+                const confirmMsg = i18n[currentLang]['confirm-close-trx'] || "Are you sure you want to close? Unsaved data will be lost.";
+                if (!confirm(confirmMsg)) return;
+                
+                // Reset form fields
+                document.getElementById('form-trx-amount').value = '';
+                document.getElementById('form-trx-desc').value = '';
+                if(document.getElementById('form-trx-admin')) document.getElementById('form-trx-admin').value = '';
+                
+                // Reset scanned items
+                currentScannedItems = [];
+                const itemListSec = document.getElementById('itemListSection');
+                if (itemListSec) itemListSec.classList.add('hidden');
+                
+                // Reset time to now
+                const now = new Date();
+                document.getElementById('form-trx-date').value = now.toISOString().split('T')[0];
+                document.getElementById('form-trx-time').value = now.getHours().toString().padStart(2, '0') + ':' + now.getMinutes().toString().padStart(2, '0');
+            }
+            document.getElementById(id).classList.add('hidden-page', 'hidden'); 
+        }
         function showPage(pageId) {
             document.querySelectorAll('main > section').forEach(s => { s.classList.remove('active-page'); s.classList.add('hidden-page'); });
             const target = document.getElementById(pageId + '-page');
