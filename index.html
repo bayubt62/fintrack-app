@@ -109,6 +109,13 @@
         
         .nav-btn.active-nav span { opacity: 1; transform: translate(-50%, 0); color: #6342E8; }
         html.dark .nav-btn.active-nav span { color: #a78bfa; }
+
+        /* Animasi Pop-up Naik Turun Level */
+        @keyframes popIn {
+            0% { opacity: 0; transform: scale(0.8) translateY(20px); }
+            100% { opacity: 1; transform: scale(1) translateY(0); }
+        }
+        .animate-pop-in { animation: popIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards; }
     </style>
 </head>
 <body class="bg-[#F8F9FA] dark:bg-[#121212] min-h-screen max-w-md mx-auto relative text-gray-800 dark:text-gray-100 transition-colors duration-300" onload="initApp()">
@@ -159,6 +166,13 @@
                     <button onclick="handleLogout()" class="text-[10px] bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400 px-2 py-0.5 rounded-full font-bold transition hover:bg-red-200" data-i18n="btn-logout">Logout</button>
                 </div>
                 <h1 class="text-xl font-bold dark:text-white" id="user-display">User!</h1>
+                
+                <!-- BADGE LEVEL FINTRACK -->
+                <button onclick="openModal('modal-level-info')" id="user-level-badge" class="mt-1 px-3 py-1 rounded-full text-[10px] font-bold text-white shadow-sm transition-all duration-300 flex items-center gap-1.5 hover:scale-105 active:scale-95 bg-gray-400 opacity-0">
+                    <span id="badge-icon">🌟</span> 
+                    <span id="badge-text" class="tracking-wide">Menghitung Level...</span>
+                </button>
+                
             </div>
             <div class="flex gap-2 items-center">
                 <button onclick="toggleLanguage()" class="w-10 h-10 flex items-center justify-center bg-white dark:bg-[#1e1e1e] rounded-full shadow-sm border border-gray-100 dark:border-[#2d2d2d] hover:scale-105 transition">
@@ -413,6 +427,78 @@
         </nav>
     </div>
 
+    <!-- MODAL INFO LEVEL -->
+    <div id="modal-level-info" class="fixed inset-0 bg-[#F8F9FA]/90 dark:bg-[#121212]/90 backdrop-blur-md z-[80] flex flex-col hidden-page transition-all duration-300 overflow-hidden max-w-md mx-auto">
+        <div class="px-6 py-5 flex items-center border-b border-gray-100 dark:border-gray-800 bg-white dark:bg-[#1e1e1e]">
+            <button onclick="closeModal('modal-level-info')" class="w-10 h-10 flex items-center justify-center rounded-full bg-gray-50 dark:bg-[#2d2d2d] hover:bg-gray-100 dark:hover:bg-gray-700 transition">
+                <svg class="w-5 h-5 text-gray-700 dark:text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path></svg>
+            </button>
+            <h3 class="font-bold text-lg flex-1 text-center pr-10 dark:text-white" data-i18n="mod-level-info-title">Status Fintrack</h3>
+        </div>
+        <div class="flex-1 px-6 pb-6 pt-6 space-y-4 overflow-y-auto bg-[#F8F9FA] dark:bg-[#121212]">
+            <p class="text-sm text-gray-600 dark:text-gray-400 mb-2" data-i18n="txt-level-desc">Tingkatkan terus kekayaan bersih Anda untuk mencapai kebebasan finansial.</p>
+            
+            <div id="list-level-1" class="bg-white dark:bg-[#1e1e1e] p-4 rounded-2xl border border-gray-100 dark:border-gray-800 shadow-sm opacity-50 transition-all">
+                <div class="flex items-center gap-3 mb-2">
+                    <span class="w-8 h-8 rounded-full bg-gradient-to-br from-amber-700 to-orange-900 text-white flex items-center justify-center font-bold text-xs shadow-md">1</span>
+                    <h4 class="font-bold text-sm dark:text-white" data-i18n="lvl-1-name">Fase Eliminasi Liabilitas</h4>
+                </div>
+                <p class="text-[10px] text-gray-500 dark:text-gray-400 leading-relaxed" data-i18n="lvl-1-desc">Fokus utama melunasi hutang konsumtif untuk memulihkan arus kas (cash flow).</p>
+            </div>
+            
+            <div id="list-level-2" class="bg-white dark:bg-[#1e1e1e] p-4 rounded-2xl border border-gray-100 dark:border-gray-800 shadow-sm opacity-50 transition-all">
+                <div class="flex items-center gap-3 mb-2">
+                    <span class="w-8 h-8 rounded-full bg-gradient-to-br from-gray-300 to-gray-500 text-white flex items-center justify-center font-bold text-xs shadow-md">2</span>
+                    <h4 class="font-bold text-sm dark:text-white" data-i18n="lvl-2-name">Fase Proteksi Likuiditas</h4>
+                </div>
+                <p class="text-[10px] text-gray-500 dark:text-gray-400 leading-relaxed" data-i18n="lvl-2-desc">Hutang telah lunas. Membangun bantalan kas darurat minimal 6x rata-rata pengeluaran bulanan.</p>
+            </div>
+
+            <div id="list-level-3" class="bg-white dark:bg-[#1e1e1e] p-4 rounded-2xl border border-gray-100 dark:border-gray-800 shadow-sm opacity-50 transition-all">
+                <div class="flex items-center gap-3 mb-2">
+                    <span class="w-8 h-8 rounded-full bg-gradient-to-br from-yellow-400 to-yellow-600 text-white flex items-center justify-center font-bold text-xs shadow-md">3</span>
+                    <h4 class="font-bold text-sm dark:text-white" data-i18n="lvl-3-name">Fase Akumulasi Kapital</h4>
+                </div>
+                <p class="text-[10px] text-gray-500 dark:text-gray-400 leading-relaxed" data-i18n="lvl-3-desc">Dana darurat terpenuhi. Mulai investasi aset agresif dengan target aset mendekati Rp50 Juta.</p>
+            </div>
+
+            <div id="list-level-4" class="bg-white dark:bg-[#1e1e1e] p-4 rounded-2xl border border-gray-100 dark:border-gray-800 shadow-sm opacity-50 transition-all">
+                <div class="flex items-center gap-3 mb-2">
+                    <span class="w-8 h-8 rounded-full bg-gradient-to-br from-slate-700 to-slate-900 text-white flex items-center justify-center font-bold text-xs shadow-md">4</span>
+                    <h4 class="font-bold text-sm dark:text-white" data-i18n="lvl-4-name">Alokasi Portofolio Spesifik</h4>
+                </div>
+                <p class="text-[10px] text-gray-500 dark:text-gray-400 leading-relaxed" data-i18n="lvl-4-desc">Total aset > Rp50 Juta. Memecah portofolio berdasarkan manajemen risiko dan tujuan spesifik jangka panjang.</p>
+            </div>
+
+            <div id="list-level-5" class="bg-white dark:bg-[#1e1e1e] p-4 rounded-2xl border border-gray-100 dark:border-gray-800 shadow-sm opacity-50 transition-all">
+                <div class="flex items-center gap-3 mb-2">
+                    <span class="w-8 h-8 rounded-full bg-gradient-to-br from-cyan-400 to-blue-600 text-white flex items-center justify-center font-bold text-xs shadow-md">5</span>
+                    <h4 class="font-bold text-sm dark:text-white" data-i18n="lvl-5-name">Fase Maksimalisasi Ekuitas</h4>
+                </div>
+                <p class="text-[10px] text-gray-500 dark:text-gray-400 leading-relaxed" data-i18n="lvl-5-desc">Total aset > Rp250 Juta. Fokus memaksimalkan kekayaan bersih dan mengurangi hutang produktif (KPR dll).</p>
+            </div>
+
+            <div id="list-level-6" class="bg-white dark:bg-[#1e1e1e] p-4 rounded-2xl border border-gray-100 dark:border-gray-800 shadow-sm opacity-50 transition-all">
+                <div class="flex items-center gap-3 mb-2">
+                    <span class="w-8 h-8 rounded-full bg-gradient-to-br from-purple-500 to-indigo-700 ring-2 ring-purple-300 text-white flex items-center justify-center font-bold text-xs shadow-md">6</span>
+                    <h4 class="font-bold text-sm dark:text-white" data-i18n="lvl-6-name">Kemerdekaan Finansial</h4>
+                </div>
+                <p class="text-[10px] text-gray-500 dark:text-gray-400 leading-relaxed" data-i18n="lvl-6-desc">Total Aset > 25x Pengeluaran Tahunan. Imbal hasil portofolio mampu membiayai gaya hidup secara otomatis.</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL NOTIFIKASI LEVEL (POPUP) -->
+    <div id="modal-level-notify" class="fixed inset-0 modal-overlay hidden z-[110] flex items-center justify-center px-4">
+        <div class="bg-white dark:bg-[#1e1e1e] p-8 rounded-[32px] w-full max-w-xs space-y-4 text-center shadow-2xl border border-gray-100 dark:border-gray-800 transform transition-all scale-100 animate-pop-in">
+            <div id="notify-level-icon" class="w-20 h-20 mx-auto rounded-full bg-gradient-to-br from-yellow-400 to-yellow-600 flex items-center justify-center text-4xl shadow-lg mb-4">🏆</div>
+            <h3 class="font-bold text-xl dark:text-white" id="notify-level-title">Selamat!</h3>
+            <p class="text-xs text-gray-500 dark:text-gray-400 leading-relaxed" id="notify-level-desc">Anda berhasil naik ke fase finansial baru.</p>
+            <p class="font-bold text-[#6342E8] dark:text-[#a78bfa] text-lg mt-2 mb-6" id="notify-level-name">Level 2</p>
+            <button onclick="closeModal('modal-level-notify')" class="w-full py-4 bg-[#6342E8] text-white rounded-xl text-sm font-bold active:scale-95 transition shadow-lg" data-i18n="btn-continue">Lanjutkan</button>
+        </div>
+    </div>
+
     <!-- MODAL DETAIL TRANSAKSI -->
     <div id="modal-trx-detail" class="fixed inset-0 bg-[#F8F9FA]/95 dark:bg-[#121212]/95 backdrop-blur-md z-50 flex flex-col hidden-page transition-all duration-300 overflow-hidden max-w-md mx-auto">
         <div class="px-6 py-5 flex items-center border-b border-gray-100 dark:border-gray-800">
@@ -446,7 +532,6 @@
                     <span id="detail-account" class="text-xs font-bold text-[#6342E8] dark:text-[#a78bfa]"></span>
                 </div>
                 
-                <!-- BAGIAN BARU UNTUK RINCIAN ITEM NOTA (BUG 2 FIX) -->
                 <div id="detail-items-section" class="hidden border-t border-gray-100 dark:border-gray-800 pt-3 mt-1">
                     <p class="text-xs font-bold text-gray-800 dark:text-gray-200 mb-3 uppercase tracking-wide" data-i18n="dtl-items">Rincian Barang</p>
                     <div id="detail-items-container" class="space-y-3"></div>
@@ -755,12 +840,6 @@
                     <!-- Tombol tahun akan di-render di sini secara dinamis -->
                 </div>
 
-                <!-- Password Info Removed by Request -->
-                <!-- <div class="bg-gray-50 dark:bg-[#2d2d2d] rounded-xl p-3 flex items-start gap-3 border border-gray-100 dark:border-gray-700 mb-5">
-                    <svg class="w-5 h-5 text-gray-500 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"></path></svg>
-                    <p class="text-xs text-gray-600 dark:text-gray-300 leading-relaxed" data-i18n="txt-export-pass">Password: Tanggal lahir kamu dengan format <b>ddmmyyyy</b> (contoh: 17081945)</p>
-                </div> -->
-
                 <div class="space-y-3" id="export-month-container">
                     <!-- Daftar bulan akan di-render di sini secara dinamis -->
                 </div>
@@ -906,7 +985,6 @@
                 "txt-export-desc": "View and download your available account statements.",
                 "lbl-export-acc": "Account",
                 "lbl-export-period": "Select period",
-                "txt-export-pass": "Password: Your date of birth with format <b>ddmmyyyy</b> (e.g. 17081945)",
                 "opt-all-accounts": "ALL ACCOUNTS",
                 "pdf-title": "Account Statement",
                 "pdf-period": "Period",
@@ -923,7 +1001,27 @@
                 "pdf-col-bal": "Balance",
                 "pdf-footer": "This document is printed automatically by the Fintrack Enterprise system and is a valid proof of transaction even without a physical signature.",
                 "pdf-page": "Page",
-                "pdf-of": "of"
+                "pdf-of": "of",
+                
+                "mod-level-info-title": "Fintrack Status",
+                "txt-level-desc": "Keep increasing your net worth to achieve financial freedom.",
+                "lvl-1-name": "Liability Elimination Phase",
+                "lvl-1-desc": "Main focus is paying off consumptive debt to restore cash flow.",
+                "lvl-2-name": "Liquidity Protection Phase",
+                "lvl-2-desc": "Debts are paid. Building an emergency fund buffer of at least 6x average monthly expenses.",
+                "lvl-3-name": "Capital Accumulation Phase",
+                "lvl-3-desc": "Emergency fund secured. Start aggressive asset investment targeting around Rp50 Million.",
+                "lvl-4-name": "Specific Portfolio Allocation",
+                "lvl-4-desc": "Total assets > Rp50 Million. Splitting portfolio based on risk management and long-term goals.",
+                "lvl-5-name": "Equity Maximization Phase",
+                "lvl-5-desc": "Total assets > Rp250 Million. Focus on maximizing net worth and reducing productive debts (mortgage).",
+                "lvl-6-name": "Financial Independence",
+                "lvl-6-desc": "Total Assets > 25x Yearly Expenses. Portfolio yield is able to automatically fund your lifestyle.",
+                "msg-level-up": "You have successfully advanced to a new financial phase.",
+                "msg-level-down": "Your financial phase has decreased. Time to re-evaluate your cash flow.",
+                "txt-congrats": "Congratulations!",
+                "txt-warning": "Warning!",
+                "btn-continue": "Continue"
             },
             id: {
                 "app-desc": "Manajemen Kekayaan Enterprise",
@@ -1077,7 +1175,27 @@
                 "pdf-col-bal": "Saldo",
                 "pdf-footer": "Dokumen ini dicetak secara otomatis oleh sistem Fintrack Enterprise dan merupakan bukti transaksi yang sah meskipun tanpa tanda tangan fisik.",
                 "pdf-page": "Halaman",
-                "pdf-of": "dari"
+                "pdf-of": "dari",
+                
+                "mod-level-info-title": "Status Fintrack",
+                "txt-level-desc": "Tingkatkan terus kekayaan bersih Anda untuk mencapai kebebasan finansial.",
+                "lvl-1-name": "Fase Eliminasi Liabilitas",
+                "lvl-1-desc": "Fokus utama melunasi hutang konsumtif untuk memulihkan arus kas (cash flow).",
+                "lvl-2-name": "Fase Proteksi Likuiditas",
+                "lvl-2-desc": "Hutang telah lunas. Membangun bantalan kas darurat minimal 6x rata-rata pengeluaran bulanan.",
+                "lvl-3-name": "Fase Akumulasi Kapital",
+                "lvl-3-desc": "Dana darurat terpenuhi. Mulai investasi aset agresif dengan target aset mendekati Rp50 Juta.",
+                "lvl-4-name": "Alokasi Portofolio Spesifik",
+                "lvl-4-desc": "Total aset > Rp50 Juta. Memecah portofolio berdasarkan manajemen risiko dan tujuan spesifik jangka panjang.",
+                "lvl-5-name": "Fase Maksimalisasi Ekuitas",
+                "lvl-5-desc": "Total aset > Rp250 Juta. Fokus memaksimalkan kekayaan bersih dan mengurangi hutang produktif (KPR dll).",
+                "lvl-6-name": "Kemerdekaan Finansial",
+                "lvl-6-desc": "Total Aset > 25x Pengeluaran Tahunan. Imbal hasil portofolio mampu membiayai gaya hidup secara otomatis.",
+                "msg-level-up": "Anda berhasil naik ke fase finansial baru.",
+                "msg-level-down": "Fase finansial Anda turun. Waktunya mengevaluasi kembali arus kas Anda.",
+                "txt-congrats": "Selamat!",
+                "txt-warning": "Perhatian!",
+                "btn-continue": "Lanjutkan"
             }
         };
 
@@ -1613,6 +1731,127 @@
             }
         }
 
+        // ==========================================
+        // LOGIKA BARU: PENGHITUNG LEVEL FINTRACK
+        // ==========================================
+        function checkAndUpdateLevel() {
+            let totalDebt = 0;
+            (appData.M_Debt || []).forEach(d => { 
+                const val = extractNumber(getProp(d, 'Sisa', 'Sisa Saldo')); 
+                const tipe = (getProp(d, 'Tipe') || '').toString().trim().toUpperCase();
+                if(tipe === 'UTANG') totalDebt += val; 
+            });
+
+            let currentBalance = 0;
+            (appData.M_Akun || []).forEach(acc => {
+                let namaAkun = getProp(acc, 'Nama_Akun', 'Nama Akun');
+                if (namaAkun && namaAkun.toUpperCase().includes('RDN')) return; 
+                let valReal = getProp(acc, 'Saldo_Realtime', 'Saldo Realtime', 'Saldo_Realtime');
+                let valAwal = getProp(acc, 'Saldo_Awal', 'Saldo Awal', 'Saldo_Awal');
+                currentBalance += extractNumber((valReal !== undefined && valReal !== null && valReal !== "") ? valReal : valAwal);
+            });
+
+            let totalAsset = 0;
+            (appData.M_Akun || []).forEach(acc => {
+                let namaAkun = getProp(acc, 'Nama_Akun', 'Nama Akun');
+                if (namaAkun && namaAkun.toUpperCase().includes('RDN')) {
+                    let valReal = getProp(acc, 'Saldo_Realtime', 'Saldo Realtime', 'Saldo_Realtime');
+                    let valAwal = getProp(acc, 'Saldo_Awal', 'Saldo Awal', 'Saldo_Awal');
+                    totalAsset += extractNumber((valReal !== undefined && valReal !== null && valReal !== "") ? valReal : valAwal);
+                }
+            });
+
+            const porto = appData.M_Portofolio || [];
+            porto.forEach(a => {
+                const jumlahRaw = (getProp(a, 'Jumlah', 'Unit') || "0").toString();
+                const jumlah = parseFloat(jumlahRaw.replace(',', '.')) || 0;
+                const hargaBeli = extractNumber(getProp(a, 'Harga_Beli', 'Harga Beli'));
+                const hargaLiveRaw = getProp(a, 'Harga_Saat_Ini', 'Harga Saat Ini');
+                const hargaSekarang = (hargaLiveRaw !== undefined && hargaLiveRaw !== null && hargaLiveRaw !== "") ? extractNumber(hargaLiveRaw) : hargaBeli;
+                totalAsset += (jumlah * hargaSekarang);
+            });
+
+            let totalOutflowHistorical = 0;
+            let uniqueMonths = new Set();
+            (appData.T_Transaksi || []).forEach(t => {
+                const tglRaw = getProp(t, 'Tanggal');
+                if(!tglRaw) return;
+                const tgl = new Date(tglRaw);
+                const tipe = (getProp(t, 'Tipe') || '').toString().trim().toUpperCase();
+                const kategori = (getProp(t, 'Kategori') || '').toString().trim();
+                if(tipe === 'OUTFLOW' && kategori !== 'Transfer Keluar') {
+                    totalOutflowHistorical += extractNumber(getProp(t, 'Jumlah'));
+                    uniqueMonths.add(`${tgl.getFullYear()}-${tgl.getMonth()}`);
+                }
+            });
+
+            let monthsCount = uniqueMonths.size > 0 ? uniqueMonths.size : 1;
+            let avgExpenditure = totalOutflowHistorical / monthsCount;
+            if (avgExpenditure === 0) avgExpenditure = 0; 
+
+            let newLevelNum = 1;
+            
+            let totalGabunganDana = currentBalance + totalAsset;
+            let targetDanaDarurat = 6 * avgExpenditure;
+
+            if (totalDebt > 0) {
+                newLevelNum = 1;
+            } else if (totalDebt === 0 && totalGabunganDana < targetDanaDarurat) {
+                newLevelNum = 2;
+            } else if (totalGabunganDana >= targetDanaDarurat && totalAsset < 50000000) {
+                newLevelNum = 3;
+            } else if (totalAsset >= 50000000 && totalAsset < 250000000) {
+                newLevelNum = 4;
+            } else if (totalAsset >= 250000000 && totalAsset < (25 * (avgExpenditure * 12))) {
+                newLevelNum = 5;
+            } else if (totalAsset >= (25 * (avgExpenditure * 12))) {
+                newLevelNum = 6;
+            }
+
+            const levelConfig = {
+                1: { title: "Level 1: " + t('lvl-1-name'), icon: "🔥", color: "from-amber-700 to-orange-900" },
+                2: { title: "Level 2: " + t('lvl-2-name'), icon: "🛡️", color: "from-gray-400 to-gray-600" },
+                3: { title: "Level 3: " + t('lvl-3-name'), icon: "🪙", color: "from-yellow-400 to-yellow-600" },
+                4: { title: "Level 4: " + t('lvl-4-name'), icon: "📈", color: "from-slate-700 to-slate-900" },
+                5: { title: "Level 5: " + t('lvl-5-name'), icon: "💎", color: "from-cyan-400 to-blue-600" },
+                6: { title: "Level 6: " + t('lvl-6-name'), icon: "👑", color: "from-purple-500 to-indigo-700 ring-2 ring-purple-300" }
+            };
+
+            const conf = levelConfig[newLevelNum];
+            
+            const badgeEl = document.getElementById('user-level-badge');
+            badgeEl.className = `mt-1 px-3 py-1.5 rounded-full text-[10px] font-bold text-white shadow-md transition-all duration-300 flex items-center gap-1.5 hover:scale-105 active:scale-95 bg-gradient-to-r ${conf.color}`;
+            document.getElementById('badge-icon').innerText = conf.icon;
+            document.getElementById('badge-text').innerText = conf.title;
+
+            for(let i=1; i<=6; i++) {
+                const listEl = document.getElementById('list-level-' + i);
+                if(i === newLevelNum) {
+                    listEl.classList.remove('opacity-50');
+                    listEl.classList.add('ring-2', 'ring-[#6342E8]', 'scale-105', 'shadow-lg');
+                } else {
+                    listEl.classList.add('opacity-50');
+                    listEl.classList.remove('ring-2', 'ring-[#6342E8]', 'scale-105', 'shadow-lg');
+                }
+            }
+
+            const savedLevel = localStorage.getItem('fintrack_user_level');
+            if (savedLevel && parseInt(savedLevel) !== newLevelNum) {
+                const isLevelUp = newLevelNum > parseInt(savedLevel);
+                
+                document.getElementById('notify-level-title').innerText = isLevelUp ? t('txt-congrats') : t('txt-warning');
+                document.getElementById('notify-level-title').className = isLevelUp ? 'font-bold text-xl dark:text-white' : 'font-bold text-xl text-red-500';
+                document.getElementById('notify-level-desc').innerText = isLevelUp ? t('msg-level-up') : t('msg-level-down');
+                document.getElementById('notify-level-name').innerText = conf.title;
+                document.getElementById('notify-level-icon').innerText = conf.icon;
+                document.getElementById('notify-level-icon').className = `w-20 h-20 mx-auto rounded-full bg-gradient-to-br ${conf.color} flex items-center justify-center text-4xl shadow-lg mb-4 text-white border-2 border-white/20`;
+
+                document.getElementById('modal-level-notify').classList.remove('hidden', 'hidden-page');
+            }
+            
+            localStorage.setItem('fintrack_user_level', newLevelNum);
+        }
+
         function renderAllHTMLData() { 
             renderDashboard(); 
             renderAccounts(); 
@@ -1622,6 +1861,8 @@
             try { renderHistoryScreen(false); } catch(e) {}
             try { renderCalendar(); } catch(e) {}
             applyPrivacyMasks(); 
+            
+            checkAndUpdateLevel();
         }
 
         function renderDashboard() {
@@ -2086,19 +2327,14 @@
                             items.forEach(item => {
                                 const itemName = getProp(item, 'Nama_Item', 'Nama Item', 'Item', 'Nama') || 'Item';
                                 
-                                // FIX: Menghindari array mapping yang salah, kita ambil dari index object langsung. 
-                                // Karena data dari sheet masuk sebagai object, dan di sheet Anda (Kolom E & F)
-                                // Kolom E (index ke-4) adalah Qty, Kolom F (index ke-5) kemungkinan kosong, dan Kolom G (index ke-6 atau nama lain) adalah Harga.
-                                // Kita akan extract value terbesar yang masuk akal sebagai harga
                                 let itemPrice = 0;
                                 let itemQty = 1;
                                 
-                                // Deteksi otomatis nilai Harga yang sesungguhnya (mengabaikan nilai '1' dari Qty)
                                 Object.keys(item).forEach(key => {
                                     let val = extractNumber(item[key]);
-                                    if(val > 100) { // Jika ada angka lebih dari 100, hampir pasti ini adalah nominal harga
+                                    if(val > 100) { 
                                         itemPrice = val;
-                                    } else if (val > 0 && val <= 100) { // Angka kecil kemungkinan besar Qty
+                                    } else if (val > 0 && val <= 100) { 
                                         itemQty = val;
                                     }
                                 });
@@ -2160,17 +2396,14 @@
                     if (!confirm(confirmMsg)) return;
                 }
                 
-                // Reset form fields
                 document.getElementById('form-trx-amount').value = '';
                 document.getElementById('form-trx-desc').value = '';
                 if(document.getElementById('form-trx-admin')) document.getElementById('form-trx-admin').value = '';
                 
-                // Reset scanned items
                 currentScannedItems = [];
                 const itemListSec = document.getElementById('itemListSection');
                 if (itemListSec) itemListSec.classList.add('hidden');
                 
-                // Reset time to now
                 const now = new Date();
                 document.getElementById('form-trx-date').value = now.toISOString().split('T')[0];
                 document.getElementById('form-trx-time').value = now.getHours().toString().padStart(2, '0') + ':' + now.getMinutes().toString().padStart(2, '0');
@@ -2222,7 +2455,6 @@
                 if(tgl) years.add(new Date(tgl).getFullYear());
             });
             
-            // Default tahun ini jika kosong
             if(years.size === 0) years.add(new Date().getFullYear());
             
             const sortedYears = Array.from(years).sort((a,b) => b - a);
@@ -2288,20 +2520,15 @@
                 const doc = new jsPDF('p', 'mm', 'a4');
                 const totalPagesExp = "{total_pages_count_string}";
                 
-                // Ambil data filter
                 const selectedAccount = document.getElementById('export-pdf-account').value;
                 const isAllAccounts = selectedAccount === 'ALL';
                 
-                // Data User Static / Sesuai Instruksi
                 const userName = sessionName ? sessionName.toUpperCase() : "PENGGUNA FINTRACK";
                 const userEmail = sessionEmail ? sessionEmail.toLowerCase() : "fintrack user";
                 const accLabel = isAllAccounts ? t('pdf-all-acc') : selectedAccount.toUpperCase();
                 
-                // Filter Transaksi
                 let trxs = appData.T_Transaksi || [];
                 
-                // LOGIKA SALDO MUNDUR (REVERSE ENGINEERING)
-                // 1. Hitung Saldo Realtime Total Saat Ini
                 let currentRealtimeBalance = 0;
                 if (isAllAccounts) {
                     (appData.M_Akun || []).forEach(acc => {
@@ -2320,7 +2547,6 @@
                     }
                 }
 
-                // 2. Ambil Semua Transaksi Valid (Sesuai Akun)
                 let relevantTrxs = trxs.filter(t => {
                     const tglRaw = getProp(t, 'Tanggal');
                     if(!tglRaw) return false;
@@ -2328,10 +2554,8 @@
                     return getProp(t, 'Akun') === selectedAccount;
                 });
 
-                // Urutkan lama ke baru
                 relevantTrxs.sort((a, b) => new Date(getProp(a, 'Tanggal')).getTime() - new Date(getProp(b, 'Tanggal')).getTime());
 
-                // 3. Hitung "Net Mutasi" Setelah Bulan Target (untuk hitung mundur)
                 const endOfTargetMonth = new Date(year, monthIdx + 1, 0, 23, 59, 59, 999).getTime();
                 let mutasiSetelahTarget = 0;
                 
@@ -2340,16 +2564,13 @@
                     if (tgl > endOfTargetMonth) {
                         const tipe = (getProp(t, 'Tipe') || '').toString().trim().toUpperCase();
                         const val = extractNumber(getProp(t, 'Jumlah'));
-                        // Transfer internal pada isAllAccounts akan saling meniadakan nilainya (+ dan -)
                         if (tipe === 'INFLOW') mutasiSetelahTarget += val;
                         else if (tipe === 'OUTFLOW') mutasiSetelahTarget -= val;
                     }
                 });
 
-                // Saldo Akhir Bulan Target
                 let saldoAkhirBulan = currentRealtimeBalance - mutasiSetelahTarget;
 
-                // 4. Ambil Transaksi Spesifik di Bulan Target
                 let monthTrxs = relevantTrxs.filter(t => {
                     const d = new Date(getProp(t, 'Tanggal'));
                     return d.getMonth() === monthIdx && d.getFullYear() === year;
@@ -2366,7 +2587,6 @@
                     
                     if(tipe === 'INFLOW') {
                         mutasiBulanIni += val;
-                        // Jangan hitung transfer internal ke SUMMARY agar nominal in/out tidak membengkak
                         if (!(isAllAccounts && kategori === 'Transfer Masuk')) summaryTotalIn += val;
                     } else if(tipe === 'OUTFLOW') {
                         mutasiBulanIni -= val;
@@ -2374,14 +2594,11 @@
                     }
                 });
 
-                // Saldo Awal Bulan Target
                 let saldoAwalBulan = saldoAkhirBulan - mutasiBulanIni;
                 
-                // 5. Susun Baris Tabel
                 let runningBalance = saldoAwalBulan;
                 let tableRows = [];
 
-                // Push row pertama (Saldo Awal)
                 tableRows.push([
                     '',
                     { content: t('pdf-bal-start'), styles: { fontStyle: 'bold' } },
@@ -2409,7 +2626,6 @@
                     let nomStr = '';
                     let nomStyle = {};
 
-                    // Hitung Saldo Berjalan (Transfer internal tetap ikut mengubah saldo baris)
                     if(tipe === 'INFLOW') {
                         runningBalance += val;
                         if(isAllAccounts && kategori === 'Transfer Masuk') {
@@ -2417,7 +2633,7 @@
                            nomStyle = { textColor: [100, 100, 100] }; 
                         } else {
                             nomStr = '+' + new Intl.NumberFormat('id-ID').format(val);
-                            nomStyle = { textColor: [34, 197, 94] }; // text-green-500
+                            nomStyle = { textColor: [34, 197, 94] };
                         }
                     } else if(tipe === 'OUTFLOW') {
                         runningBalance -= val;
@@ -2426,7 +2642,7 @@
                            nomStyle = { textColor: [100, 100, 100] };
                         } else {
                             nomStr = '-' + new Intl.NumberFormat('id-ID').format(val);
-                            nomStyle = { textColor: [239, 68, 68] }; // text-red-500
+                            nomStyle = { textColor: [239, 68, 68] };
                         }
                     }
 
@@ -2438,25 +2654,22 @@
                     ]);
                 });
 
-                // Load Logo & Maintain Aspect Ratio
                 let logoBase64 = null;
                 let logoHeight = 12;
                 let logoWidth = 36;
                 try {
                     logoBase64 = await getBase64ImageFromUrl('Logo_Fintrack.png');
                     const imgProps = doc.getImageProperties(logoBase64);
-                    logoWidth = 45; // Diperbesar agar sesuai mockup
+                    logoWidth = 45; 
                     logoHeight = (imgProps.height * logoWidth) / imgProps.width; 
                 } catch(e) { console.log('Logo failed to load for PDF'); }
 
                 const periodLastDay = new Date(year, monthIdx + 1, 0).getDate();
                 const periodStr = `1 - ${periodLastDay} ${i18n[currentLang]['month-names'][monthIdx]} ${year}`;
 
-                // Warna Tema Fintrack
-                const primaryColor = [99, 66, 232]; // #6342E8
-                const softColor = [240, 237, 255]; // #F0EDFF
+                const primaryColor = [99, 66, 232]; 
+                const softColor = [240, 237, 255]; 
 
-                // Fungsi untuk menggambar Header di setiap halaman
                 const drawHeader = (data) => {
                     if (logoBase64) {
                         doc.addImage(logoBase64, 'PNG', 15, 8, logoWidth, logoHeight);
@@ -2467,12 +2680,10 @@
                         doc.text("Fintrack", 15, 20);
                     }
 
-                    // Garis Top Right
                     doc.setDrawColor(primaryColor[0], primaryColor[1], primaryColor[2]);
                     doc.setLineWidth(1);
                     doc.line(110, 12, 195, 12);
 
-                    // Judul Kanan
                     doc.setFont("helvetica", "bold");
                     doc.setFontSize(16);
                     doc.setTextColor(30, 30, 30);
@@ -2482,7 +2693,6 @@
                     doc.setTextColor(100, 100, 100);
                     doc.text(`${t('pdf-period')}: ${periodStr}`, 195, 25, { align: "right" });
 
-                    // Info Kiri (Diturunkan agar tidak menabrak tabel)
                     doc.setFont("helvetica", "bold");
                     doc.setFontSize(10);
                     doc.setTextColor(30, 30, 30);
@@ -2494,7 +2704,6 @@
                     const splitAddress = doc.splitTextToSize(userEmail, 90);
                     doc.text(splitAddress, 15, 41);
 
-                    // Info Kanan
                     doc.setFont("helvetica", "bold");
                     doc.setFontSize(10);
                     doc.setTextColor(30, 30, 30);
@@ -2507,7 +2716,6 @@
                     doc.setFont("helvetica", "bold");
                     doc.text("IDR", 195, 41, { align: "right" });
 
-                    // Jika Halaman 1, gambar Kotak Ringkasan
                     if (data.pageNumber === 1) {
                         const boxY = 52;
                         const boxH = 18;
@@ -2517,14 +2725,12 @@
                         doc.setLineWidth(0.5);
                         doc.roundedRect(15, boxY, 180, boxH, 3, 3, 'FD');
 
-                        // Garis pemisah vertikal
                         doc.setDrawColor(primaryColor[0], primaryColor[1], primaryColor[2]);
                         doc.setLineWidth(0.2);
                         doc.line(60, boxY + 3, 60, boxY + boxH - 3);
                         doc.line(105, boxY + 3, 105, boxY + boxH - 3);
                         doc.line(150, boxY + 3, 150, boxY + boxH - 3);
 
-                        // Teks Ringkasan (Label)
                         doc.setFont("helvetica", "normal");
                         doc.setFontSize(8);
                         doc.setTextColor(100, 100, 100);
@@ -2533,21 +2739,19 @@
                         doc.text(t('pdf-tot-out'), 127.5, boxY + 7, { align: "center" });
                         doc.text(t('pdf-bal-end'), 172.5, boxY + 7, { align: "center" });
 
-                        // Teks Ringkasan (Value)
                         doc.setFont("helvetica", "bold");
                         doc.setFontSize(10);
                         doc.setTextColor(30, 30, 30);
                         doc.text(new Intl.NumberFormat('id-ID').format(saldoAwalBulan), 37.5, boxY + 13, { align: "center" });
-                        doc.setTextColor(34, 197, 94); // Green
+                        doc.setTextColor(34, 197, 94); 
                         doc.text('+' + new Intl.NumberFormat('id-ID').format(summaryTotalIn), 82.5, boxY + 13, { align: "center" });
-                        doc.setTextColor(239, 68, 68); // Red
+                        doc.setTextColor(239, 68, 68); 
                         doc.text('-' + new Intl.NumberFormat('id-ID').format(summaryTotalOut), 127.5, boxY + 13, { align: "center" });
                         doc.setTextColor(30, 30, 30);
                         doc.text(new Intl.NumberFormat('id-ID').format(saldoAkhirBulan), 172.5, boxY + 13, { align: "center" });
                     }
                 };
 
-                // Fungsi untuk menggambar Footer di setiap halaman
                 const drawFooter = (data) => {
                     const footerY = doc.internal.pageSize.height - 15;
                     
@@ -2555,7 +2759,6 @@
                     doc.setLineWidth(0.5);
                     doc.line(15, footerY - 5, 195, footerY - 5);
 
-                    // Icon/Logo kecil Validasi (lingkaran + checkmark)
                     doc.setDrawColor(200, 200, 200);
                     doc.setFillColor(245, 245, 245);
                     doc.circle(20, footerY + 2, 4, 'FD');
@@ -2564,23 +2767,20 @@
                     doc.line(18.5, footerY + 2, 19.5, footerY + 3.5);
                     doc.line(19.5, footerY + 3.5, 22, footerY + 0.5);
                     
-                    // Teks Disclaimer
                     doc.setFont("helvetica", "normal");
                     doc.setFontSize(7);
                     doc.setTextColor(120, 120, 120);
                     const splitFooter = doc.splitTextToSize(t('pdf-footer'), 140);
                     doc.text(splitFooter, 28, footerY);
 
-                    // Paging
                     doc.setFont("helvetica", "normal");
                     doc.setFontSize(8);
                     doc.setTextColor(100, 100, 100);
                     doc.text(`${t('pdf-page')} ${data.pageNumber} ${t('pdf-of')} ${totalPagesExp}`, 195, footerY + 3, { align: "right" });
                 };
 
-                // Konfigurasi AutoTable
                 doc.autoTable({
-                    startY: 75, // Start setelah header & summary box di hal 1
+                    startY: 75, 
                     head: [[t('pdf-col-date'), t('pdf-col-desc'), t('pdf-col-nom'), t('pdf-col-bal')]],
                     body: tableRows,
                     theme: 'plain',
@@ -2600,26 +2800,23 @@
                     },
                     columnStyles: {
                         0: { cellWidth: 35 },
-                        1: { cellWidth: 'auto' }, // flex
+                        1: { cellWidth: 'auto' }, 
                         2: { cellWidth: 35, halign: 'right' },
                         3: { cellWidth: 35, halign: 'right' }
                     },
                     didParseCell: function (data) {
-                        // Header custom alignment for right cols
                         if (data.section === 'head' && (data.column.index === 2 || data.column.index === 3)) {
                             data.cell.styles.halign = 'right';
                         }
                     },
                     willDrawCell: function (data) {
-                        // Zebra striping custom fintrack
                         if (data.section === 'body') {
-                            if (data.row.index % 2 === 1) { // Genap
-                                doc.setFillColor(248, 246, 255); // #f8f6ff
+                            if (data.row.index % 2 === 1) { 
+                                doc.setFillColor(248, 246, 255); 
                                 doc.rect(data.cell.x, data.cell.y, data.cell.width, data.cell.height, 'F');
                             }
                         }
                     },
-                    // Margin TOP sangat penting agar di halaman 2 tabel tidak menabrak header
                     margin: { top: 55, left: 15, right: 15, bottom: 25 },
                     didDrawPage: function (data) {
                         drawHeader(data);
@@ -2631,7 +2828,6 @@
                     doc.putTotalPages(totalPagesExp);
                 }
 
-                // Save PDF
                 const fileName = `Mutasi_${selectedAccount}_${i18n[currentLang]['month-names'][monthIdx]}_${year}.pdf`;
                 doc.save(fileName);
                 closeModal('modal-export-pdf');
