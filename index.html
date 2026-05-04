@@ -241,7 +241,7 @@
                         <h3 class="text-sm font-semibold dark:text-gray-200" data-i18n="dash-debt">Debts & Receivables</h3>
                         <button onclick="openModal('modal-debt')" class="text-xs font-bold text-[#6342E8] dark:text-[#a78bfa] hover:opacity-80 transition" data-i18n="btn-add-debt">+ Add Debt</button>
                     </div>
-                    <div class="grid grid-cols-2 gap-3 mb-3">
+                    <div class="grid grid-cols-2 gap-3 mb-1">
                         <div class="p-3 bg-red-50 dark:bg-red-900/20 rounded-xl border border-red-100 dark:border-red-900/50">
                             <p class="text-[10px] text-red-600 dark:text-red-400" data-i18n="txt-mydebt">My Debt</p>
                             <p id="debt-out" class="font-bold text-sm privacy-mask" data-value="0">Rp 0</p>
@@ -251,6 +251,8 @@
                             <p id="debt-in" class="font-bold text-sm privacy-mask" data-value="0">Rp 0</p>
                         </div>
                     </div>
+                    <!-- LIST HUTANG & PIUTANG -->
+                    <div id="debt-list" class="space-y-2 mt-2"></div>
                 </div>
 
                 <div>
@@ -325,7 +327,6 @@
                 <div class="space-y-4">
                     <div class="flex justify-between items-center">
                         <h2 class="text-xl font-bold dark:text-white" data-i18n="hist-title">Financial Recap</h2>
-                        <!-- Tombol Tambahan untuk Export PDF -->
                         <button onclick="openModal('modal-export-pdf')" class="w-10 h-10 flex items-center justify-center rounded-full bg-white dark:bg-[#1e1e1e] border border-gray-200 dark:border-gray-700 shadow-sm hover:bg-gray-50 dark:hover:bg-gray-800 transition">
                             <svg class="w-5 h-5 text-[#6342E8] dark:text-[#a78bfa]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
                         </button>
@@ -401,7 +402,6 @@
                 <span data-i18n="nav-cal">Calendar</span>
             </button>
             
-            <!-- TOMBOL FAB TENGAH (SCAN NOTA) -->
             <div class="relative w-14 h-full flex justify-center z-50">
                 <div class="absolute -top-6">
                     <input type="file" accept="image/*" capture="environment" id="receipt-camera" class="hidden" onchange="processReceiptImage(event)">
@@ -557,7 +557,6 @@
                 </div>
             </div>
 
-            <!-- ITEM LIST SECTION -->
             <div id="itemListSection" class="hidden bg-white dark:bg-[#2d2d2d] rounded-2xl p-5 shadow-sm border border-gray-100 dark:border-gray-700 mt-3 mb-3">
                 <div class="flex justify-between items-center mb-3 border-b border-gray-100 dark:border-gray-700 pb-2">
                     <h3 class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Item List</h3>
@@ -568,7 +567,6 @@
 
             <input type="text" id="form-trx-desc" data-i18n="ph-desc" placeholder="What is this for?" class="w-full p-5 rounded-2xl bg-white dark:bg-[#2d2d2d] dark:text-white border-0 shadow-sm outline-none text-sm font-medium focus:ring-2 focus:ring-[#6342E8] transition">
             
-            <!-- DATE AND TIME PICKER -->
             <div class="grid grid-cols-2 gap-3 mt-3 mb-2">
                 <div class="bg-white dark:bg-[#2d2d2d] p-4 rounded-2xl shadow-sm">
                     <label class="text-[10px] text-gray-400 block mb-1 font-semibold uppercase" data-i18n="lbl-date">Date</label>
@@ -750,6 +748,25 @@
         </div>
         <div class="p-6 pb-10">
             <button onclick="submitSellAsset()" class="w-full bg-[#EF4444] text-white py-5 rounded-[20px] font-bold text-lg active:scale-95 transition shadow-[0_10px_20px_rgba(239,68,68,0.25)]" data-i18n="btn-sell">Sell Now</button>
+        </div>
+    </div>
+
+    <!-- MODAL PEMBAYARAN HUTANG PIUTANG -->
+    <div id="modal-pay-debt" class="fixed inset-0 modal-overlay hidden z-[60] flex items-center justify-center px-4">
+        <div class="bg-white dark:bg-[#1e1e1e] p-6 rounded-[32px] w-full max-w-xs space-y-5 text-center shadow-2xl border border-gray-100 dark:border-gray-800 transform transition-all scale-100">
+            <h3 class="font-bold text-lg dark:text-white" id="mod-pay-debt-title">Pay Debt</h3>
+            <p class="text-xs text-gray-500 dark:text-gray-400"><span id="txt-pay-debt-desc">Membayar hutang kepada</span> <span id="pay-debt-name-display" class="font-bold text-[#6342E8] dark:text-[#a78bfa]"></span>.</p>
+            <p class="text-[10px] text-gray-400 mb-2 font-bold uppercase tracking-wide">Sisa: <span id="pay-debt-sisa-display"></span></p>
+            
+            <input type="hidden" id="form-pay-debt-name">
+            <input type="hidden" id="form-pay-debt-tipe">
+            <input type="hidden" id="form-pay-debt-max">
+            
+            <input type="text" inputmode="numeric" id="form-pay-debt-amount" oninput="formatRupiahInput(this)" data-i18n="ph-amount" placeholder="Nominal" class="w-full p-4 bg-gray-50 dark:bg-[#2d2d2d] border border-gray-200 dark:border-gray-700 rounded-xl outline-none text-center font-bold text-lg text-[#6342E8] dark:text-[#a78bfa] transition">
+            <select id="form-pay-debt-account" class="w-full p-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-transparent dark:bg-[#2d2d2d] outline-none text-sm mb-2 font-bold appearance-none text-center text-gray-600 dark:text-gray-300 transition"></select>
+            
+            <button onclick="submitPayDebt()" class="w-full py-4 bg-[#6342E8] text-white rounded-xl text-sm font-bold active:scale-95 transition shadow-lg" id="btn-pay-debt-submit">Konfirmasi</button>
+            <button onclick="closeModal('modal-pay-debt')" class="text-xs text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 mt-2 block w-full py-2 transition" data-i18n="btn-cancel">Batal</button>
         </div>
     </div>
 
@@ -985,6 +1002,7 @@
                 "txt-export-desc": "View and download your available account statements.",
                 "lbl-export-acc": "Account",
                 "lbl-export-period": "Select period",
+                "txt-export-pass": "Password: Your date of birth with format <b>ddmmyyyy</b> (e.g. 17081945)",
                 "opt-all-accounts": "ALL ACCOUNTS",
                 "pdf-title": "Account Statement",
                 "pdf-period": "Period",
@@ -1021,7 +1039,17 @@
                 "msg-level-down": "Your financial phase has decreased. Time to re-evaluate your cash flow.",
                 "txt-congrats": "Congratulations!",
                 "txt-warning": "Warning!",
-                "btn-continue": "Continue"
+                "btn-continue": "Continue",
+                
+                "ph-amount": "Amount",
+                "title-pay-debt": "Pay Debt",
+                "title-recv-debt": "Receive Funds",
+                "desc-pay-debt": "Paying debt to",
+                "desc-recv-debt": "Receiving funds from",
+                "btn-pay-debt": "Pay Now",
+                "btn-recv-debt": "Receive Funds",
+                "txt-paid": "Paid",
+                "btn-pay-now": "Pay Now"
             },
             id: {
                 "app-desc": "Manajemen Kekayaan Enterprise",
@@ -1195,7 +1223,17 @@
                 "msg-level-down": "Fase finansial Anda turun. Waktunya mengevaluasi kembali arus kas Anda.",
                 "txt-congrats": "Selamat!",
                 "txt-warning": "Perhatian!",
-                "btn-continue": "Lanjutkan"
+                "btn-continue": "Lanjutkan",
+                
+                "ph-amount": "Nominal",
+                "title-pay-debt": "Bayar Hutang",
+                "title-recv-debt": "Terima Piutang",
+                "desc-pay-debt": "Membayar hutang kepada",
+                "desc-recv-debt": "Menerima piutang dari",
+                "btn-pay-debt": "Bayar Sekarang",
+                "btn-recv-debt": "Terima Dana",
+                "txt-paid": "Lunas",
+                "btn-pay-now": "Bayar Tagihan"
             }
         };
 
@@ -1647,6 +1685,29 @@
             }
         }
 
+        async function payRecurring(nama, nominal, akun) {
+            const confirmMsg = currentLang === 'id' ? `Yakin melakukan pembayaran tagihan ${nama} sebesar ${toRp(nominal)} dari akun ${akun}?` : `Are you sure you want to pay ${nama} bill of ${toRp(nominal)} from ${akun} account?`;
+            if(!confirm(confirmMsg)) return;
+
+            const accData = (appData.M_Akun || []).find(a => getProp(a, 'Nama_Akun', 'Nama Akun') === akun);
+            if(accData && extractNumber(getProp(accData, 'Saldo_Realtime', 'Saldo Realtime', 'Saldo_Awal')) < nominal) {
+                return alert(currentLang === 'id' ? "Saldo tidak mencukupi." : "Insufficient balance.");
+            }
+
+            const now = new Date();
+            const combinedDateTime = now.toISOString().split('T')[0] + ' ' + now.getHours().toString().padStart(2, '0') + ':' + now.getMinutes().toString().padStart(2, '0');
+            
+            showLoading(true);
+            try {
+                await fetch(API_URL, { method: 'POST', body: JSON.stringify({ action: 'addTransaction', email: sessionEmail, tipe: 'OUTFLOW', akun: akun, jumlah: nominal, kategori: 'Tagihan', keterangan: `Tagihan Berulang: ${nama}`, tanggal: combinedDateTime })});
+                await fetchAllData();
+            } catch(e) {
+                console.error(e);
+            } finally {
+                showLoading(false);
+            }
+        }
+
         async function submitGoal() {
             const name = document.getElementById('form-goal-name').value, amount = extractNumber(document.getElementById('form-goal-amount').value);
             if(!name || amount <= 0) return;
@@ -1662,6 +1723,71 @@
             if(await apiPost({ action: 'addDebt', email: sessionEmail, tipe: document.getElementById('form-debt-tipe').value, kontak: name, jumlah: amount })) { 
                 closeModal('modal-debt'); 
                 await fetchAllData(); 
+            }
+        }
+
+        function preparePayDebt(nama, tipe, sisa) {
+            document.getElementById('form-pay-debt-name').value = nama;
+            document.getElementById('form-pay-debt-tipe').value = tipe;
+            document.getElementById('form-pay-debt-max').value = sisa;
+            
+            document.getElementById('pay-debt-name-display').innerText = nama;
+            document.getElementById('pay-debt-sisa-display').innerText = toRp(sisa);
+            
+            const isUtang = tipe === 'UTANG';
+            document.getElementById('mod-pay-debt-title').innerText = isUtang ? t('title-pay-debt') : t('title-recv-debt');
+            document.getElementById('txt-pay-debt-desc').innerText = isUtang ? t('desc-pay-debt') : t('desc-recv-debt');
+            document.getElementById('btn-pay-debt-submit').innerText = isUtang ? t('btn-pay-debt') : t('btn-recv-debt');
+            
+            const selAccount = document.getElementById('form-pay-debt-account');
+            selAccount.innerHTML = document.getElementById('form-trx-account').innerHTML; 
+            
+            document.getElementById('modal-pay-debt').classList.remove('hidden', 'hidden-page');
+        }
+
+        async function submitPayDebt() {
+            const nama = document.getElementById('form-pay-debt-name').value;
+            const tipe = document.getElementById('form-pay-debt-tipe').value;
+            const maxSisa = parseFloat(document.getElementById('form-pay-debt-max').value);
+            const amount = extractNumber(document.getElementById('form-pay-debt-amount').value);
+            const akun = document.getElementById('form-pay-debt-account').value;
+            
+            if (amount <= 0 || !akun || amount > maxSisa) {
+                alert(currentLang === 'id' ? "Nominal tidak valid atau melebihi sisa." : "Invalid amount or exceeds remaining balance.");
+                return;
+            }
+
+            const isUtang = tipe === 'UTANG';
+            
+            if (isUtang) {
+                const accData = (appData.M_Akun || []).find(a => getProp(a, 'Nama_Akun', 'Nama Akun') === akun);
+                if(accData && extractNumber(getProp(accData, 'Saldo_Realtime', 'Saldo Realtime', 'Saldo_Awal')) < amount) {
+                    return alert(currentLang === 'id' ? "Saldo tidak mencukupi." : "Insufficient balance.");
+                }
+            }
+
+            const histTipe = isUtang ? 'OUTFLOW' : 'INFLOW';
+            const histKategori = isUtang ? 'Tagihan' : 'Pemberian';
+            const histKetEng = isUtang ? `Paying debt (${nama})` : `Receiving receivable (${nama})`;
+            const histKetId = isUtang ? `Membayar hutang (${nama})` : `Menerima Piutang (${nama})`;
+            const histKeterangan = currentLang === 'id' ? histKetId : histKetEng;
+            
+            const now = new Date();
+            const combinedDateTime = now.toISOString().split('T')[0] + ' ' + now.getHours().toString().padStart(2, '0') + ':' + now.getMinutes().toString().padStart(2, '0');
+
+            showLoading(true);
+            try {
+                await fetch(API_URL, { method: 'POST', body: JSON.stringify({ action: 'addTransaction', email: sessionEmail, tipe: histTipe, akun: akun, jumlah: amount, kategori: histKategori, keterangan: histKeterangan, tanggal: combinedDateTime })});
+                
+                await fetch(API_URL, { method: 'POST', body: JSON.stringify({ action: 'addDebt', email: sessionEmail, tipe: tipe, kontak: nama, jumlah: -amount })});
+                
+                closeModal('modal-pay-debt');
+                document.getElementById('form-pay-debt-amount').value = '';
+                await fetchAllData();
+            } catch(e) {
+                console.error(e);
+            } finally {
+                showLoading(false);
             }
         }
 
@@ -1724,10 +1850,33 @@
                 }
             }
 
-            if(await apiPost({ action: 'manageGoalFunds', email: sessionEmail, namaGoal: activeGoalName, tipeAksi: actionType, nominal: amount, isAchieved: isAchieved, akun: account })) { 
-                closeModal('modal-withdraw-goal'); closeModal('modal-add-savings'); 
-                document.getElementById('form-withdraw-amount').value = ''; document.getElementById('form-add-savings-amount').value = '';
-                await fetchAllData(); 
+            showLoading(true);
+            try {
+                const res = await fetch(API_URL, { method: 'POST', body: JSON.stringify({ action: 'manageGoalFunds', email: sessionEmail, namaGoal: activeGoalName, tipeAksi: actionType, nominal: amount, isAchieved: isAchieved, akun: account }) });
+                const result = await res.json();
+                
+                if (result.status === 'success') {
+                    const now = new Date();
+                    const combinedDateTime = now.toISOString().split('T')[0] + ' ' + now.getHours().toString().padStart(2, '0') + ':' + now.getMinutes().toString().padStart(2, '0');
+                    
+                    if (actionType === 'add') {
+                        const desc = currentLang === 'id' ? `Menabung Target: ${activeGoalName}` : `Saving Target: ${activeGoalName}`;
+                        await fetch(API_URL, { method: 'POST', body: JSON.stringify({ action: 'addTransaction', email: sessionEmail, tipe: 'OUTFLOW', akun: account, jumlah: amount, kategori: 'Tabungan & Investasi', keterangan: desc, tanggal: combinedDateTime })});
+                    } else if (actionType === 'withdraw') {
+                        const desc = currentLang === 'id' ? `Pencairan Target: ${activeGoalName}` : `Target Withdrawal: ${activeGoalName}`;
+                        await fetch(API_URL, { method: 'POST', body: JSON.stringify({ action: 'addTransaction', email: sessionEmail, tipe: 'INFLOW', akun: account, jumlah: amount, kategori: 'Tabungan & Investasi', keterangan: desc, tanggal: combinedDateTime })});
+                    }
+
+                    closeModal('modal-withdraw-goal'); closeModal('modal-add-savings'); 
+                    document.getElementById('form-withdraw-amount').value = ''; document.getElementById('form-add-savings-amount').value = '';
+                    await fetchAllData(); 
+                } else {
+                    alert(result.message);
+                }
+            } catch(e) {
+                console.error(e);
+            } finally {
+                showLoading(false);
             }
         }
 
@@ -1904,14 +2053,47 @@
             document.getElementById('summary-expense').setAttribute('data-value', exp); document.getElementById('summary-expense').innerText = isPrivate ? '********' : toRp(exp);
             
             let dIn = 0, dOut = 0;
+            const debtListContainer = document.getElementById('debt-list');
+            let debtHtml = '';
+
             (appData.M_Debt || []).forEach(d => { 
-                const val = extractNumber(getProp(d, 'Sisa', 'Sisa Saldo')); 
+                const sisa = extractNumber(getProp(d, 'Sisa', 'Sisa Saldo', 'Jumlah')); 
                 const tipe = (getProp(d, 'Tipe') || '').toString().trim().toUpperCase();
-                if(tipe === 'PIUTANG') dIn += val; 
-                if(tipe === 'UTANG') dOut += val; 
+                const nama = getProp(d, 'Kontak', 'Nama', 'Keterangan') || 'Unknown';
+
+                if(tipe === 'PIUTANG') dIn += sisa; 
+                if(tipe === 'UTANG') dOut += sisa; 
+
+                if (sisa > 0) {
+                    const isUtang = tipe === 'UTANG';
+                    const typeLabel = isUtang ? t('txt-mydebt') : t('txt-receivable');
+                    const colorClass = isUtang ? 'text-red-500 dark:text-red-400' : 'text-green-500 dark:text-green-400';
+                    const bgClass = isUtang ? 'bg-red-50 dark:bg-red-900/20' : 'bg-green-50 dark:bg-green-900/20';
+                    
+                    debtHtml += `
+                    <div class="bg-white dark:bg-[#1e1e1e] p-4 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-800 flex justify-between items-center transition hover:shadow-md mb-2 last:mb-0">
+                        <div>
+                            <p class="text-sm font-bold dark:text-gray-200">${nama}</p>
+                            <p class="text-[10px] text-gray-500">${typeLabel}</p>
+                        </div>
+                        <div class="text-right flex items-center gap-3">
+                            <p class="text-sm font-bold ${colorClass} privacy-mask" data-value="${sisa}">${isPrivate?'********':toRp(sisa)}</p>
+                            <button onclick="preparePayDebt('${nama}', '${tipe}', ${sisa})" class="w-8 h-8 flex items-center justify-center rounded-xl ${bgClass} ${colorClass} hover:scale-105 active:scale-95 transition shadow-sm">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path></svg>
+                            </button>
+                        </div>
+                    </div>`;
+                }
             });
+
             document.getElementById('debt-in').setAttribute('data-value', dIn); document.getElementById('debt-in').innerText = isPrivate ? '********' : toRp(dIn);
             document.getElementById('debt-out').setAttribute('data-value', dOut); document.getElementById('debt-out').innerText = isPrivate ? '********' : toRp(dOut);
+            
+            if (debtHtml === '') {
+                debtListContainer.innerHTML = `<p class="text-center text-xs text-gray-400 italic py-2">${t('no-data-period')}</p>`;
+            } else {
+                debtListContainer.innerHTML = debtHtml;
+            }
         }
 
         function renderAccounts() {
@@ -1959,8 +2141,8 @@
             if(selectTfFrom) selectTfFrom.innerHTML = optsAll; 
             if(selectTfTo) selectTfTo.innerHTML = optsAll; 
             if(selAst) selAst.innerHTML = optsAll; 
-            if(selWdGoal) selWdGoal.innerHTML = optsAll; 
-            if(selAddGoal) selAddGoal.innerHTML = optsAll; 
+            if(selWdGoal) selWdGoal.innerHTML = optsRegular; 
+            if(selAddGoal) selAddGoal.innerHTML = optsRegular; 
             if(selSellAst) selSellAst.innerHTML = optsAll;
             if(selRec) selRec.innerHTML = optsRegular;
             if(selExport) selExport.innerHTML = optsExport;
@@ -1979,12 +2161,56 @@
         }
 
         function renderRecurring() {
-            const container = document.getElementById('recurring-list'), recs = appData.M_Recurring || [];
+            const container = document.getElementById('recurring-list');
+            const recs = appData.M_Recurring || [];
             if(recs.length === 0) return container.innerHTML = `<div class="bg-white dark:bg-[#1e1e1e] p-6 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-800 text-center"><p class="text-xs text-gray-400 italic">${t('no-rec')}</p></div>`;
+            
             let html = '';
+            const now = new Date();
+            const currentMonth = now.getMonth();
+            const currentYear = now.getFullYear();
+            
             recs.forEach(r => {
+                const nama = getProp(r, 'Nama') || '-';
                 const nominal = extractNumber(getProp(r, 'Nominal'));
-                html += `<div class="bg-white dark:bg-[#1e1e1e] p-4 rounded-2xl shadow-sm border border-gray-100 dark:border-[#2d2d2d] flex items-center justify-between hover:shadow-md transition duration-300"><div class="flex items-center gap-3"><div class="w-10 h-10 rounded-full bg-purple-50 dark:bg-purple-900/30 text-[#6342E8] flex items-center justify-center font-bold text-lg">↻</div><div><p class="text-sm font-bold">${getProp(r, 'Nama') || '-'}</p><p class="text-[10px] text-gray-500">Tgl ${getProp(r, 'Tgl_Tagihan')} • Potong ${getProp(r, 'Akun_Sumber', 'Akun')}</p></div></div><p class="text-sm font-bold text-red-500 dark:text-red-400 privacy-mask" data-value="${nominal}">${isPrivate?'********':toRp(nominal)}</p></div>`;
+                const frekuensi = getProp(r, 'Frekuensi') || 'Bulanan';
+                const akun = getProp(r, 'Akun_Sumber', 'Akun');
+                
+                let isPaid = false;
+                (appData.T_Transaksi || []).forEach(tobj => {
+                    const tglRaw = getProp(tobj, 'Tanggal');
+                    if(!tglRaw) return;
+                    const tgl = new Date(tglRaw);
+                    const tipe = (getProp(tobj, 'Tipe') || '').toString().trim().toUpperCase();
+                    const keterangan = getProp(tobj, 'Keterangan') || '';
+                    
+                    if (tipe === 'OUTFLOW' && keterangan.includes(nama)) {
+                        if (frekuensi.toLowerCase() === 'bulanan' || frekuensi.toLowerCase() === 'monthly') {
+                            if (tgl.getMonth() === currentMonth && tgl.getFullYear() === currentYear) isPaid = true;
+                        } else if (frekuensi.toLowerCase() === 'tahunan' || frekuensi.toLowerCase() === 'yearly') {
+                            if (tgl.getFullYear() === currentYear) isPaid = true;
+                        }
+                    }
+                });
+
+                const btnHtml = isPaid 
+                    ? `<button disabled class="px-3 py-1.5 bg-gray-100 dark:bg-gray-800 text-gray-400 rounded-lg text-[10px] font-bold cursor-not-allowed flex items-center gap-1 border border-gray-200 dark:border-gray-700 shadow-none"><svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg> ${t('txt-paid')}</button>`
+                    : `<button onclick="payRecurring('${nama}', ${nominal}, '${akun}')" class="px-3 py-1.5 bg-[#6342E8] text-white rounded-lg text-[10px] font-bold hover:scale-105 active:scale-95 transition shadow-sm">${t('btn-pay-now')}</button>`;
+
+                html += `
+                <div class="bg-white dark:bg-[#1e1e1e] p-4 rounded-2xl shadow-sm border border-gray-100 dark:border-[#2d2d2d] flex items-center justify-between hover:shadow-md transition duration-300 mb-3 last:mb-0">
+                    <div class="flex items-center gap-3">
+                        <div class="w-10 h-10 rounded-full bg-purple-50 dark:bg-purple-900/30 text-[#6342E8] flex items-center justify-center font-bold text-lg">↻</div>
+                        <div>
+                            <p class="text-sm font-bold dark:text-gray-200">${nama}</p>
+                            <p class="text-[10px] text-gray-500">Tgl ${getProp(r, 'Tgl_Tagihan')} • ${akun}</p>
+                        </div>
+                    </div>
+                    <div class="text-right flex flex-col items-end gap-1.5">
+                        <p class="text-sm font-bold text-red-500 dark:text-red-400 privacy-mask" data-value="${nominal}">${isPrivate?'********':toRp(nominal)}</p>
+                        ${btnHtml}
+                    </div>
+                </div>`;
             });
             container.innerHTML = html;
         }
@@ -2834,7 +3060,7 @@
 
             } catch(e) {
                 console.error("Gagal export PDF:", e);
-                alert("Terjadi kesalahan saat membuat PDF.");
+                alert(currentLang === 'id' ? "Gagal membuat file PDF." : "Failed to generate PDF.");
             } finally {
                 showLoading(false);
             }
