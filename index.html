@@ -234,9 +234,13 @@
                 </div>
 
                 <div>
+                    <!-- [MODIFIED] Added History button next to Add Debt -->
                     <div class="flex justify-between items-center mb-3">
                         <h3 class="text-sm font-semibold dark:text-gray-200" data-i18n="dash-debt">Debts & Receivables</h3>
-                        <button onclick="openModal('modal-debt')" class="text-xs font-bold text-[#6342E8] dark:text-[#a78bfa] hover:opacity-80 transition" data-i18n="btn-add-debt">+ Add Debt</button>
+                        <div class="flex gap-3">
+                            <button onclick="openModal('modal-debt-history')" class="text-xs font-bold text-gray-500 hover:text-gray-800 dark:hover:text-gray-300 transition" data-i18n="btn-hist-debt">Riwayat</button>
+                            <button onclick="openModal('modal-debt')" class="text-xs font-bold text-[#6342E8] dark:text-[#a78bfa] hover:opacity-80 transition" data-i18n="btn-add-debt">+ Add Debt</button>
+                        </div>
                     </div>
                     <div class="grid grid-cols-2 gap-3 mb-1">
                         <div class="p-3 bg-red-50 dark:bg-red-900/20 rounded-xl border border-red-100 dark:border-red-900/50">
@@ -256,7 +260,6 @@
                     <div class="bg-white dark:bg-[#1e1e1e] rounded-3xl shadow-sm border border-gray-100 dark:border-gray-800 overflow-hidden transition-all duration-300" id="accounts-list"></div>
                 </div>
             </section>
-
             <section id="calendar-page" class="page-content space-y-6">
                 <div class="flex justify-between items-center">
                     <h2 class="text-xl font-bold dark:text-white" data-i18n="cal-title">Transaction Calendar</h2>
@@ -422,7 +425,6 @@
             </button>
         </nav>
     </div>
-
     <!-- MODAL INFO LEVEL -->
     <div id="modal-level-info" class="fixed inset-0 bg-[#F8F9FA]/90 dark:bg-[#121212]/90 backdrop-blur-md z-[80] flex flex-col hidden-page transition-all duration-300 overflow-hidden max-w-md mx-auto">
         <div class="px-6 py-5 flex items-center border-b border-gray-100 dark:border-gray-800 bg-white dark:bg-[#1e1e1e]">
@@ -752,8 +754,10 @@
         <div class="bg-white dark:bg-[#1e1e1e] p-6 rounded-[32px] w-full max-w-xs space-y-5 text-center shadow-2xl border border-gray-100 dark:border-gray-800 transform transition-all scale-100">
             <h3 class="font-bold text-lg dark:text-white" id="mod-pay-debt-title">Pay Debt</h3>
             <p class="text-xs text-gray-500 dark:text-gray-400"><span id="txt-pay-debt-desc">Membayar hutang kepada</span> <span id="pay-debt-name-display" class="font-bold text-[#6342E8] dark:text-[#a78bfa]"></span>.</p>
-            <p class="text-[10px] text-gray-400 mb-2 font-bold uppercase tracking-wide">Sisa: <span id="pay-debt-sisa-display"></span></p>
+            <!-- [MODIFIED] Menerapkan i18n untuk teks SISA yang sebelumnya ter-hardcode -->
+            <p class="text-[10px] text-gray-400 mb-2 font-bold uppercase tracking-wide"><span data-i18n="txt-sisa">Sisa:</span> <span id="pay-debt-sisa-display"></span></p>
             
+            <input type="hidden" id="form-pay-debt-id"> <!-- [NEW] Menyimpan ID_Debt -->
             <input type="hidden" id="form-pay-debt-name">
             <input type="hidden" id="form-pay-debt-tipe">
             <input type="hidden" id="form-pay-debt-max">
@@ -763,6 +767,27 @@
             
             <button onclick="submitPayDebt()" class="w-full py-4 bg-[#6342E8] text-white rounded-xl text-sm font-bold active:scale-95 transition shadow-lg" id="btn-pay-debt-submit">Konfirmasi</button>
             <button onclick="closeModal('modal-pay-debt')" class="text-xs text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 mt-2 block w-full py-2 transition" data-i18n="btn-cancel">Batal</button>
+        </div>
+    </div>
+
+    <!-- MODAL DEBT HISTORY [NEW] -->
+    <div id="modal-debt-history" class="fixed inset-0 bg-[#F8F9FA]/95 dark:bg-[#121212]/95 backdrop-blur-md z-[70] flex flex-col hidden-page transition-all duration-300 overflow-hidden max-w-md mx-auto">
+        <div class="px-6 py-5 flex items-center border-b border-gray-100 dark:border-gray-800">
+            <button onclick="closeModal('modal-debt-history')" class="w-10 h-10 flex items-center justify-center rounded-full bg-white dark:bg-[#1e1e1e] shadow-sm hover:scale-105 transition">
+                <svg class="w-5 h-5 text-gray-700 dark:text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path></svg>
+            </button>
+            <h3 class="font-bold text-lg flex-1 text-center pr-10 dark:text-white" data-i18n="mod-debt-hist-title">Riwayat Hutang & Piutang</h3>
+        </div>
+        <div class="flex-1 px-6 pb-6 pt-4 space-y-4 overflow-y-auto">
+            <div class="flex bg-gray-100 dark:bg-[#2d2d2d] rounded-full p-1 relative mb-4">
+                <button onclick="toggleDebtHistoryTab('ACTIVE')" id="tab-debt-active" class="flex-1 py-2 rounded-full text-xs font-bold text-gray-500 dark:text-gray-400 toggle-active toggle-btn" data-i18n="tab-active">Berjalan</button>
+                <button onclick="toggleDebtHistoryTab('INACTIVE')" id="tab-debt-inactive" class="flex-1 py-2 rounded-full text-xs font-bold text-gray-500 dark:text-gray-400 toggle-btn" data-i18n="tab-lunas">Lunas</button>
+            </div>
+            
+            <!-- List Kontainer Utama -->
+            <div id="debt-history-list-container" class="space-y-3">
+                <!-- Konten dinamis akan di-render di sini -->
+            </div>
         </div>
     </div>
 
@@ -913,7 +938,6 @@
             <button id="btn-det-beli" class="flex-1 bg-[#6342E8] text-white py-4 rounded-[20px] font-bold text-lg active:scale-95 transition shadow-sm" data-i18n="btn-buy-asset-2">Beli</button>
         </div>
     </div>
-
     <script>
         const i18n = {
             en: {
@@ -1070,7 +1094,6 @@
                 "pdf-footer": "This document is printed automatically by the Fintrack Enterprise system and is a valid proof of transaction even without a physical signature.",
                 "pdf-page": "Page",
                 "pdf-of": "of",
-                
                 "mod-level-info-title": "Fintrack Status",
                 "txt-level-desc": "Keep increasing your net worth to achieve financial freedom.",
                 "lvl-1-name": "Liability Elimination Phase",
@@ -1090,7 +1113,6 @@
                 "txt-congrats": "Congratulations!",
                 "txt-warning": "Warning!",
                 "btn-continue": "Continue",
-                
                 "ph-amount": "Amount",
                 "title-pay-debt": "Pay Debt",
                 "title-recv-debt": "Receive Funds",
@@ -1100,14 +1122,19 @@
                 "btn-recv-debt": "Receive Funds",
                 "txt-paid": "Paid",
                 "btn-pay-now": "Pay Now",
-                
                 "mod-asset-detail-title": "Asset Detail",
                 "lbl-lot-owned": "Lot / Unit Owned",
                 "lbl-avg-price": "Average Price",
                 "lbl-invested": "Invested Amount",
                 "lbl-total-val": "Total Value",
                 "lbl-return": "Return",
-                "btn-buy-asset-2": "Buy"
+                "btn-buy-asset-2": "Buy",
+                // [NEW] Terjemahan untuk fitur Riwayat Hutang & Pembersihan Teks "Sisa"
+                "btn-hist-debt": "History",
+                "mod-debt-hist-title": "Debt & Receivable History",
+                "tab-active": "Active",
+                "tab-lunas": "Settled",
+                "txt-sisa": "Remaining:"
             },
             id: {
                 "app-desc": "Manajemen Kekayaan Enterprise",
@@ -1262,7 +1289,6 @@
                 "pdf-footer": "Dokumen ini dicetak secara otomatis oleh sistem Fintrack Enterprise dan merupakan bukti transaksi yang sah meskipun tanpa tanda tangan fisik.",
                 "pdf-page": "Halaman",
                 "pdf-of": "dari",
-                
                 "mod-level-info-title": "Status Fintrack",
                 "txt-level-desc": "Tingkatkan terus kekayaan bersih Anda untuk mencapai kebebasan finansial.",
                 "lvl-1-name": "Fase Eliminasi Liabilitas",
@@ -1282,7 +1308,6 @@
                 "txt-congrats": "Selamat!",
                 "txt-warning": "Perhatian!",
                 "btn-continue": "Lanjutkan",
-                
                 "ph-amount": "Nominal",
                 "title-pay-debt": "Bayar Hutang",
                 "title-recv-debt": "Terima Piutang",
@@ -1292,14 +1317,19 @@
                 "btn-recv-debt": "Terima Dana",
                 "txt-paid": "Lunas",
                 "btn-pay-now": "Bayar Tagihan",
-                
                 "mod-asset-detail-title": "Ringkasan Saham",
                 "lbl-lot-owned": "Lot Dimiliki",
                 "lbl-avg-price": "Harga Rata-rata",
                 "lbl-invested": "Diinvestasikan",
                 "lbl-total-val": "Total Nilai",
                 "lbl-return": "Return",
-                "btn-buy-asset-2": "Beli"
+                "btn-buy-asset-2": "Beli",
+                // [NEW] Terjemahan untuk fitur Riwayat Hutang & Pembersihan Teks "Sisa"
+                "btn-hist-debt": "Riwayat",
+                "mod-debt-hist-title": "Riwayat Hutang & Piutang",
+                "tab-active": "Berjalan",
+                "tab-lunas": "Lunas",
+                "txt-sisa": "Sisa:"
             }
         };
 
@@ -1318,6 +1348,9 @@
         let currentCalYear = new Date().getFullYear();
         let activeCalDay = new Date().getDate();
         let currentScannedItems = [];
+        
+        // [NEW] State untuk filter Riwayat Hutang
+        let debtHistoryTab = 'ACTIVE';
 
         function t(key) { return i18n[currentLang][key] || key; }
 
@@ -1329,6 +1362,10 @@
                 renderAllHTMLData(); 
                 if(!document.getElementById('modal-export-pdf').classList.contains('hidden-page')) {
                     renderExportModal();
+                }
+                // [NEW] Render ulang modal riwayat jika sedang terbuka
+                if(!document.getElementById('modal-debt-history').classList.contains('hidden-page')) {
+                    renderDebtHistory();
                 }
             }
         }
@@ -1353,7 +1390,6 @@
                 document.getElementById('lbl-hello').innerText = t('txt-hello');
             }
         }
-
         function getProp(obj, ...possibleKeys) {
             if (!obj) return undefined;
             const keys = Object.keys(obj);
@@ -1417,7 +1453,6 @@
             return map[cat] || "🏷️";
         }
 
-        // FUNGSI BARU: Mendapatkan Logo Aset (Kripto & Saham)
         function getAssetLogoHtml(simbol) {
             let s = simbol.toUpperCase().trim();
             // Coba ambil logo kripto dari API coincap
@@ -1529,7 +1564,6 @@
                 ptrStartY = 0; ptrCurrentY = 0;
             });
         }
-
         async function handleLogin() {
             const email = document.getElementById('login-email').value.trim(), password = document.getElementById('login-password').value.trim();
             if(!email || !password) return;
@@ -1808,8 +1842,16 @@
                 await fetchAllData(); 
             }
         }
-
         function preparePayDebt(nama, tipe, sisa) {
+            // [NEW LOGIC] Mencari ID_Debt spesifik berdasarkan Nama, Tipe, dan Sisa Saldo saat ini
+            const debtItem = (appData.M_Debt || []).find(d => 
+                getProp(d, 'Kontak', 'Nama', 'Keterangan') === nama && 
+                getProp(d, 'Tipe') === tipe && 
+                extractNumber(getProp(d, 'Sisa', 'Sisa Saldo', 'Jumlah')) === sisa
+            );
+            const idDebt = debtItem ? getProp(debtItem, 'ID_Debt', 'ID Debt') : '';
+            
+            document.getElementById('form-pay-debt-id').value = idDebt;
             document.getElementById('form-pay-debt-name').value = nama;
             document.getElementById('form-pay-debt-tipe').value = tipe;
             document.getElementById('form-pay-debt-max').value = sisa;
@@ -1823,25 +1865,26 @@
             document.getElementById('btn-pay-debt-submit').innerText = isUtang ? t('btn-pay-debt') : t('btn-recv-debt');
             
             const selAccount = document.getElementById('form-pay-debt-account');
-            selAccount.innerHTML = document.getElementById('form-trx-account').innerHTML; // KUNCI: MENGHINDARI RDN
+            selAccount.innerHTML = document.getElementById('form-trx-account').innerHTML; 
             
             document.getElementById('modal-pay-debt').classList.remove('hidden', 'hidden-page');
         }
 
         async function submitPayDebt() {
+            const idDebt = document.getElementById('form-pay-debt-id').value;
             const nama = document.getElementById('form-pay-debt-name').value;
             const tipe = document.getElementById('form-pay-debt-tipe').value;
             const maxSisa = parseFloat(document.getElementById('form-pay-debt-max').value);
             const amount = extractNumber(document.getElementById('form-pay-debt-amount').value);
             const akun = document.getElementById('form-pay-debt-account').value;
             
-            if (amount <= 0 || !akun || amount > maxSisa) {
-                alert(currentLang === 'id' ? "Nominal tidak valid atau melebihi sisa." : "Invalid amount or exceeds remaining balance.");
+            // [NEW LOGIC] Validasi ketat untuk ID dan limit pembayaran
+            if (amount <= 0 || !akun || amount > maxSisa || !idDebt) {
+                alert(currentLang === 'id' ? "Nominal tidak valid, melebihi sisa, atau ID tidak ditemukan." : "Invalid amount, exceeds remaining balance, or ID not found.");
                 return;
             }
 
             const isUtang = tipe === 'UTANG';
-            
             if (isUtang) {
                 const accData = (appData.M_Akun || []).find(a => getProp(a, 'Nama_Akun', 'Nama Akun') === akun);
                 if(accData && extractNumber(getProp(accData, 'Saldo_Realtime', 'Saldo Realtime', 'Saldo_Awal')) < amount) {
@@ -1849,20 +1892,19 @@
                 }
             }
 
-            const histTipe = isUtang ? 'OUTFLOW' : 'INFLOW';
-            const histKategori = isUtang ? 'Tagihan' : 'Pemberian';
-            const histKetEng = isUtang ? `Paying debt (${nama})` : `Receiving receivable (${nama})`;
-            const histKetId = isUtang ? `Membayar hutang (${nama})` : `Menerima Piutang (${nama})`;
-            const histKeterangan = currentLang === 'id' ? histKetId : histKetEng;
-            
-            const now = new Date();
-            const combinedDateTime = now.toISOString().split('T')[0] + ' ' + now.getHours().toString().padStart(2, '0') + ':' + now.getMinutes().toString().padStart(2, '0');
-
             showLoading(true);
             try {
-                await fetch(API_URL, { method: 'POST', body: JSON.stringify({ action: 'addTransaction', email: sessionEmail, tipe: histTipe, akun: akun, jumlah: amount, kategori: histKategori, keterangan: histKeterangan, tanggal: combinedDateTime })});
-                
-                await fetch(API_URL, { method: 'POST', body: JSON.stringify({ action: 'addDebt', email: sessionEmail, tipe: tipe, kontak: nama, jumlah: -amount })});
+                // [NEW LOGIC] API Call diarahkan ke Endpoint payDebt yang baru di Backend
+                await fetch(API_URL, { 
+                    method: 'POST', 
+                    body: JSON.stringify({ 
+                        action: 'payDebt', 
+                        email: sessionEmail, 
+                        idDebt: idDebt,
+                        nominal: amount,
+                        akun: akun
+                    }) 
+                });
                 
                 closeModal('modal-pay-debt');
                 document.getElementById('form-pay-debt-amount').value = '';
@@ -1872,6 +1914,115 @@
             } finally {
                 showLoading(false);
             }
+        }
+
+        // ==========================================
+        // LOGIKA BARU: RENDER RIWAYAT HUTANG & PIUTANG
+        // ==========================================
+        function toggleDebtHistoryTab(tabName) {
+            debtHistoryTab = tabName;
+            const btnActive = document.getElementById('tab-debt-active');
+            const btnInactive = document.getElementById('tab-debt-inactive');
+            
+            btnActive.classList.remove('toggle-active');
+            btnInactive.classList.remove('toggle-active');
+            
+            if (tabName === 'ACTIVE') {
+                btnActive.classList.add('toggle-active');
+            } else {
+                btnInactive.classList.add('toggle-active');
+            }
+            renderDebtHistory();
+        }
+
+        function renderDebtHistory() {
+            const container = document.getElementById('debt-history-list-container');
+            const debts = appData.M_Debt || [];
+            const trxs = appData.T_Transaksi || [];
+            
+            const filteredDebts = debts.filter(d => {
+                const status = (getProp(d, 'Status') || 'ACTIVE').toUpperCase();
+                return status === debtHistoryTab;
+            });
+            
+            if (filteredDebts.length === 0) {
+                container.innerHTML = `<p class="text-center text-xs text-gray-400 italic py-4 bg-white dark:bg-[#1e1e1e] rounded-2xl">${t('no-data-period')}</p>`;
+                return;
+            }
+
+            let html = '';
+            filteredDebts.forEach(d => {
+                const idDebt = getProp(d, 'ID_Debt', 'ID Debt');
+                const tipe = (getProp(d, 'Tipe') || '').toUpperCase();
+                const nama = getProp(d, 'Kontak', 'Nama', 'Keterangan') || 'Unknown';
+                const totalAwal = extractNumber(getProp(d, 'Total', 'Total_Awal', 'Jumlah'));
+                const sisa = extractNumber(getProp(d, 'Sisa', 'Sisa Saldo'));
+                
+                const isUtang = tipe === 'UTANG';
+                const typeLabel = isUtang ? t('txt-mydebt') : t('txt-receivable');
+                const colorClass = isUtang ? 'text-red-500 dark:text-red-400' : 'text-green-500 dark:text-green-400';
+                const iconBg = isUtang ? 'bg-red-50 dark:bg-red-900/20' : 'bg-green-50 dark:bg-green-900/20';
+                
+                // Mencari riwayat cicilan berdasarkan relasi Ref_ID di T_Transaksi
+                const cicilanTrxs = trxs.filter(t => {
+                    const ref = getProp(t, 'Ref_ID', 'Ref ID', 'refId');
+                    return ref && ref === idDebt;
+                }).sort((a, b) => new Date(getProp(b, 'Tanggal') || 0).getTime() - new Date(getProp(a, 'Tanggal') || 0).getTime());
+
+                let cicilanHtml = '';
+                if (cicilanTrxs.length > 0) {
+                    cicilanHtml = `<div class="mt-3 pt-3 border-t border-gray-100 dark:border-gray-700 space-y-2">
+                        <p class="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2 text-center">Jejak Pembayaran</p>`;
+                    
+                    cicilanTrxs.forEach(c => {
+                        const tglRaw = getProp(c, 'Tanggal');
+                        const tgl = tglRaw ? new Date(tglRaw) : new Date();
+                        const dateStr = `${tgl.getDate().toString().padStart(2,'0')} ${i18n[currentLang]['month-names'][tgl.getMonth()].substring(0,3)} ${tgl.getFullYear()}`;
+                        const nom = extractNumber(getProp(c, 'Jumlah'));
+                        const akun = getProp(c, 'Akun') || '';
+                        
+                        cicilanHtml += `
+                        <div class="flex justify-between items-center bg-gray-50 dark:bg-[#2d2d2d] p-2.5 rounded-xl border border-gray-100 dark:border-gray-800">
+                            <div>
+                                <p class="text-[10px] font-bold text-gray-700 dark:text-gray-300">${dateStr}</p>
+                                <p class="text-[9px] text-gray-500 uppercase tracking-wide">${akun}</p>
+                            </div>
+                            <p class="text-[11px] font-bold ${colorClass} privacy-mask" data-value="${nom}">${isPrivate?'********':toRp(nom)}</p>
+                        </div>`;
+                    });
+                    cicilanHtml += `</div>`;
+                } else {
+                    cicilanHtml = `<p class="text-center text-[10px] text-gray-400 italic mt-3 pt-3 border-t border-gray-50 dark:border-gray-700">Belum ada cicilan tercatat.</p>`;
+                }
+
+                html += `
+                <div class="bg-white dark:bg-[#1e1e1e] p-4 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-800 transition">
+                    <div class="flex justify-between items-start mb-2">
+                        <div class="flex items-center gap-3">
+                            <div class="w-10 h-10 rounded-full ${iconBg} ${colorClass} flex items-center justify-center font-bold text-lg">
+                                ${isUtang ? '↑' : '↓'}
+                            </div>
+                            <div>
+                                <p class="text-sm font-bold dark:text-gray-200">${nama}</p>
+                                <p class="text-[9px] text-gray-500 uppercase tracking-widest">${typeLabel} • ${idDebt}</p>
+                            </div>
+                        </div>
+                        <div class="text-right">
+                            <p class="text-[10px] text-gray-500 uppercase tracking-wide">Total Awal</p>
+                            <p class="text-xs font-bold text-gray-800 dark:text-gray-200 privacy-mask" data-value="${totalAwal}">${isPrivate?'********':toRp(totalAwal)}</p>
+                        </div>
+                    </div>
+                    
+                    <div class="flex justify-between items-center mt-3 bg-gray-50 dark:bg-[#2d2d2d] p-3 rounded-xl border border-gray-100 dark:border-gray-700">
+                        <p class="text-xs font-bold text-gray-600 dark:text-gray-400">${t('txt-sisa')} <span class="${colorClass} privacy-mask" data-value="${sisa}">${isPrivate?'********':toRp(sisa)}</span></p>
+                        <span class="text-[9px] px-2 py-1 rounded-md font-bold uppercase tracking-widest ${debtHistoryTab === 'ACTIVE' ? 'bg-blue-100 text-blue-600 border border-blue-200' : 'bg-green-100 text-green-600 border border-green-200'}">${debtHistoryTab === 'ACTIVE' ? t('tab-active') : t('tab-lunas')}</span>
+                    </div>
+                    
+                    ${cicilanHtml}
+                </div>`;
+            });
+            container.innerHTML = html;
+            applyPrivacyMasks();
         }
 
         async function submitBuyAsset() {
@@ -1920,7 +2071,6 @@
                 await fetchAllData(); 
             }
         }
-
         async function processGoalAction(actionType, isAchieved) {
             const amount = extractNumber(document.getElementById(actionType === 'withdraw' ? 'form-withdraw-amount' : 'form-add-savings-amount').value);
             const account = document.getElementById(actionType === 'withdraw' ? 'form-withdraw-account' : 'form-add-savings-account').value;
@@ -1964,7 +2114,7 @@
         }
 
         // ==========================================
-        // LOGIKA BARU: PENGHITUNG LEVEL FINTRACK
+        // LOGIKA GAMIFIKASI: PENGHITUNG LEVEL FINTRACK
         // ==========================================
         function checkAndUpdateLevel() {
             let totalDebt = 0;
@@ -2084,7 +2234,6 @@
             localStorage.setItem('fintrack_user_level', newLevelNum);
         }
 
-        // FUNGSI BARU: Membuka Modal Rincian Aset
         window.openAssetDetailModal = function(idAset, simbol, lot, avgHarga, investasi, liveHarga, totalVal, nominalReturn, pnlPercent) {
             document.getElementById('det-aset-simbol').innerText = simbol;
             document.getElementById('det-aset-live').innerText = toRp(liveHarga);
@@ -2181,12 +2330,13 @@
                 const sisa = extractNumber(getProp(d, 'Sisa', 'Sisa Saldo', 'Jumlah')); 
                 const tipe = (getProp(d, 'Tipe') || '').toString().trim().toUpperCase();
                 const nama = getProp(d, 'Kontak', 'Nama', 'Keterangan') || 'Unknown';
+                const status = (getProp(d, 'Status') || 'ACTIVE').toString().trim().toUpperCase();
 
                 if(tipe === 'PIUTANG') dIn += sisa; 
                 if(tipe === 'UTANG') dOut += sisa; 
 
-                // Render per item utang/piutang jika sisanya > 0
-                if (sisa > 0) {
+                // Hanya render di dashboard jika status ACTIVE dan sisa > 0
+                if (status === 'ACTIVE' && sisa > 0) {
                     const isUtang = tipe === 'UTANG';
                     const typeLabel = isUtang ? t('txt-mydebt') : t('txt-receivable');
                     const colorClass = isUtang ? 'text-red-500 dark:text-red-400' : 'text-green-500 dark:text-green-400';
@@ -2298,7 +2448,6 @@
                 const frekuensi = getProp(r, 'Frekuensi') || 'Bulanan';
                 const akun = getProp(r, 'Akun_Sumber', 'Akun');
                 
-                // Cek apakah sudah dibayar
                 let isPaid = false;
                 (appData.T_Transaksi || []).forEach(tobj => {
                     const tglRaw = getProp(tobj, 'Tanggal');
@@ -2381,7 +2530,6 @@
                     aggregatedAssets[simbol].totalInvestasi += totalValBeli;
                 });
 
-                // RENDER KOTAK ASET BARU (KLIKABLE)
                 Object.values(aggregatedAssets).forEach(a => {
                     const avgHargaBeli = a.totalJumlah > 0 ? (a.totalInvestasi / a.totalJumlah) : 0;
                     const totalValSekarang = a.totalJumlah * a.hargaSekarang;
@@ -2445,7 +2593,6 @@
                 portoChartInstance = new Chart(ctx, { type: 'doughnut', data: { labels: labels.length > 0 ? labels : ['Kosong'], datasets: [{ data: dataValues.length > 0 ? dataValues : [1], backgroundColor: dataValues.length > 0 ? CHART_COLORS : ['#e5e7eb'], borderWidth: 0, hoverOffset: 4 }] }, options: { responsive: true, maintainAspectRatio: false, cutout: '80%', plugins: { legend: { display: false }, tooltip: { callbacks: { label: function(context) { if(dataValues.length === 0) return ' Tidak ada aset'; return ' ' + (context.label || '') + ': ' + toRp(context.raw || 0); } } } }, animation: { animateScale: true, animateRotate: true } } });
             }
         }
-
         function changeCalMonth(step) {
             currentCalMonth += step;
             if(currentCalMonth > 11) { currentCalMonth = 0; currentCalYear++; }
@@ -2754,6 +2901,9 @@
                 if (itemListSec) itemListSec.classList.add('hidden');
             } else if (id === 'modal-export-pdf') {
                 renderExportModal();
+            } else if (id === 'modal-debt-history') {
+                // Render modal riwayat hutang saat dibuka
+                renderDebtHistory();
             }
         }
         function closeModal(id, forceClose = false) { 
@@ -2808,7 +2958,6 @@
             if(actionType === 'withdraw') { document.getElementById('withdraw-goal-name-display').innerText = goalName; document.getElementById('modal-withdraw-goal').classList.remove('hidden'); } 
             else { document.getElementById('add-savings-goal-name').innerText = goalName; document.getElementById('modal-add-savings').classList.remove('hidden'); }
         }
-
         // --- FUNGSI EXPORT PDF ---
         
         let exportSelectedYear = new Date().getFullYear();
