@@ -1,0 +1,30 @@
+<div class="space-y-6">
+    <div class="flex justify-between items-center">
+        <h2 class="text-xl font-bold dark:text-white" data-i18n="cal-title">Transaction Calendar</h2>
+    </div>
+
+    <div class="bg-white dark:bg-[#1e1e1e] p-5 rounded-[32px] shadow-sm border border-gray-100 dark:border-gray-800">
+        <div class="flex justify-between items-center mb-4 px-2">
+            <button onclick="changeCalMonth(-1)" class="w-8 h-8 flex items-center justify-center rounded-full bg-gray-50 dark:bg-[#2d2d2d] hover:bg-gray-200 dark:hover:bg-gray-700 transition">❮</button>
+            <h3 id="calendar-month-year" class="font-bold text-sm dark:text-white uppercase tracking-wider" data-i18n="cal-month">Month</h3>
+            <button onclick="changeCalMonth(1)" class="w-8 h-8 flex items-center justify-center rounded-full bg-gray-50 dark:bg-[#2d2d2d] hover:bg-gray-200 dark:hover:bg-gray-700 transition">❯</button>
+        </div>
+
+        <div class="grid grid-cols-7 gap-1 text-center mb-2">
+            <div class="text-[10px] font-bold text-red-500" data-i18n="day-sun">Sun</div>
+            <div class="text-[10px] font-bold text-gray-400 dark:text-gray-500" data-i18n="day-mon">Mon</div>
+            <div class="text-[10px] font-bold text-gray-400 dark:text-gray-500" data-i18n="day-tue">Tue</div>
+            <div class="text-[10px] font-bold text-gray-400 dark:text-gray-500" data-i18n="day-wed">Wed</div>
+            <div class="text-[10px] font-bold text-gray-400 dark:text-gray-500" data-i18n="day-thu">Thu</div>
+            <div class="text-[10px] font-bold text-gray-400 dark:text-gray-500" data-i18n="day-fri">Fri</div>
+            <div class="text-[10px] font-bold text-gray-400 dark:text-gray-500" data-i18n="day-sat">Sat</div>
+        </div>
+
+        <div id="calendar-grid" class="grid grid-cols-7 gap-1"></div>
+    </div>
+
+    <div id="daily-detail-container" class="space-y-3">
+        <h3 class="text-sm font-semibold dark:text-gray-200" id="daily-detail-title" data-i18n="cal-today">Today's Transactions</h3>
+        <div id="daily-transaction-list" class="space-y-2"></div>
+    </div>
+</div>

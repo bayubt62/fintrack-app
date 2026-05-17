@@ -1,0 +1,30 @@
+<div class="space-y-6">
+    <div class="flex justify-between items-center">
+        <h2 class="text-xl font-bold dark:text-white" data-i18n="port-title">Assets & Portfolio</h2>
+        <button onclick="openModal('modal-buy-asset')" class="text-xs font-bold bg-[#6342E8] text-white px-4 py-2 rounded-full shadow-md hover:shadow-lg active:scale-95 transition" data-i18n="btn-buy-asset">+ Buy Asset</button>
+    </div>
+
+    <div class="bg-white dark:bg-[#1e1e1e] p-6 rounded-[32px] shadow-sm border border-gray-100 dark:border-gray-800 text-center transition-all duration-300">
+        <h3 class="text-sm font-semibold mb-4 dark:text-gray-200" data-i18n="port-dist">Wealth Distribution</h3>
+        <div class="relative w-48 h-48 mx-auto mb-6">
+            <canvas id="portfolioChart"></canvas>
+            <div class="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                <p class="text-[10px] text-gray-400" data-i18n="port-net">Total Net Asset</p>
+                <p class="text-xs font-bold privacy-mask dark:text-white" id="porto-center-val">Rp 0</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="space-y-3">
+        <h3 class="text-sm font-semibold dark:text-gray-200" data-i18n="port-list">Asset Ownership List</h3>
+        <div id="asset-list" class="space-y-2"></div>
+    </div>
+
+    <div class="space-y-3">
+        <div class="flex justify-between items-center">
+            <h3 class="text-sm font-semibold dark:text-gray-200" data-i18n="port-prog">Target Savings Progress</h3>
+            <button onclick="openModal('modal-goal')" class="text-xs font-bold text-[#6342E8] dark:text-[#a78bfa] hover:opacity-80 transition" data-i18n="btn-add-goal">+ Create Target</button>
+        </div>
+        <div id="porto-goals-list" class="space-y-3"></div>
+    </div>
+</div>

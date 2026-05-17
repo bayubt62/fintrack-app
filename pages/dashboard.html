@@ -1,0 +1,157 @@
+<div class="space-y-6 pb-24" id="dashboard-container">
+    <div class="bg-gradient-to-r from-[#A88FFF] to-[#6342E8] p-6 rounded-[28px] text-white shadow-lg relative overflow-hidden">
+        <p class="text-sm opacity-90 mb-1" data-i18n="dash-bal">Current Balance</p>
+        <div class="flex items-center gap-3">
+            <h2 class="text-4xl font-bold privacy-mask" data-value="0" id="main-balance">Rp 0</h2>
+            <button onclick="togglePrivacy()" class="opacity-80 hover:opacity-100 transition hover:scale-110">
+                <svg id="privacy-icon" class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path></svg>
+            </button>
+        </div>
+    </div>
+
+    <div>
+        <h3 class="text-sm font-semibold mb-3 dark:text-gray-200" data-i18n="dash-sum">Monthly Summary</h3>
+        <div class="grid grid-cols-2 gap-4">
+            <div class="bg-[#6342E8] p-4 rounded-2xl text-white shadow-md hover:shadow-lg transition">
+                <p class="text-xs opacity-80 mb-1" data-i18n="dash-inc">Income</p>
+                <p class="font-bold text-lg privacy-mask" data-value="0" id="summary-income">Rp 0</p>
+            </div>
+            <div class="bg-white dark:bg-[#1e1e1e] p-4 rounded-2xl shadow-sm hover:shadow-md transition border border-gray-100 dark:border-gray-800">
+                <p class="text-xs text-gray-500 dark:text-gray-400 mb-1" data-i18n="dash-exp">Expenditure</p>
+                <p class="font-bold text-lg text-red-500 dark:text-red-400 privacy-mask" data-value="0" id="summary-expense">Rp 0</p>
+            </div>
+        </div>
+    </div>
+
+    <div>
+        <h3 class="text-sm font-semibold mb-3 dark:text-gray-200" data-i18n="dash-qm">Quick Menu</h3>
+        <div class="grid grid-cols-4 gap-2">
+            <div class="flex flex-col items-center gap-2 cursor-pointer" onclick="openModal('modal-trx', 'INFLOW')">
+                <button class="w-[72px] h-[72px] bg-white dark:bg-[#1e1e1e] rounded-2xl shadow-sm border border-gray-100 dark:border-[#2d2d2d] flex items-center justify-center icon-box"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v8m-4-4h8"></path></svg></button>
+                <span class="text-xs font-medium text-gray-600 dark:text-gray-400" data-i18n="qm-topup">Top up</span>
+            </div>
+            <div class="flex flex-col items-center gap-2 cursor-pointer" onclick="openModal('modal-trx', 'OUTFLOW')">
+                <button class="w-[72px] h-[72px] bg-white dark:bg-[#1e1e1e] rounded-2xl shadow-sm border border-gray-100 dark:border-[#2d2d2d] flex items-center justify-center icon-box"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"></path></svg></button>
+                <span class="text-xs font-medium text-gray-600 dark:text-gray-400" data-i18n="qm-pay">Pay</span>
+            </div>
+            <div class="flex flex-col items-center gap-2 cursor-pointer" onclick="openModal('modal-transfer')">
+                <button class="w-[72px] h-[72px] bg-white dark:bg-[#1e1e1e] rounded-2xl shadow-sm border border-gray-100 dark:border-[#2d2d2d] flex items-center justify-center icon-box"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"></path></svg></button>
+                <span class="text-xs font-medium text-gray-600 dark:text-gray-400" data-i18n="qm-tf">Transfer</span>
+            </div>
+            <div class="flex flex-col items-center gap-2 cursor-pointer" onclick="openModal('modal-recurring')">
+                <button class="w-[72px] h-[72px] bg-white dark:bg-[#1e1e1e] rounded-2xl shadow-sm border border-gray-100 dark:border-[#2d2d2d] flex items-center justify-center icon-box"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg></button>
+                <span class="text-xs font-medium text-gray-600 dark:text-gray-400" data-i18n="qm-rec">Recurring</span>
+            </div>
+        </div>
+    </div>
+
+    <div>
+        <h3 class="text-sm font-semibold mb-3 dark:text-gray-200" data-i18n="dash-sub">Active Subscriptions</h3>
+        <div id="recurring-list" class="space-y-3"></div>
+    </div>
+
+    <div>
+        <div class="flex justify-between items-center mb-3">
+            <h3 class="text-sm font-semibold dark:text-gray-200" data-i18n="dash-debt">Debts & Receivables</h3>
+            <div class="flex gap-3">
+                <button onclick="openModal('modal-debt-history')" class="text-xs font-bold text-gray-500 hover:text-gray-800 dark:hover:text-gray-300 transition" data-i18n="btn-hist-debt">Riwayat</button>
+                <button onclick="openModal('modal-debt')" class="text-xs font-bold text-[#6342E8] dark:text-[#a78bfa] hover:opacity-80 transition" data-i18n="btn-add-debt">+ Add Debt</button>
+            </div>
+        </div>
+        <div class="grid grid-cols-2 gap-3 mb-1">
+            <div class="p-3 bg-red-50 dark:bg-red-900/20 rounded-xl border border-red-100 dark:border-red-900/50">
+                <p class="text-[10px] text-red-600 dark:text-red-400" data-i18n="txt-mydebt">My Debt</p>
+                <p id="debt-out" class="font-bold text-sm privacy-mask" data-value="0">Rp 0</p>
+            </div>
+            <div class="p-3 bg-green-50 dark:bg-green-900/20 rounded-xl border border-green-100 dark:border-green-900/50">
+                <p class="text-[10px] text-green-600 dark:text-green-400" data-i18n="txt-receivable">Receivables</p>
+                <p id="debt-in" class="font-bold text-sm privacy-mask" data-value="0">Rp 0</p>
+            </div>
+        </div>
+        <div id="debt-list" class="space-y-2 mt-2"></div>
+    </div>
+
+    <div>
+        <h3 class="text-sm font-semibold mb-3 dark:text-gray-200" data-i18n="dash-acc">Your Accounts</h3>
+        <div class="bg-white dark:bg-[#1e1e1e] rounded-3xl shadow-sm border border-gray-100 dark:border-gray-800 overflow-hidden transition-all duration-300" id="accounts-list"></div>
+    </div>
+</div>
+<div class="flex flex-col items-center gap-2 cursor-pointer" onclick="openModal('modal-transfer')">
+                <button class="w-[72px] h-[72px] bg-white dark:bg-[#1e1e1e] rounded-2xl shadow-sm border border-gray-100 dark:border-[#2d2d2d] flex items-center justify-center icon-box">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"></path></svg>
+                </button>
+                <span class="text-xs font-medium text-gray-600 dark:text-gray-400" data-i18n="qm-tf">Transfer</span>
+            </div>
+
+            <div class="flex flex-col items-center gap-2 cursor-pointer" onclick="openModal('modal-recurring')">
+                <button class="w-[72px] h-[72px] bg-white dark:bg-[#1e1e1e] rounded-2xl shadow-sm border border-gray-100 dark:border-[#2d2d2d] flex items-center justify-center icon-box">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
+                </button>
+                <span class="text-xs font-medium text-gray-600 dark:text-gray-400" data-i18n="qm-rec">Recurring</span>
+            </div>
+        </div>
+    </div>
+    <div class="flex flex-col items-center gap-2 cursor-pointer" onclick="openModal('modal-recurring')">
+                <button class="w-[72px] h-[72px] bg-white dark:bg-[#1e1e1e] rounded-2xl shadow-sm border border-gray-100 dark:border-[#2d2d2d] flex items-center justify-center icon-box"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg></button>
+                <span class="text-xs font-medium text-gray-600 dark:text-gray-400" data-i18n="qm-rec">Recurring</span>
+            </div>
+        </div>
+    </div>
+
+    <div>
+        <h3 class="text-sm font-semibold mb-3 dark:text-gray-200" data-i18n="dash-sub">Active Subscriptions</h3>
+        <div id="recurring-list" class="space-y-3"></div>
+    </div>
+    <span class="text-xs font-medium text-gray-600 dark:text-gray-400" data-i18n="qm-rec">Recurring</span>
+        </div>
+    </div>
+</div>
+<div>
+    <h3 class="text-sm font-semibold mb-3 dark:text-gray-200" data-i18n="dash-sub">Active Subscriptions</h3>
+    <div id="recurring-list" class="space-y-3"></div>
+</div>
+<div>
+        <div class="flex justify-between items-center mb-3">
+            <h3 class="text-sm font-semibold dark:text-gray-200" data-i18n="dash-debt">Debts & Receivables</h3>
+            <div class="flex gap-3">
+                <button onclick="openModal('modal-debt-history')" class="text-xs font-bold text-gray-500 hover:text-gray-800 dark:hover:text-gray-300 transition" data-i18n="btn-hist-debt">Riwayat</button>
+                <button onclick="openModal('modal-debt')" class="text-xs font-bold text-[#6342E8] dark:text-[#a78bfa] hover:opacity-80 transition" data-i18n="btn-add-debt">+ Add Debt</button>
+            </div>
+        </div>
+        <div class="grid grid-cols-2 gap-3 mb-1">
+            <div class="p-3 bg-red-50 dark:bg-red-900/20 rounded-xl border border-red-100 dark:border-red-900/50">
+                <p class="text-[10px] text-red-600 dark:text-red-400" data-i18n="txt-mydebt">My Debt</p>
+                <p id="debt-out" class="font-bold text-sm privacy-mask" data-value="0">Rp 0</p>
+            </div>
+            <div class="p-3 bg-green-50 dark:bg-green-900/20 rounded-xl border border-green-100 dark:border-green-900/50">
+                <p class="text-[10px] text-green-600 dark:text-green-400" data-i18n="txt-receivable">Receivables</p>
+                <p id="debt-in" class="font-bold text-sm privacy-mask" data-value="0">Rp 0</p>
+            </div>
+        </div>
+        <div id="debt-list" class="space-y-2 mt-2"></div>
+    </div>
+    <div>
+        <div class="flex justify-between items-center mb-3">
+            <h3 class="text-sm font-semibold dark:text-gray-200" data-i18n="dash-debt">Debts & Receivables</h3>
+            <div class="flex gap-3">
+                <button onclick="openModal('modal-debt-history')" class="text-xs font-bold text-gray-500 hover:text-gray-800 dark:hover:text-gray-300 transition" data-i18n="btn-hist-debt">Riwayat</button>
+                <button onclick="openModal('modal-debt')" class="text-xs font-bold text-[#6342E8] dark:text-[#a78bfa] hover:opacity-80 transition" data-i18n="btn-add-debt">+ Add Debt</button>
+            </div>
+        </div>
+        <div class="grid grid-cols-2 gap-3 mb-1">
+            <div class="p-3 bg-red-50 dark:bg-red-900/20 rounded-xl border border-red-100 dark:border-red-900/50">
+                <p class="text-[10px] text-red-600 dark:text-red-400" data-i18n="txt-mydebt">My Debt</p>
+                <p id="debt-out" class="font-bold text-sm privacy-mask" data-value="0">Rp 0</p>
+            </div>
+            <div class="p-3 bg-green-50 dark:bg-green-900/20 rounded-xl border border-green-100 dark:border-green-900/50">
+                <p class="text-[10px] text-green-600 dark:text-green-400" data-i18n="txt-receivable">Receivables</p>
+                <p id="debt-in" class="font-bold text-sm privacy-mask" data-value="0">Rp 0</p>
+            </div>
+        </div>
+        <div id="debt-list" class="space-y-2 mt-2"></div>
+    </div>
+    <div>
+        <h3 class="text-sm font-semibold mb-3 dark:text-gray-200" data-i18n="dash-acc">Your Accounts</h3>
+        <div class="bg-white dark:bg-[#1e1e1e] rounded-3xl shadow-sm border border-gray-100 dark:border-gray-800 overflow-hidden transition-all duration-300" id="accounts-list"></div>
+    </div>
+</div>
