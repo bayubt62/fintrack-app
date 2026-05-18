@@ -2402,9 +2402,9 @@ const modalObserver = new MutationObserver(() => {
         document.documentElement.style.setProperty('overflow', 'hidden', 'important');
         document.body.style.setProperty('overflow', 'hidden', 'important');
     } else {
-        // Kembalikan ke pengaturan scroll bawaan aplikasi Fintrack
-        document.documentElement.style.setProperty('overflow', 'scroll', 'important');
-        document.body.style.overflow = '';
+        // Lepas kunci secara natural agar CSS bawaan mengambil alih
+        document.documentElement.style.removeProperty('overflow');
+        document.body.style.removeProperty('overflow');
     }
 });
 
