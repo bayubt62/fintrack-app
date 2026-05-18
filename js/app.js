@@ -2344,3 +2344,100 @@ window.copyAccountInfo = function() {
         alert('Gagal menyalin teks ke clipboard. Izin browser mungkin belum diberikan.');
     });
 };
+// =============================================================================
+// --- SISTEM SWITCH BAHASA SAKELAR (PILL-TOGGLE) ------------------------------
+// =============================================================================
+
+// Fungsi mengatur visual sakelar agar sesuai dengan bahasa aktif
+window.updateLanguageSwitchUI = function() {
+    // Cari tahu bahasa apa yang sedang dipakai
+    const lang = (typeof currentLang !== 'undefined') ? currentLang : (localStorage.getItem('lang') || 'id');
+    const btnId = document.getElementById('lang-btn-id');
+    const btnEn = document.getElementById('lang-btn-en');
+    
+    if (btnId && btnEn) {
+        if (lang === 'en') {
+            btnEn.className = "px-2.5 py-1.5 rounded-full bg-[#6342E8] text-white shadow-sm transition-all duration-200";
+            btnId.className = "px-2.5 py-1.5 rounded-full text-gray-400 dark:text-gray-500 transition-all duration-200";
+        } else {
+            btnId.className = "px-2.5 py-1.5 rounded-full bg-[#6342E8] text-white shadow-sm transition-all duration-200";
+            btnEn.className = "px-2.5 py-1.5 rounded-full text-gray-400 dark:text-gray-500 transition-all duration-200";
+        }
+    }
+};
+
+// Amankan fungsi bawaan Fintrack Bli sebelum ditimpa
+if (typeof window.originalToggleLanguage === 'undefined' && typeof window.toggleLanguage === 'function') {
+    window.originalToggleLanguage = window.toggleLanguage;
+}
+
+// Timpa fungsi toggleLanguage agar memicu perubahan animasi
+window.toggleLanguage = function() {
+    // 1. Eksekusi penerjemah bawaan Bli
+    if (typeof window.originalToggleLanguage === 'function') {
+        window.originalToggleLanguage();
+    }
+    // 2. Geser warna sakelarnya
+    window.updateLanguageSwitchUI();
+};
+
+// Tembak sekali saat aplikasi pertama kali dibuka
+setTimeout(window.updateLanguageSwitchUI, 200);
+// =============================================================================
+// --- KONTROLER POP-UP CERDAS (ANTI-SCROLL & KLIK LUAR TUTUP) -----------------
+// =============================================================================
+
+// 1. FITUR ANTI-SCROLL BACKGROUND (Menggunakan MutationObserver)
+// Ini akan memantau seluruh pop-up secara otomatis tanpa peduli fungsi apa yang membukanya.
+const modalObserver = new MutationObserver(() => {
+    let isAnyModalOpen = false;
+    
+    // Cek semua elemen yang ID-nya berawalan "modal-"
+    document.querySelectorAll('[id^="modal-"]').forEach(modal => {
+        if (!modal.classList.contains('hidden') && !modal.classList.contains('hidden-page')) {
+            isAnyModalOpen = true;
+        }
+    });
+    
+    // Jika ada 1 saja pop-up yang terbuka, kunci layar belakang
+    if (isAnyModalOpen) {
+        document.body.style.overflow = 'hidden'; 
+    } else {
+        document.body.style.overflow = ''; // Lepas kunci jika semua tertutup
+    }
+});
+
+// Pasang pengawas ke seluruh pop-up yang ada di HTML Bli saat aplikasi dimuat
+document.addEventListener('DOMContentLoaded', () => {
+    document.querySelectorAll('[id^="modal-"]').forEach(modal => {
+        modalObserver.observe(modal, { attributes: true, attributeFilter: ['class', 'style'] });
+    });
+});
+// Failsafe jika DOMContentLoaded sudah lewat
+document.querySelectorAll('[id^="modal-"]').forEach(modal => {
+    modalObserver.observe(modal, { attributes: true, attributeFilter: ['class', 'style'] });
+});
+
+
+// 2. FITUR KLIK AREA GELAP (BACKDROP) UNTUK MENUTUP
+document.addEventListener('click', function(event) {
+    const target = event.target;
+    
+    // Memastikan yang diklik adalah background gelap luar (bukan kotak konten putih di dalamnya)
+    // Semua pop-up Bli menggunakan class 'fixed' untuk background gelapnya
+    if (target.id && target.id.startsWith('modal-') && target.classList.contains('fixed')) {
+        
+        // DAFTAR PENGECUALIAN: Pop-up yang TIDAK BOLEH ditutup dengan klik luar
+        // Bli bisa menambahkan ID modal lain ke dalam tanda kurung siku ini jika diperlukan (misal: 'modal-transfer')
+        const preventCloseModals = ['modal-trx'];
+        
+        // Jika pop-up yang diklik BUKAN form transaksi, maka tutup!
+        if (!preventCloseModals.includes(target.id)) {
+            if (typeof closeModal === 'function') {
+                closeModal(target.id); // Panggil fungsi penutup standar Bli
+            } else {
+                target.classList.add('hidden');
+            }
+        }
+    }
+});
