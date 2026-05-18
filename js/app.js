@@ -2384,60 +2384,51 @@ window.toggleLanguage = function() {
 // Tembak sekali saat aplikasi pertama kali dibuka
 setTimeout(window.updateLanguageSwitchUI, 200);
 // =============================================================================
-// --- KONTROLER POP-UP CERDAS (ANTI-SCROLL & KLIK LUAR TUTUP) -----------------
+// --- KONTROLER POP-UP CERDAS V2 (KUNCI MUTLAK KHUSUS IPHONE/IOS) -------------
 // =============================================================================
 
-// 1. FITUR ANTI-SCROLL BACKGROUND (Menggunakan MutationObserver)
-// Ini akan memantau seluruh pop-up secara otomatis tanpa peduli fungsi apa yang membukanya.
+// 1. KUNCI GANDA (MEMBEKUKAN BODY DAN HTML)
 const modalObserver = new MutationObserver(() => {
     let isAnyModalOpen = false;
     
-    // Cek semua elemen yang ID-nya berawalan "modal-"
     document.querySelectorAll('[id^="modal-"]').forEach(modal => {
         if (!modal.classList.contains('hidden') && !modal.classList.contains('hidden-page')) {
             isAnyModalOpen = true;
         }
     });
     
-    // Jika ada 1 saja pop-up yang terbuka, kunci layar belakang
     if (isAnyModalOpen) {
-        document.body.style.overflow = 'hidden'; 
+        // Trik Khusus iOS: Paksa tag HTML dan Body mati bersamaan
+        document.documentElement.style.setProperty('overflow', 'hidden', 'important');
+        document.body.style.setProperty('overflow', 'hidden', 'important');
     } else {
-        document.body.style.overflow = ''; // Lepas kunci jika semua tertutup
+        // Kembalikan ke pengaturan scroll bawaan aplikasi Fintrack
+        document.documentElement.style.setProperty('overflow', 'scroll', 'important');
+        document.body.style.overflow = '';
     }
 });
 
-// Pasang pengawas ke seluruh pop-up yang ada di HTML Bli saat aplikasi dimuat
-document.addEventListener('DOMContentLoaded', () => {
+const initObserver = () => {
     document.querySelectorAll('[id^="modal-"]').forEach(modal => {
         modalObserver.observe(modal, { attributes: true, attributeFilter: ['class', 'style'] });
     });
-});
-// Failsafe jika DOMContentLoaded sudah lewat
-document.querySelectorAll('[id^="modal-"]').forEach(modal => {
-    modalObserver.observe(modal, { attributes: true, attributeFilter: ['class', 'style'] });
-});
+};
 
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initObserver);
+} else {
+    initObserver();
+}
 
-// 2. FITUR KLIK AREA GELAP (BACKDROP) UNTUK MENUTUP
-document.addEventListener('click', function(event) {
-    const target = event.target;
-    
-    // Memastikan yang diklik adalah background gelap luar (bukan kotak konten putih di dalamnya)
-    // Semua pop-up Bli menggunakan class 'fixed' untuk background gelapnya
-    if (target.id && target.id.startsWith('modal-') && target.classList.contains('fixed')) {
+// 2. PEMBUNUH SENSOR SENTUH (ANTI RUBBER-BANDING IPHONE)
+document.addEventListener('touchmove', function(e) {
+    // Jika pop-up sedang terbuka (layar terkunci)
+    if (document.documentElement.style.overflow === 'hidden') {
+        // Izinkan jari menggeser HANYA jika menyentuh area dalam pop-up yang panjang
+        const isScrollable = e.target.closest('.overflow-y-auto') || e.target.closest('.custom-scrollbar');
         
-        // DAFTAR PENGECUALIAN: Pop-up yang TIDAK BOLEH ditutup dengan klik luar
-        // Bli bisa menambahkan ID modal lain ke dalam tanda kurung siku ini jika diperlukan (misal: 'modal-transfer')
-        const preventCloseModals = ['modal-trx'];
-        
-        // Jika pop-up yang diklik BUKAN form transaksi, maka tutup!
-        if (!preventCloseModals.includes(target.id)) {
-            if (typeof closeModal === 'function') {
-                closeModal(target.id); // Panggil fungsi penutup standar Bli
-            } else {
-                target.classList.add('hidden');
-            }
+        if (!isScrollable) {
+            e.preventDefault(); // Matikan sensor sentuh di background secara absolut!
         }
     }
-});
+}, { passive: false });
