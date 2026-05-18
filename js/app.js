@@ -1138,7 +1138,6 @@ applySystemTheme();
 if (window.matchMedia) {
     window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', event => {
         applySystemTheme(); 
-        // KODE RENDER-DASHBOARD TELAH DIHAPUS DARI SINI AGAR DATA TIDAK TERTUMPUK
     });
 }
 
