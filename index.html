@@ -1196,5 +1196,144 @@
     
     <script src="js/app.js?v=2.8"></script>
 
+<script>
+        // SUNTIKAN PAKSA FINAL: Menjembatani perbedaan ID_Trx dan ID_Transaksi
+        window.openTransactionDetail = function(jsonStr) {
+            try {
+                const lang = (typeof currentLang !== 'undefined') ? currentLang : 'id';
+                const priv = (typeof isPrivate !== 'undefined') ? isPrivate : false;
+                const tobj = JSON.parse(decodeURIComponent(jsonStr));
+                
+                const fuzzy = function(obj, ...hints) {
+                    if (!obj) return '';
+                    for (let hint of hints) if (obj[hint] !== undefined && obj[hint] !== '') return obj[hint];
+                    for (let hint of hints) {
+                        const cleanHint = hint.toLowerCase().replace(/[^a-z0-9]/g, '');
+                        for (let k in obj) {
+                            if (k.toLowerCase().replace(/[^a-z0-9]/g, '') === cleanHint && obj[k] !== undefined && obj[k] !== '') return obj[k];
+                        }
+                    }
+                    return '';
+                };
+
+                const num = function(val) {
+                    if (typeof extractNumber === 'function') return extractNumber(val);
+                    if (!val) return 0;
+                    return parseFloat(val.toString().replace(/[^0-9,-]/g, '').replace(',', '.')) || 0;
+                };
+
+                const rp = function(val) {
+                    if (typeof toRp === 'function') return toRp(val);
+                    return 'Rp ' + new Intl.NumberFormat('id-ID').format(val);
+                };
+
+                let modal = document.getElementById('modal-transaction-detail');
+                if (!modal) return;
+
+                const isOut = (fuzzy(tobj, 'Tipe', 'Type').toString().trim().toUpperCase() === 'OUTFLOW');
+                const val = num(fuzzy(tobj, 'Jumlah', 'Amount', 'Nominal'));
+                const kategori = fuzzy(tobj, 'Kategori', 'Category');
+                const akun = fuzzy(tobj, 'Akun', 'Account', 'SumberDana');
+                const tglRaw = fuzzy(tobj, 'Tanggal', 'Date');
+                
+                // PERBAIKAN KUNCI UTAMA: Cari ID_Trx dari data induk
+                const trxId = fuzzy(tobj, 'ID_Trx', 'ID_Transaksi', 'IDTransaksi', 'ID', 'Id');
+
+                if (lang === 'id') {
+                    document.getElementById('dtl-title-text').innerText = 'Detail Transaksi';
+                    document.getElementById('dtl-cat-label').innerText = 'Kategori';
+                    document.getElementById('dtl-date-label').innerText = 'Tanggal & Waktu';
+                    document.getElementById('dtl-acc-label').innerText = 'Sumber Dana';
+                    document.getElementById('dtl-desc-label').innerText = 'Keterangan';
+                    if (document.getElementById('dtl-items-label')) document.getElementById('dtl-items-label').innerText = 'Rincian Barang';
+                } else {
+                    document.getElementById('dtl-title-text').innerText = 'Transaction Detail';
+                    document.getElementById('dtl-cat-label').innerText = 'Category';
+                    document.getElementById('dtl-date-label').innerText = 'Date & Time';
+                    document.getElementById('dtl-acc-label').innerText = 'Source of Funds';
+                    document.getElementById('dtl-desc-label').innerText = 'Description';
+                    if (document.getElementById('dtl-items-label')) document.getElementById('dtl-items-label').innerText = 'Purchased Items';
+                }
+
+                let dateStr = '-';
+                if (tglRaw) {
+                    const d = new Date(tglRaw);
+                    let mName = d.getMonth() + 1;
+                    if (typeof i18n !== 'undefined' && i18n[lang] && i18n[lang]['month-names']) mName = i18n[lang]['month-names'][d.getMonth()];
+                    dateStr = `${d.getDate().toString().padStart(2, '0')} ${mName} ${d.getFullYear()} • ${d.getHours().toString().padStart(2, '0')}:${d.getMinutes().toString().padStart(2, '0')} WITA`;
+                }
+
+                document.getElementById('dtl-type-label').innerText = isOut ? (lang === 'id' ? 'Pengeluaran' : 'Expenditure') : (lang === 'id' ? 'Pemasukan' : 'Income');
+                const amtEl = document.getElementById('dtl-amount');
+                amtEl.setAttribute('data-value', val);
+                amtEl.innerText = priv ? '********' : rp(val);
+                
+                if (isOut && kategori !== 'Transfer Keluar' && kategori !== 'Biaya Admin') amtEl.className = "text-2xl font-bold text-red-500 dark:text-red-400 privacy-mask";
+                else if (!isOut && kategori !== 'Transfer Masuk') amtEl.className = "text-2xl font-bold text-green-500 dark:text-green-400 privacy-mask";
+                else amtEl.className = "text-2xl font-bold text-gray-800 dark:text-white privacy-mask";
+
+                document.getElementById('dtl-kategori').innerText = kategori;
+                document.getElementById('dtl-tanggal').innerText = dateStr;
+                document.getElementById('dtl-akun').innerText = akun;
+                document.getElementById('dtl-keterangan').innerText = fuzzy(tobj, 'Keterangan', 'Description') || '-';
+
+                const itemsSection = document.getElementById('dtl-items-section');
+                const itemsContainer = document.getElementById('dtl-items-container');
+                let items = [];
+                
+                const dbDetail = (typeof appData !== 'undefined') ? (appData.T_Transaksi_Detail || []) : [];
+                
+                if (dbDetail.length > 0 && trxId) {
+                    items = dbDetail.filter(d => {
+                        // PERBAIKAN KUNCI KEDUA: Cari ID_Transaksi dari data anak
+                        const dId = fuzzy(d, 'ID_Transaksi', 'ID_Trx', 'IDTransaksi', 'ID', 'Id');
+                        return String(trxId) === String(dId);
+                    });
+                }
+
+                // Failsafe format lama
+                if (items.length === 0) {
+                    const rawItems = fuzzy(tobj, 'items', 'Items', 'Rincian', 'Detail');
+                    if (typeof rawItems === 'string' && rawItems.length > 5) {
+                        try { items = JSON.parse(rawItems); } catch(e){}
+                    } else if (Array.isArray(rawItems)) {
+                        items = rawItems;
+                    }
+                }
+
+                if (itemsSection && itemsContainer) {
+                    if (items && items.length > 0) {
+                        itemsSection.classList.remove('hidden');
+                        itemsContainer.innerHTML = '';
+                        
+                        items.forEach(item => {
+                            const itemName = fuzzy(item, 'Nama_Barang', 'Nama_Item', 'name', 'nama') || 'Item';
+                            const qty = num(fuzzy(item, 'Qty', 'Jumlah', 'quantity')) || 1;
+                            const priceTotal = num(fuzzy(item, 'Total_Harga', 'Harga_Item', 'price', 'harga')) || 0;
+                            const hargaSatuan = num(fuzzy(item, 'Harga_Satuan')) || (priceTotal / qty);
+                            
+                            itemsContainer.innerHTML += `
+                                <div class="flex justify-between items-center text-xs py-1.5 border-b border-gray-100 dark:border-gray-800 last:border-0">
+                                    <div class="flex flex-col w-2/3 pr-2">
+                                        <span class="text-gray-700 dark:text-gray-200 font-bold uppercase truncate">${itemName}</span>
+                                        <span class="text-[10px] text-gray-500 font-medium">${qty}x @ ${rp(hargaSatuan)}</span>
+                                    </div>
+                                    <span class="text-gray-800 dark:text-gray-100 font-bold text-right text-xs">${rp(priceTotal)}</span>
+                                </div>`;
+                        });
+                    } else {
+                        itemsSection.classList.add('hidden');
+                        itemsContainer.innerHTML = '';
+                    }
+                }
+
+                modal.classList.remove('hidden', 'hidden-page');
+                if (typeof openModal === 'function') openModal('modal-transaction-detail');
+                
+            } catch (e) {
+                console.error("Gagal mengeksekusi pop-up:", e);
+            }
+        };
+    </script>
 </body>
 </html>
