@@ -169,11 +169,14 @@
                 </button>
             </div>
             <div class="flex gap-2 items-center">
-                <button onclick="toggleLanguage()" class="w-10 h-10 flex items-center justify-center bg-white dark:bg-[#1e1e1e] rounded-full shadow-sm border border-gray-100 dark:border-[#2d2d2d] hover:scale-105 transition">
-                    <span id="lang-icon" class="text-xs font-bold text-[#6342E8] dark:text-[#a78bfa]">EN</span>
-                </button>
-                <span id="theme-icon" class="hidden"></span>
-            </div>
+        <div onclick="toggleLanguage()" class="flex bg-gray-100 dark:bg-[#252525] rounded-full p-0.5 text-[10px] font-bold border border-gray-200 dark:border-gray-700/80 shadow-inner cursor-pointer hover:scale-105 active:scale-95 transition-transform duration-200">
+            <div id="lang-btn-id" class="px-2.5 py-1.5 rounded-full bg-[#6342E8] text-white shadow-sm transition-all duration-200">ID</div>
+            <div id="lang-btn-en" class="px-2.5 py-1.5 rounded-full text-gray-400 dark:text-gray-500 transition-all duration-200">EN</div>
+        </div>
+        
+        <span id="theme-icon" class="hidden"></span>
+        <span id="lang-icon" class="hidden"></span>
+    </div>
         </header>
 
         <main id="main-content" class="px-6 pb-36 page-content active-page">
