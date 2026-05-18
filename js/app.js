@@ -2384,10 +2384,10 @@ window.toggleLanguage = function() {
 // Tembak sekali saat aplikasi pertama kali dibuka
 setTimeout(window.updateLanguageSwitchUI, 200);
 // =============================================================================
-// --- KONTROLER POP-UP CERDAS V2 (KUNCI MUTLAK KHUSUS IPHONE/IOS) -------------
+// --- KONTROLER POP-UP CERDAS V3 (ANTI-MACET & KUNCI MUTLAK IOS) --------------
 // =============================================================================
 
-// 1. KUNCI GANDA (MEMBEKUKAN BODY DAN HTML)
+// 1. KUNCI GANDA DENGAN PELEPAS OTOMATIS
 const modalObserver = new MutationObserver(() => {
     let isAnyModalOpen = false;
     
@@ -2398,13 +2398,14 @@ const modalObserver = new MutationObserver(() => {
     });
     
     if (isAnyModalOpen) {
-        // Trik Khusus iOS: Paksa tag HTML dan Body mati bersamaan
-        document.documentElement.style.setProperty('overflow', 'hidden', 'important');
-        document.body.style.setProperty('overflow', 'hidden', 'important');
+        // Kunci layar saat pop-up terbuka
+        document.documentElement.style.overflow = 'hidden';
+        document.body.style.overflow = 'hidden';
     } else {
-        // Lepas kunci secara natural agar CSS bawaan mengambil alih
-        document.documentElement.style.removeProperty('overflow');
-        document.body.style.removeProperty('overflow');
+        // PAKSA KEMBALIKAN FUNGSI SCROLL SAAT DITUTUP (Solusi Anti-Macet)
+        document.documentElement.style.overflow = '';
+        document.documentElement.style.overflowY = 'auto'; // Paksa sumbu Y bisa digeser
+        document.body.style.overflow = '';
     }
 });
 
@@ -2422,13 +2423,10 @@ if (document.readyState === 'loading') {
 
 // 2. PEMBUNUH SENSOR SENTUH (ANTI RUBBER-BANDING IPHONE)
 document.addEventListener('touchmove', function(e) {
-    // Jika pop-up sedang terbuka (layar terkunci)
-    if (document.documentElement.style.overflow === 'hidden') {
-        // Izinkan jari menggeser HANYA jika menyentuh area dalam pop-up yang panjang
+    if (document.documentElement.style.overflow === 'hidden' || document.body.style.overflow === 'hidden') {
         const isScrollable = e.target.closest('.overflow-y-auto') || e.target.closest('.custom-scrollbar');
-        
         if (!isScrollable) {
-            e.preventDefault(); // Matikan sensor sentuh di background secara absolut!
+            e.preventDefault();
         }
     }
 }, { passive: false });
