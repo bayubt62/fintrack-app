@@ -1138,6 +1138,7 @@ applySystemTheme();
 if (window.matchMedia) {
     window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', event => {
         applySystemTheme(); 
+        // KODE RENDER-DASHBOARD TELAH DIHAPUS DARI SINI AGAR DATA TIDAK TERTUMPUK
     });
 }
 
@@ -2372,50 +2373,3 @@ window.toggleLanguage = function() {
 
 // Tembak sekali saat aplikasi pertama kali dibuka
 setTimeout(window.updateLanguageSwitchUI, 200);
-// =============================================================================
-// --- KONTROLER POP-UP CERDAS V3 (ANTI-MACET & KUNCI MUTLAK IOS) --------------
-// =============================================================================
-
-// 1. KUNCI GANDA DENGAN PELEPAS OTOMATIS
-const modalObserver = new MutationObserver(() => {
-    let isAnyModalOpen = false;
-    
-    document.querySelectorAll('[id^="modal-"]').forEach(modal => {
-        if (!modal.classList.contains('hidden') && !modal.classList.contains('hidden-page')) {
-            isAnyModalOpen = true;
-        }
-    });
-    
-    if (isAnyModalOpen) {
-        // Kunci layar saat pop-up terbuka
-        document.documentElement.style.overflow = 'hidden';
-        document.body.style.overflow = 'hidden';
-    } else {
-        // PAKSA KEMBALIKAN FUNGSI SCROLL SAAT DITUTUP (Solusi Anti-Macet)
-        document.documentElement.style.overflow = '';
-        document.documentElement.style.overflowY = 'auto'; // Paksa sumbu Y bisa digeser
-        document.body.style.overflow = '';
-    }
-});
-
-const initObserver = () => {
-    document.querySelectorAll('[id^="modal-"]').forEach(modal => {
-        modalObserver.observe(modal, { attributes: true, attributeFilter: ['class', 'style'] });
-    });
-};
-
-if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', initObserver);
-} else {
-    initObserver();
-}
-
-// 2. PEMBUNUH SENSOR SENTUH (ANTI RUBBER-BANDING IPHONE)
-document.addEventListener('touchmove', function(e) {
-    if (document.documentElement.style.overflow === 'hidden' || document.body.style.overflow === 'hidden') {
-        const isScrollable = e.target.closest('.overflow-y-auto') || e.target.closest('.custom-scrollbar');
-        if (!isScrollable) {
-            e.preventDefault();
-        }
-    }
-}, { passive: false });
