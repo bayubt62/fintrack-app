@@ -1905,26 +1905,25 @@ window.updateAssetDetailCurrencyView = function() {
     if (typeof applyLanguage === 'function') applyLanguage();
 };
 
-// --- CORE COMPATIBILITY BRIDGE FOR MODAL OPEN/CLOSE --- //
+// --- CORE COMPATIBILITY BRIDGE FOR MODAL OPEN/CLOSE (PERFECT FIX) --- //
 if (typeof window.originalOpenModal === 'undefined') {
     window.originalOpenModal = window.openModal;
-    window.openModal = function(id) {
-        if (typeof window.originalOpenModal === 'function') window.originalOpenModal(id);
-        const el = document.getElementById(id);
-        if (el) {
-            el.classList.remove('hidden');
-            el.classList.remove('hidden-page');
-            el.style.display = ''; 
-        }
+    window.openModal = function(...args) {
+        if (typeof window.originalOpenModal === 'function') window.originalOpenModal(...args);
+        const el = document.getElementById(args[0]);
+        if (el) { el.classList.remove('hidden', 'hidden-page'); el.style.display = ''; }
     };
 }
 
 if (typeof window.originalCloseModal === 'undefined') {
     window.originalCloseModal = window.closeModal;
-    window.closeModal = function(id) {
-        if (typeof window.originalCloseModal === 'function') window.originalCloseModal(id);
-        const el = document.getElementById(id);
-        if (el) el.classList.add('hidden');
+    window.closeModal = function(...args) {
+        // Teruskan seluruh parameter utuh (termasuk sinyal 'true' dari tombol Save)
+        if (typeof window.originalCloseModal === 'function') window.originalCloseModal(...args);
+        
+        // Pastikan kelas hidden Tailwind hanya aktif jika penutupan direstui sistem
+        const el = document.getElementById(args[0]);
+        if (el && el.classList.contains('hidden-page')) el.classList.add('hidden');
     };
 }
 
