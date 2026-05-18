@@ -1114,8 +1114,42 @@ async function showPage(pageId) {
     }, 250);
 }
 
-function toggleDarkMode() { 
-    const isDark = document.documentElement.classList.toggle('dark'); localStorage.setItem('fintrack_theme', isDark ? 'dark' : 'light'); document.getElementById('theme-icon').innerText = isDark ? '☀️' : '🌙'; 
+// =============================================================================
+// --- SISTEM DETEKTOR TEMA OTOMATIS (MENGIKUTI PENGATURAN HP/OS) --------------
+// =============================================================================
+
+function applySystemTheme() {
+    // Membaca pengaturan asli dari HP (Apakah sedang pakai Dark Mode?)
+    const isDarkMode = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+    
+    if (isDarkMode) {
+        document.documentElement.classList.add('dark');
+        localStorage.setItem('theme', 'dark'); // Simpan cache untuk kestabilan
+    } else {
+        document.documentElement.classList.remove('dark');
+        localStorage.setItem('theme', 'light');
+    }
+}
+
+// 1. Eksekusi pertama kali saat aplikasi dibuka
+applySystemTheme();
+
+// 2. Pasang Radar Real-Time: Jika Bli tiba-tiba mengubah tema dari Control Center HP,
+// aplikasi Fintrack akan langsung berubah warna tanpa perlu di-refresh!
+if (window.matchMedia) {
+    window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', event => {
+        applySystemTheme();
+        
+        // (Opsional) Jika Bli menggunakan Chart.js, kita perlu memanggil fungsi 
+        // render ulang dashboard agar warna teks di grafik ikut menyesuaikan.
+        // Jika fungsi renderDashboard ada, dia akan dipanggil ulang.
+        if (typeof renderDashboard === 'function' && document.getElementById('main-content').innerHTML !== '') {
+            // Beri sedikit jeda agar CSS selesai berganti warna
+            setTimeout(() => {
+                if(appData && appData.M_Akun) renderDashboard();
+            }, 100);
+        }
+    });
 }
 
 function togglePrivacy() {
