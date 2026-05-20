@@ -68,6 +68,13 @@
             100% { transform: rotateY(360deg); }
         }
 
+        /* Animasi Nafas untuk Logo Splash Screen */
+        @keyframes breath {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+        }
+        .logo-breath { animation: breath 2.5s ease-in-out infinite; }
+
         .page-content {
             display: none;
             opacity: 0;
@@ -117,6 +124,38 @@
 </head>
 <body class="bg-[#F8F9FA] dark:bg-[#121212] min-h-screen max-w-md mx-auto relative text-gray-800 dark:text-gray-100 transition-colors duration-300" onload="initApp()">
 
+    <div id="fintrack-cold-splash" class="fixed inset-0 z-[999999] bg-[#6342E8] flex flex-col items-center justify-center transition-opacity duration-500 opacity-100 pointer-events-auto">
+        <div class="flex flex-col items-center justify-center logo-breath">
+            <img src="Logo_Fintrack.png" alt="Fintrack Logo" class="h-28 md:h-36 object-contain drop-shadow-2xl">
+        </div>
+        <div class="absolute bottom-16 flex gap-2">
+            <div class="w-2.5 h-2.5 rounded-full bg-white/90 animate-bounce" style="animation-delay: 0ms"></div>
+            <div class="w-2.5 h-2.5 rounded-full bg-white/90 animate-bounce" style="animation-delay: 150ms"></div>
+            <div class="w-2.5 h-2.5 rounded-full bg-white/90 animate-bounce" style="animation-delay: 300ms"></div>
+        </div>
+    </div>
+    
+    <script>
+        // Logika Eksekusi Instan Anti-Flicker
+        (function() {
+            var coldSplash = document.getElementById('fintrack-cold-splash');
+            if (sessionStorage.getItem('fintrack_cold_splash_shown')) {
+                // Bukan Cold Start: Sembunyikan seketika dalam 0 detik
+                coldSplash.style.display = 'none';
+            } else {
+                // Cold Start: Tahan layar ungu selama 2.5 detik lalu pudarkan
+                setTimeout(function() {
+                    coldSplash.classList.remove('opacity-100');
+                    coldSplash.classList.add('opacity-0');
+                    setTimeout(function() {
+                        coldSplash.style.display = 'none';
+                        // Berikan stempel sessionStorage agar tidak muncul lagi saat navigasi
+                        sessionStorage.setItem('fintrack_cold_splash_shown', 'true');
+                    }, 500); // Durasi fade-out Tailwnind
+                }, 2500);
+            }
+        })();
+    </script>
     <div id="ptr-indicator" class="fixed top-0 left-0 right-0 z-[60] flex justify-center pointer-events-none transition-transform duration-300" style="transform: translateY(-80px);">
         <div class="mt-4 bg-white dark:bg-[#1e1e1e] rounded-full shadow-lg p-2.5 flex items-center justify-center border border-gray-100 dark:border-[#2d2d2d]">
             <div class="coin-spinner w-8 h-8 rounded-full bg-gradient-to-tr from-[#6342E8] to-[#A88FFF] shadow-sm flex items-center justify-center border-2 border-[#E0D7FF] dark:border-[#8B5CF6]">
