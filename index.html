@@ -10,7 +10,7 @@
     <link rel="apple-touch-icon" href="Display_Logo.png">
     <link rel="icon" type="image/png" href="Display_Logo.png">
     
-    <title>Fintrack Enterprise V2.8 - Bilingual Edition</title>
+    <title>Fintrack Enterprise V2.8.1 - Bilingual Edition</title>
     <script src="https://cdn.tailwindcss.com"></script>
     
     <script>
@@ -169,18 +169,16 @@
                 </button>
             </div>
             <div class="flex gap-2 items-center">
-        <div onclick="toggleLanguage()" class="flex bg-gray-100 dark:bg-[#252525] rounded-full p-0.5 text-[10px] font-bold border border-gray-200 dark:border-gray-700/80 shadow-inner cursor-pointer hover:scale-105 active:scale-95 transition-transform duration-200">
-            <div id="lang-btn-id" class="px-2.5 py-1.5 rounded-full bg-[#6342E8] text-white shadow-sm transition-all duration-200">ID</div>
-            <div id="lang-btn-en" class="px-2.5 py-1.5 rounded-full text-gray-400 dark:text-gray-500 transition-all duration-200">EN</div>
-        </div>
-        
-        <span id="theme-icon" class="hidden"></span>
-        <span id="lang-icon" class="hidden"></span>
-    </div>
+                <div onclick="toggleLanguage()" class="flex bg-gray-100 dark:bg-[#252525] rounded-full p-0.5 text-[10px] font-bold border border-gray-200 dark:border-gray-700/80 shadow-inner cursor-pointer hover:scale-105 active:scale-95 transition-transform duration-200">
+                    <div id="lang-btn-id" class="px-2.5 py-1.5 rounded-full bg-[#6342E8] text-white shadow-sm transition-all duration-200">ID</div>
+                    <div id="lang-btn-en" class="px-2.5 py-1.5 rounded-full text-gray-400 dark:text-gray-500 transition-all duration-200">EN</div>
+                </div>
+                <span id="theme-icon" class="hidden"></span>
+                <span id="lang-icon" class="hidden"></span>
+            </div>
         </header>
 
-        <main id="main-content" class="px-6 pb-36 page-content active-page">
-            </main>
+        <main id="main-content" class="px-6 pb-36 page-content active-page"></main>
 
         <nav class="fixed bottom-0 left-0 right-0 max-w-md mx-auto bg-white/90 backdrop-blur-md border-t border-gray-100 dark:bg-[#1e1e1e]/90 dark:border-[#2d2d2d] px-6 h-[80px] flex justify-between items-center rounded-t-[32px] shadow-[0_-15px_40px_rgba(0,0,0,0.06)] z-30 transition-colors duration-300">
             <button onclick="showPage('dashboard')" class="nav-btn w-12 h-full flex flex-col items-center justify-center text-gray-400 active-nav group" id="nav-dashboard">
@@ -282,53 +280,49 @@
             <button onclick="closeModal('modal-level-notify')" class="w-full py-4 bg-[#6342E8] text-white rounded-xl text-sm font-bold active:scale-95 transition shadow-lg" data-i18n="btn-continue">Lanjutkan</button>
         </div>
     </div>
-    <div id="modal-transaction-detail" class="hidden fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm transition-all duration-300">
-    <div class="bg-white dark:bg-[#1a1a1a] w-full max-w-md rounded-[28px] p-6 shadow-2xl border border-gray-100/50 dark:border-gray-800/60 transform transition-all duration-300 scale-100">
-        
-        <div class="flex justify-between items-center mb-5 pb-3 border-b border-gray-100 dark:border-gray-800">
-            <div class="flex items-center gap-3">
-                <div class="w-1.5 h-6 bg-[#6342E8] dark:bg-[#a88fff] rounded-full"></div>
-                <h3 class="text-base font-black text-[#6342E8] dark:text-[#a88fff] tracking-tight" id="dtl-title-text">Detail Transaksi</h3>
-            </div>
-            <button onclick="document.getElementById('modal-transaction-detail').classList.add('hidden');" class="w-8 h-8 flex items-center justify-center bg-gray-50 hover:bg-gray-100 dark:bg-[#252525] dark:hover:bg-[#303030] text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 rounded-full text-xl font-semibold transition-all duration-200">&times;</button>
-        </div>
-        
-        <div class="space-y-4">
-            <div class="text-center p-5 bg-gradient-to-b from-[#6342E8]/5 to-transparent dark:from-[#6342E8]/10 dark:to-transparent rounded-[20px] border border-[#6342E8]/10 dark:border-[#6342E8]/20 relative overflow-hidden">
-                <p class="text-[11px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-1" id="dtl-type-label">Nominal</p>
-                <h2 id="dtl-amount" class="text-3xl font-black tracking-tight text-gray-900 dark:text-white">Rp 0</h2>
-            </div>
-            
-            <div class="grid grid-cols-2 gap-4">
-                <div class="p-4 bg-gray-50/60 dark:bg-[#222]/40 rounded-2xl border border-gray-100/70 dark:border-gray-800/50">
-                    <span class="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider block" id="dtl-cat-label">Kategori</span>
-                    <span id="dtl-kategori" class="text-xs font-extrabold text-gray-800 dark:text-gray-200 block mt-1 truncate"></span>
-                </div>
-                <div class="p-4 bg-gray-50/60 dark:bg-[#222]/40 rounded-2xl border border-gray-100/70 dark:border-gray-800/50">
-                    <span class="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider block" id="dtl-acc-label">Sumber Dana</span>
-                    <span id="dtl-akun" class="text-xs font-extrabold text-[#6342E8] dark:text-[#a88fff] block mt-1 uppercase tracking-wide truncate"></span>
-                </div>
-            </div>
-            
-            <div class="p-4 bg-gray-50/60 dark:bg-[#222]/40 rounded-2xl border border-gray-100/70 dark:border-gray-800/50 flex justify-between items-center">
-                <span class="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider" id="dtl-date-label">Tanggal & Waktu</span>
-                <span id="dtl-tanggal" class="text-xs font-bold text-gray-700 dark:text-gray-300"></span>
-            </div>
 
-            <div class="space-y-2">
-                <p class="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider px-1" id="dtl-desc-label">Keterangan</p>
-                <div class="bg-white dark:bg-[#1c1c1c] p-4 rounded-2xl border border-gray-100 dark:border-gray-800/80 shadow-inner">
-                    <p id="dtl-keterangan" class="text-xs font-medium text-gray-600 dark:text-gray-400 leading-relaxed min-h-[36px]"></p>
+    <div id="modal-transaction-detail" class="hidden fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm transition-all duration-300">
+        <div class="bg-white dark:bg-[#1a1a1a] w-full max-w-md rounded-[28px] p-6 shadow-2xl border border-gray-100/50 dark:border-gray-800/60 transform transition-all duration-300 scale-100">
+            <div class="flex justify-between items-center mb-5 pb-3 border-b border-gray-100 dark:border-gray-800">
+                <div class="flex items-center gap-3">
+                    <div class="w-1.5 h-6 bg-[#6342E8] dark:bg-[#a88fff] rounded-full"></div>
+                    <h3 class="text-base font-black text-[#6342E8] dark:text-[#a88fff] tracking-tight" id="dtl-title-text">Detail Transaksi</h3>
                 </div>
+                <button onclick="document.getElementById('modal-transaction-detail').classList.add('hidden');" class="w-8 h-8 flex items-center justify-center bg-gray-50 hover:bg-gray-100 dark:bg-[#252525] dark:hover:bg-[#303030] text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 rounded-full text-xl font-semibold transition-all duration-200">&times;</button>
             </div>
-            
-            <div id="dtl-items-section" class="hidden space-y-2">
-                <p class="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider px-1" id="dtl-items-label">Rincian Barang</p>
-                <div id="dtl-items-container" class="max-h-36 overflow-y-auto space-y-2 bg-gray-50/50 dark:bg-[#1f1f1f]/60 p-3 rounded-2xl border border-gray-100 dark:border-gray-800 shadow-inner"></div>
+            <div class="space-y-4">
+                <div class="text-center p-5 bg-gradient-to-b from-[#6342E8]/5 to-transparent dark:from-[#6342E8]/10 dark:to-transparent rounded-[20px] border border-[#6342E8]/10 dark:border-[#6342E8]/20 relative overflow-hidden">
+                    <p class="text-[11px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-1" id="dtl-type-label">Nominal</p>
+                    <h2 id="dtl-amount" class="text-3xl font-black tracking-tight text-gray-900 dark:text-white">Rp 0</h2>
+                </div>
+                <div class="grid grid-cols-2 gap-4">
+                    <div class="p-4 bg-gray-50/60 dark:bg-[#222]/40 rounded-2xl border border-gray-100/70 dark:border-gray-800/50">
+                        <span class="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider block" id="dtl-cat-label">Kategori</span>
+                        <span id="dtl-kategori" class="text-xs font-extrabold text-gray-800 dark:text-gray-200 block mt-1 truncate"></span>
+                    </div>
+                    <div class="p-4 bg-gray-50/60 dark:bg-[#222]/40 rounded-2xl border border-gray-100/70 dark:border-gray-800/50">
+                        <span class="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider block" id="dtl-acc-label">Sumber Dana</span>
+                        <span id="dtl-akun" class="text-xs font-extrabold text-[#6342E8] dark:text-[#a88fff] block mt-1 uppercase tracking-wide truncate"></span>
+                    </div>
+                </div>
+                <div class="p-4 bg-gray-50/60 dark:bg-[#222]/40 rounded-2xl border border-gray-100/70 dark:border-gray-800/50 flex justify-between items-center">
+                    <span class="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider" id="dtl-date-label">Tanggal & Waktu</span>
+                    <span id="dtl-tanggal" class="text-xs font-bold text-gray-700 dark:text-gray-300"></span>
+                </div>
+                <div class="space-y-2">
+                    <p class="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider px-1" id="dtl-desc-label">Keterangan</p>
+                    <div class="bg-white dark:bg-[#1c1c1c] p-4 rounded-2xl border border-gray-100 dark:border-gray-800/80 shadow-inner">
+                        <p id="dtl-keterangan" class="text-xs font-medium text-gray-600 dark:text-gray-400 leading-relaxed min-h-[36px]"></p>
+                    </div>
+                </div>
+                <div id="dtl-items-section" class="hidden space-y-2">
+                    <p class="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider px-1" id="dtl-items-label">Rincian Barang</p>
+                    <div id="dtl-items-container" class="max-h-36 overflow-y-auto space-y-2 bg-gray-50/50 dark:bg-[#1f1f1f]/60 p-3 rounded-2xl border border-gray-100 dark:border-gray-800 shadow-inner"></div>
+                </div>
             </div>
         </div>
     </div>
-</div>
+
     <div id="modal-trx" class="hidden fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm transition-all duration-300">
         <div class="bg-white dark:bg-[#1a1a1a] w-full max-w-md rounded-[28px] p-6 shadow-2xl border border-gray-100/50 dark:border-gray-800/60 transform transition-all duration-300 scale-100">
             <div class="flex justify-between items-center mb-5 pb-3 border-b border-gray-100 dark:border-gray-800">
@@ -385,7 +379,7 @@
                         <input type="text" inputmode="numeric" id="form-trx-admin" placeholder="0" oninput="formatRupiahInput(this)" class="text-xs font-extrabold text-right bg-transparent outline-none w-full dark:text-white">
                     </div>
                 </div>
-                <button onclick="submitTransaction()" class="w-full bg-[#6342E8] hover:bg-[#5232d3] text-white py-3.5 rounded-xl font-bold text-xs transition shadow-lg shadow-[#6342E8]/15 mt-2" data-i18n="btn-save-trx">Save</button>
+                <button id="form-trx-submit-btn" disabled onclick="submitTransaction()" class="w-full bg-gray-300 dark:bg-gray-700 text-gray-400 dark:text-gray-500 cursor-not-allowed py-3.5 rounded-xl font-bold text-xs transition mt-2 shadow-none" data-i18n="btn-save-trx">Save</button>
             </div>
         </div>
     </div>
@@ -478,7 +472,6 @@
 
     <div id="modal-rec-detail" class="hidden fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm transition-all duration-300">
         <div class="bg-white dark:bg-[#1a1a1a] w-full max-w-md rounded-[28px] p-6 shadow-2xl border border-gray-100/50 dark:border-gray-800/60 transform transition-all duration-300 scale-100">
-            
             <div class="flex justify-between items-center mb-5 pb-3 border-b border-gray-100 dark:border-gray-800">
                 <div class="flex items-center gap-3">
                     <div class="w-1.5 h-6 bg-[#6342E8] dark:bg-[#a88fff] rounded-full"></div>
@@ -486,14 +479,11 @@
                 </div>
                 <button onclick="closeModal('modal-rec-detail'); document.getElementById('modal-rec-detail').classList.add('hidden');" class="w-8 h-8 flex items-center justify-center bg-gray-50 hover:bg-gray-100 dark:bg-[#252525] dark:hover:bg-[#303030] text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 rounded-full text-xl font-semibold transition-all duration-200">&times;</button>
             </div>
-            
             <div class="space-y-4 max-h-[65vh] overflow-y-auto pr-1 custom-scrollbar">
-                
                 <div class="bg-gradient-to-b from-[#6342E8]/5 to-transparent dark:from-[#6342E8]/10 dark:to-transparent rounded-[20px] p-5 border border-[#6342E8]/10 dark:border-[#6342E8]/20 text-center relative overflow-hidden">
                     <p class="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-1 lang-custom" data-id="Biaya Tagihan" data-en="Billing Cost">Biaya Tagihan</p>
                     <h2 id="det-rec-amount" class="text-3xl font-black tracking-tight text-gray-900 dark:text-white privacy-mask">Rp 0</h2>
                 </div>
-
                 <div class="bg-gray-50/60 dark:bg-[#222]/40 p-4 rounded-2xl border border-gray-100/70 dark:border-gray-800/50 space-y-3 divide-y divide-gray-100 dark:divide-gray-800/40">
                     <div class="flex justify-between items-center py-1">
                         <span class="text-xs text-gray-500 dark:text-gray-400 font-bold uppercase tracking-wider lang-custom" data-id="Nama Layanan" data-en="Service Name">Nama Layanan</span>
@@ -512,9 +502,7 @@
                         <span id="det-rec-account" class="text-xs font-black text-[#6342E8] dark:text-[#a88fff] uppercase truncate pl-4">Rekening Utama</span>
                     </div>
                 </div>
-
                 <input type="hidden" id="det-rec-id">
-
                 <button onclick="deleteRecurringAction()" class="w-full bg-red-50 hover:bg-red-100 dark:bg-red-500/10 dark:hover:bg-red-500/20 text-[#EF4444] border border-red-100 dark:border-red-500/20 py-3.5 rounded-xl font-bold text-xs transition shadow-sm mt-2 flex items-center justify-center gap-2 group">
                     <svg class="w-4 h-4 text-[#EF4444] group-hover:scale-110 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
                     <span class="lang-custom" data-id="Hapus Langganan" data-en="Delete Subscription">Hapus Langganan</span>
@@ -532,11 +520,8 @@
                 </div>
                 <button onclick="closeModal('modal-account-detail'); document.getElementById('modal-account-detail').classList.add('hidden');" class="w-8 h-8 flex items-center justify-center bg-gray-50 hover:bg-gray-100 dark:bg-[#252525] dark:hover:bg-[#303030] text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 rounded-full text-xl font-semibold transition-all duration-200">&times;</button>
             </div>
-            
             <div class="space-y-4 max-h-[70vh] overflow-y-auto pr-1 custom-scrollbar">
-                
                 <div class="flex items-center justify-center mb-2" id="det-acc-icon-container"></div>
-
                 <div class="bg-gray-50/60 dark:bg-[#222]/40 p-4 rounded-2xl border border-gray-100/70 dark:border-gray-800/50 space-y-3 divide-y divide-gray-100 dark:divide-gray-800/40">
                     <div class="flex flex-col py-1">
                         <span class="text-[10px] text-gray-400 font-bold uppercase tracking-wider mb-1 lang-custom" data-id="Nama Bank / E-Wallet" data-en="Bank / E-Wallet Name">Nama Bank / E-Wallet</span>
@@ -555,7 +540,6 @@
                         <span id="det-acc-balance" class="text-lg font-black text-gray-900 dark:text-white privacy-mask">-</span>
                     </div>
                 </div>
-
                 <button onclick="copyAccountInfo()" id="btn-copy-acc" class="w-full bg-[#6342E8] hover:bg-[#5232d3] text-white py-3.5 rounded-xl font-bold text-xs transition shadow-lg shadow-[#6342E8]/15 mt-2 flex items-center justify-center gap-2">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path></svg>
                     <span class="lang-custom" data-id="Salin Informasi Rekening" data-en="Copy Account Info">Salin Informasi Rekening</span>
@@ -631,10 +615,8 @@
                     <label class="text-[10px] text-gray-400 font-bold uppercase tracking-wider mb-1" data-i18n="lbl-sell-unit">Units to Sell</label>
                     <input type="text" id="form-sell-asset-jumlah" placeholder="0.00" class="text-2xl font-black text-[#EF4444] bg-transparent outline-none w-full text-center">
                 </div>
-                
                 <input type="hidden" id="form-sell-asset-id">
                 <input type="hidden" id="form-sell-asset-simbol">
-                
                 <div class="space-y-1">
                     <label class="text-[10px] text-gray-400 dark:text-gray-500 font-bold uppercase tracking-wider px-1" data-i18n="lbl-sell-price">Selling Price per Unit (Rp)</label>
                     <input type="text" inputmode="numeric" id="form-sell-asset-harga" placeholder="0" oninput="formatRupiahInput(this)" class="w-full p-3.5 rounded-xl bg-gray-50 dark:bg-[#222]/50 border border-gray-100 dark:border-gray-800/80 outline-none text-xs font-bold text-[#EF4444]">
@@ -831,12 +813,10 @@
             </div>
             <div class="space-y-4 max-h-[65vh] overflow-y-auto pr-1 custom-scrollbar">
                 <p class="text-xs text-gray-500 dark:text-gray-400 px-0.5" data-i18n="txt-export-desc">Lihat dan download mutasi rekening kamu yang tersedia.</p>
-                
                 <div class="bg-gray-50/80 dark:bg-[#222]/30 p-3.5 rounded-xl border border-gray-100 dark:border-gray-800/60">
                     <label class="text-[9px] text-gray-400 block mb-1 font-bold uppercase lang-custom" data-id="Rekening Pilihan" data-en="Select Account">Rekening Pilihan</label>
                     <select id="export-pdf-account" class="w-full bg-transparent outline-none text-xs font-bold text-[#6342E8] dark:text-[#a88fff] appearance-none cursor-pointer"></select>
                 </div>
-                
                 <div class="space-y-2 pt-1">
                     <div class="flex items-center gap-2 px-0.5">
                         <h3 class="font-bold text-xs text-gray-700 dark:text-gray-300" data-i18n="lbl-export-period">Pilih periode</h3>
@@ -847,114 +827,104 @@
                 </div>
             </div>
         </div>
-    </div>    
+    </div>
+
     <div id="modal-asset-detail" class="hidden fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm transition-all duration-300">
-    <div class="bg-white dark:bg-[#1a1a1a] w-full max-w-md rounded-[28px] p-6 shadow-2xl border border-gray-100/50 dark:border-gray-800/60 transform transition-all duration-300 scale-100">
-        
-        <div class="flex justify-between items-center mb-5 pb-3 border-b border-gray-100 dark:border-gray-800">
-            <div class="flex items-center gap-3">
-                <div class="w-1.5 h-6 bg-[#6342E8] dark:bg-[#a88fff] rounded-full"></div>
-                <div id="det-aset-logo" class="w-7 h-7 flex items-center justify-center rounded-full overflow-hidden"></div>
-                <h3 class="text-base font-black text-[#6342E8] dark:text-[#a88fff] tracking-tight uppercase" id="det-aset-simbol">SIMBOL</h3>
-            </div>
-            
-            <div class="flex items-center gap-3">
-                <div class="flex bg-gray-100 dark:bg-[#252525] rounded-full p-0.5 text-[9px] font-bold border border-gray-200 dark:border-gray-700/80 shadow-inner">
-                    <button onclick="setCurrencyFilter('IDR')" id="currency-btn-idr" class="px-2.5 py-1 rounded-full bg-[#6342E8] text-white transition-all duration-200">IDR</button>
-                    <button onclick="setCurrencyFilter('USD')" id="currency-btn-usd" class="px-2.5 py-1 rounded-full text-gray-400 dark:text-gray-500 transition-all duration-200">USD</button>
+        <div class="bg-white dark:bg-[#1a1a1a] w-full max-w-md rounded-[28px] p-6 shadow-2xl border border-gray-100/50 dark:border-gray-800/60 transform transition-all duration-300 scale-100">
+            <div class="flex justify-between items-center mb-5 pb-3 border-b border-gray-100 dark:border-gray-800">
+                <div class="flex items-center gap-3">
+                    <div class="w-1.5 h-6 bg-[#6342E8] dark:bg-[#a88fff] rounded-full"></div>
+                    <div id="det-aset-logo" class="w-7 h-7 flex items-center justify-center rounded-full overflow-hidden"></div>
+                    <h3 class="text-base font-black text-[#6342E8] dark:text-[#a88fff] tracking-tight uppercase" id="det-aset-simbol">SIMBOL</h3>
                 </div>
-                
-                <button onclick="closeModal('modal-asset-detail'); document.getElementById('modal-asset-detail').classList.add('hidden');" class="w-8 h-8 flex items-center justify-center bg-gray-50 hover:bg-gray-100 dark:bg-[#252525] dark:hover:bg-[#303030] text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 rounded-full text-xl font-semibold transition-all duration-200">&times;</button>
-            </div>
-        </div>
-        
-        <div class="space-y-4 max-h-[70vh] overflow-y-auto pr-1 custom-scrollbar">
-            
-            <div class="text-center py-1">
-                <p class="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-1" id="lbl-live-price-text">Harga Saat Ini</p>
-                <h2 id="det-aset-live" class="text-3xl font-black tracking-tight text-gray-900 dark:text-white privacy-mask">Rp 0</h2>
-                <p id="det-aset-live-change" class="text-xs font-bold mt-1">+0.00%</p>
-            </div>
-            
-            <div class="bg-gray-50/60 dark:bg-[#222]/40 p-4 rounded-2xl border border-gray-100/70 dark:border-gray-800/50">
-                <div class="w-full h-44 relative">
-                    <canvas id="portoChart"></canvas>
-                </div>
-                
-                <div class="grid grid-cols-5 gap-2 mt-4 pt-3 border-t border-gray-100 dark:border-gray-800/60">
-                    <button onclick="setChartFilter('1H')" class="time-filter-btn active text-[10px] font-bold py-1.5 rounded-xl transition" data-filter="1H">1H</button>
-                    <button onclick="setChartFilter('1D')" class="time-filter-btn text-[10px] font-bold py-1.5 rounded-xl transition" data-filter="1D">1D</button>
-                    <button onclick="setChartFilter('1W')" class="time-filter-btn text-[10px] font-bold py-1.5 rounded-xl transition" data-filter="1W">1W</button>
-                    <button onclick="setChartFilter('1M')" class="time-filter-btn text-[10px] font-bold py-1.5 rounded-xl transition" data-filter="1M">1M</button>
-                    <button onclick="setChartFilter('1Y')" class="time-filter-btn text-[10px] font-bold py-1.5 rounded-xl transition" data-filter="1Y">1Y</button>
+                <div class="flex items-center gap-3">
+                    <div class="flex bg-gray-100 dark:bg-[#252525] rounded-full p-0.5 text-[9px] font-bold border border-gray-200 dark:border-gray-700/80 shadow-inner">
+                        <button onclick="setCurrencyFilter('IDR')" id="currency-btn-idr" class="px-2.5 py-1 rounded-full bg-[#6342E8] text-white transition-all duration-200">IDR</button>
+                        <button onclick="setCurrencyFilter('USD')" id="currency-btn-usd" class="px-2.5 py-1 rounded-full text-gray-400 dark:text-gray-500 transition-all duration-200">USD</button>
+                    </div>
+                    <button onclick="closeModal('modal-asset-detail'); document.getElementById('modal-asset-detail').classList.add('hidden');" class="w-8 h-8 flex items-center justify-center bg-gray-50 hover:bg-gray-100 dark:bg-[#252525] dark:hover:bg-[#303030] text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 rounded-full text-xl font-semibold transition-all duration-200">&times;</button>
                 </div>
             </div>
-
-            <div class="bg-[#6342E8]/5 dark:bg-[#6342E8]/10 p-4 rounded-2xl border border-[#6342E8]/10 space-y-3">
-                <p class="text-[10px] font-black text-[#6342E8] dark:text-[#a88fff] uppercase tracking-widest" id="lbl-position-title">Posisi Anda</p>
+            <div class="space-y-4 max-h-[70vh] overflow-y-auto pr-1 custom-scrollbar">
+                <div class="text-center py-1">
+                    <p class="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-1" id="lbl-live-price-text">Harga Saat Ini</p>
+                    <h2 id="det-aset-live" class="text-3xl font-black tracking-tight text-gray-900 dark:text-white privacy-mask">Rp 0</h2>
+                    <p id="det-aset-live-change" class="text-xs font-bold mt-1">+0.00%</p>
+                </div>
+                <div class="bg-gray-50/60 dark:bg-[#222]/40 p-4 rounded-2xl border border-gray-100/70 dark:border-gray-800/50">
+                    <div class="w-full h-44 relative">
+                        <canvas id="portoChart"></canvas>
+                    </div>
+                    <div class="grid grid-cols-5 gap-2 mt-4 pt-3 border-t border-gray-100 dark:border-gray-800/60">
+                        <button onclick="setChartFilter('1H')" class="time-filter-btn active text-[10px] font-bold py-1.5 rounded-xl transition" data-filter="1H">1H</button>
+                        <button onclick="setChartFilter('1D')" class="time-filter-btn text-[10px] font-bold py-1.5 rounded-xl transition" data-filter="1D">1D</button>
+                        <button onclick="setChartFilter('1W')" class="time-filter-btn text-[10px] font-bold py-1.5 rounded-xl transition" data-filter="1W">1W</button>
+                        <button onclick="setChartFilter('1M')" class="time-filter-btn text-[10px] font-bold py-1.5 rounded-xl transition" data-filter="1M">1M</button>
+                        <button onclick="setChartFilter('1Y')" class="time-filter-btn text-[10px] font-bold py-1.5 rounded-xl transition" data-filter="1Y">1Y</button>
+                    </div>
+                </div>
+                <div class="bg-[#6342E8]/5 dark:bg-[#6342E8]/10 p-4 rounded-2xl border border-[#6342E8]/10 space-y-3">
+                    <p class="text-[10px] font-black text-[#6342E8] dark:text-[#a88fff] uppercase tracking-widest" id="lbl-position-title">Posisi Anda</p>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <p class="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wide" data-i18n="lbl-lot-owned">Lot Dimiliki</p>
+                            <p id="det-aset-lot" class="text-xs font-extrabold text-gray-800 dark:text-gray-200 mt-1 privacy-mask">0 Unit</p>
+                        </div>
+                        <div class="text-right">
+                            <p class="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wide" data-i18n="lbl-total-val">Total Nilai</p>
+                            <p id="det-aset-total" class="text-xs font-black text-gray-900 dark:text-white mt-1 privacy-mask">Rp 0</p>
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-2 gap-4 pt-2 border-t border-gray-100 dark:border-gray-800/60">
+                        <div>
+                            <p class="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wide" data-i18n="lbl-avg-price">Harga Rata-Rata</p>
+                            <p id="det-aset-avg" class="text-xs font-semibold text-gray-700 dark:text-gray-300 mt-0.5 privacy-mask">Rp 0</p>
+                        </div>
+                        <div class="text-right">
+                            <p class="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wide" data-i18n="lbl-invested">Diinvestasikan</p>
+                            <p id="det-aset-invest" class="text-xs font-semibold text-gray-700 dark:text-gray-300 mt-0.5 privacy-mask">Rp 0</p>
+                        </div>
+                    </div>
+                </div>
                 <div class="grid grid-cols-2 gap-4">
-                    <div>
-                        <p class="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wide" data-i18n="lbl-lot-owned">Lot Dimiliki</p>
-                        <p id="det-aset-lot" class="text-xs font-extrabold text-gray-800 dark:text-gray-200 mt-1 privacy-mask">0 Unit</p>
-                    </div>
-                    <div class="text-right">
-                        <p class="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wide" data-i18n="lbl-total-val">Total Nilai</p>
-                        <p id="det-aset-total" class="text-xs font-black text-gray-900 dark:text-white mt-1 privacy-mask">Rp 0</p>
-                    </div>
+                    <button id="btn-det-jual" class="w-full text-center py-3 bg-[#EF4444] text-white text-xs font-bold rounded-xl transition shadow-lg active:scale-95" data-i18n="btn-sell">Jual</button>
+                    <button id="btn-det-beli" class="w-full text-center py-3 bg-[#6342E8] text-white text-xs font-bold rounded-xl transition shadow-lg active:scale-95 shadow-[0_10px_20px_rgba(99,66,232,0.2)]" data-i18n="btn-buy-asset-2">Beli</button>
                 </div>
-                <div class="grid grid-cols-2 gap-4 pt-2 border-t border-gray-100 dark:border-gray-800/60">
-                    <div>
-                        <p class="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wide" data-i18n="lbl-avg-price">Harga Rata-Rata</p>
-                        <p id="det-aset-avg" class="text-xs font-semibold text-gray-700 dark:text-gray-300 mt-0.5 privacy-mask">Rp 0</p>
-                    </div>
-                    <div class="text-right">
-                        <p class="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wide" data-i18n="lbl-invested">Diinvestasikan</p>
-                        <p id="det-aset-invest" class="text-xs font-semibold text-gray-700 dark:text-gray-300 mt-0.5 privacy-mask">Rp 0</p>
-                    </div>
-                </div>
-            </div>
-
-            <div class="grid grid-cols-2 gap-4">
-                <button id="btn-det-jual" class="w-full text-center py-3 bg-[#EF4444] text-white text-xs font-bold rounded-xl transition shadow-lg active:scale-95" data-i18n="btn-sell">Jual</button>
-                <button id="btn-det-beli" class="w-full text-center py-3 bg-[#6342E8] text-white text-xs font-bold rounded-xl transition shadow-lg active:scale-95 shadow-[0_10px_20px_rgba(99,66,232,0.2)]" data-i18n="btn-buy-asset-2">Beli</button>
-            </div>
-            
-            <div class="space-y-2">
-                <p class="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider px-1" id="lbl-market-stats-title">Statistik Pasar & Imbal Hasil</p>
-                <div class="bg-gray-50/60 dark:bg-[#222]/40 p-4 rounded-2xl border border-gray-100/70 dark:border-gray-800/50 space-y-3 divide-y divide-gray-100 dark:divide-gray-800/40">
-                    <div class="flex justify-between items-center py-1">
-                        <span class="text-xs text-gray-500 dark:text-gray-400 font-medium" data-i18n="lbl-return">Return</span>
-                        <span id="det-aset-return" class="text-xs font-bold privacy-mask">Rp 0 (0%)</span>
-                    </div>
-                    <div class="flex justify-between items-center pt-3 py-1">
-                        <span class="text-xs text-gray-500 dark:text-gray-400 font-medium" id="lbl-mktcap-text">Kapitalisasi Pasar</span>
-                        <span id="det-aset-mktcap" class="text-xs font-bold text-gray-800 dark:text-gray-200 privacy-mask">Rp 0</span>
-                    </div>
-                    <div class="flex justify-between items-center pt-3 py-1">
-                        <span class="text-xs text-gray-500 dark:text-gray-400 font-medium" id="lbl-volume-text">Volume (24j)</span>
-                        <span id="det-aset-vol" class="text-xs font-bold text-gray-800 dark:text-gray-200 privacy-mask">Rp 0</span>
+                <div class="space-y-2">
+                    <p class="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider px-1" id="lbl-market-stats-title">Statistik Pasar & Imbal Hasil</p>
+                    <div class="bg-gray-50/60 dark:bg-[#222]/40 p-4 rounded-2xl border border-gray-100/70 dark:border-gray-800/50 space-y-3 divide-y divide-gray-100 dark:divide-gray-800/40">
+                        <div class="flex justify-between items-center py-1">
+                            <span class="text-xs text-gray-500 dark:text-gray-400 font-medium" data-i18n="lbl-return">Return</span>
+                            <span id="det-aset-return" class="text-xs font-bold privacy-mask">Rp 0 (0%)</span>
+                        </div>
+                        <div class="flex justify-between items-center pt-3 py-1">
+                            <span class="text-xs text-gray-500 dark:text-gray-400 font-medium" id="lbl-mktcap-text">Kapitalisasi Pasar</span>
+                            <span id="det-aset-mktcap" class="text-xs font-bold text-gray-800 dark:text-gray-200 privacy-mask">Rp 0</span>
+                        </div>
+                        <div class="flex justify-between items-center pt-3 py-1">
+                            <span class="text-xs text-gray-500 dark:text-gray-400 font-medium" id="lbl-volume-text">Volume (24j)</span>
+                            <span id="det-aset-vol" class="text-xs font-bold text-gray-800 dark:text-gray-200 privacy-mask">Rp 0</span>
+                        </div>
                     </div>
                 </div>
             </div>
         </div>
     </div>
-</div>
 
-<style>
-    .time-filter-btn { color: #6b7280; background-color: #f9fafb; border: 1px solid #f3f4f6; }
-    .dark .time-filter-btn { color: #9ca3af; background-color: #1f1f1f; border: 1px solid #2d2d2d; }
-    .time-filter-btn.active { color: #6342E8; background-color: #f3f0ff; border-color: #ddd6fe; }
-    .dark .time-filter-btn.active { color: #a88fff; background-color: rgba(99, 66, 232, 0.15); border-color: rgba(168, 143, 255, 0.3); }
-    .custom-scrollbar::-webkit-scrollbar { width: 4px; }
-    .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
-    .custom-scrollbar::-webkit-scrollbar-thumb { background: #e5e7eb; border-radius: 4px; }
-    .dark .custom-scrollbar::-webkit-scrollbar-thumb { background: #2d2d2d; }
-</style>
+    <style>
+        .time-filter-btn { color: #6b7280; background-color: #f9fafb; border: 1px solid #f3f4f6; }
+        .dark .time-filter-btn { color: #9ca3af; background-color: #1f1f1f; border: 1px solid #2d2d2d; }
+        .time-filter-btn.active { color: #6342E8; background-color: #f3f0ff; border-color: #ddd6fe; }
+        .dark .time-filter-btn.active { color: #a88fff; background-color: rgba(99, 66, 232, 0.15); border-color: rgba(168, 143, 255, 0.3); }
+        .custom-scrollbar::-webkit-scrollbar { width: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #e5e7eb; border-radius: 4px; }
+        .dark .custom-scrollbar::-webkit-scrollbar-thumb { background: #2d2d2d; }
+    </style>
     
     <script src="js/app.js?v=9.9"></script>
 
-<script>
-        // SUNTIKAN PAKSA FINAL: Menjembatani perbedaan ID_Trx dan ID_Transaksi
+    <script>
         window.openTransactionDetail = function(jsonStr) {
             try {
                 const lang = (typeof currentLang !== 'undefined') ? currentLang : 'id';
@@ -993,7 +963,6 @@
                 const akun = fuzzy(tobj, 'Akun', 'Account', 'SumberDana');
                 const tglRaw = fuzzy(tobj, 'Tanggal', 'Date');
                 
-                // PERBAIKAN KUNCI UTAMA: Cari ID_Trx dari data induk
                 const trxId = fuzzy(tobj, 'ID_Trx', 'ID_Transaksi', 'IDTransaksi', 'ID', 'Id');
 
                 if (lang === 'id') {
@@ -1042,13 +1011,11 @@
                 
                 if (dbDetail.length > 0 && trxId) {
                     items = dbDetail.filter(d => {
-                        // PERBAIKAN KUNCI KEDUA: Cari ID_Transaksi dari data anak
                         const dId = fuzzy(d, 'ID_Transaksi', 'ID_Trx', 'IDTransaksi', 'ID', 'Id');
                         return String(trxId) === String(dId);
                     });
                 }
 
-                // Failsafe format lama
                 if (items.length === 0) {
                     const rawItems = fuzzy(tobj, 'items', 'Items', 'Rincian', 'Detail');
                     if (typeof rawItems === 'string' && rawItems.length > 5) {
