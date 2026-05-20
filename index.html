@@ -165,11 +165,13 @@
     </div>
 
     <div id="loading-overlay" class="fixed inset-0 z-[200] flex items-center justify-center bg-white/80 dark:bg-[#121212]/90 backdrop-blur-xl transition-opacity duration-500 opacity-100">
-    <div class="flex flex-col items-center gap-4">
-        <img src="loading_animation.gif" alt="Loading..." class="w-20 h-20 object-contain">
-        <p id="loading-text" class="text-xs font-bold text-[#6342E8] dark:text-[#a88fff] tracking-widest uppercase animate-pulse lang-custom" data-id="Menyiapkan Data..." data-en="Preparing Data...">Menyiapkan Data...</p>
+        <div class="flex flex-col items-center gap-4">
+            <div class="coin-spinner w-16 h-16 rounded-full bg-gradient-to-tr from-[#6342E8] to-[#A88FFF] shadow-[0_10px_30px_rgba(99,66,232,0.4)] flex items-center justify-center border-4 border-[#E0D7FF] dark:border-[#8B5CF6]">
+                <span class="text-white font-bold text-2xl">Rp</span>
+            </div>
+            <p id="loading-text" class="text-xs font-bold text-[#6342E8] dark:text-[#a88fff] tracking-widest uppercase animate-pulse lang-custom" data-id="Menyiapkan Data..." data-en="Preparing Data...">Menyiapkan Data...</p>
+        </div>
     </div>
-</div>
 
     <section id="login-page" class="fixed inset-0 z-[100] flex flex-col justify-center items-center px-6 bg-[#F8F9FA] dark:bg-[#121212] hidden-page">
         <div class="w-full max-w-md space-y-10">
