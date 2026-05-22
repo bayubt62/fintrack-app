@@ -616,6 +616,123 @@ async function submitPayDebt() {
     try { await fetch(API_URL, { method: 'POST', body: JSON.stringify({ action: 'payDebt', email: sessionEmail, idDebt: idDebt, nominal: amount, akun: akun }) }); document.getElementById('form-pay-debt-amount').value = ''; await fetchAllData(); } catch(e) { console.error(e); } finally { showLoading(false); }
 }
 
+window.toggleDebtHistoryTab = function(tab) {
+    debtHistoryTab = tab;
+    const btnActive = document.getElementById('tab-debt-active');
+    const btnInactive = document.getElementById('tab-debt-inactive');
+    
+    if(btnActive && btnInactive) {
+        if(tab === 'ACTIVE') {
+            btnActive.classList.add('toggle-active', 'bg-[#6342E8]', 'text-white');
+            btnActive.classList.remove('text-gray-500', 'dark:text-gray-400');
+            btnInactive.classList.remove('toggle-active', 'bg-[#6342E8]', 'text-white');
+            btnInactive.classList.add('text-gray-500', 'dark:text-gray-400');
+        } else {
+            btnInactive.classList.add('toggle-active', 'bg-[#6342E8]', 'text-white');
+            btnInactive.classList.remove('text-gray-500', 'dark:text-gray-400');
+            btnActive.classList.remove('toggle-active', 'bg-[#6342E8]', 'text-white');
+            btnActive.classList.add('text-gray-500', 'dark:text-gray-400');
+        }
+    }
+    renderDebtHistory();
+};
+
+window.renderDebtHistory = function() {
+    const container = document.getElementById('debt-history-list-container');
+    if(!container) return;
+
+    const allDebts = appData.M_Debt || [];
+    const filteredDebts = allDebts.filter(d => {
+        const sisa = extractNumber(getProp(d, 'Sisa', 'Sisa Saldo', 'Jumlah'));
+        const status = (getProp(d, 'Status') || 'ACTIVE').toString().trim().toUpperCase();
+        
+        if (debtHistoryTab === 'ACTIVE') {
+            return status !== 'COMPLETED' && sisa > 0;
+        } else {
+            return status === 'COMPLETED' || sisa <= 0;
+        }
+    });
+
+    if (filteredDebts.length === 0) {
+        container.innerHTML = `<p class="text-center text-xs text-gray-400 py-6">${t('no-data-period')}</p>`;
+        return;
+    }
+
+    let html = '';
+    filteredDebts.forEach(d => {
+        const nama = getProp(d, 'Kontak', 'Nama', 'Keterangan') || 'Unknown';
+        const tipe = (getProp(d, 'Tipe') || '').toString().trim().toUpperCase();
+        
+        const sisa = extractNumber(getProp(d, 'Sisa', 'Sisa Saldo'));
+        const total = extractNumber(getProp(d, 'Jumlah_Awal', 'Total', 'Jumlah')); 
+        const actualTotal = Math.max(total, sisa); 
+        const dibayar = actualTotal - sisa;
+
+        const isUtang = tipe === 'UTANG';
+        const typeLabel = isUtang ? t('txt-mydebt') : t('txt-receivable');
+        const colorClass = isUtang ? 'text-red-500 dark:text-red-400' : 'text-green-500 dark:text-green-400';
+        const bgClass = isUtang ? 'bg-red-50 dark:bg-red-900/20' : 'bg-green-50 dark:bg-green-900/20';
+        
+        const lang = currentLang;
+        const lblTotal = lang === 'en' ? 'Total' : 'Total';
+        const lblPaid = lang === 'en' ? 'Paid' : 'Dibayar';
+        
+        const paymentTrxs = (appData.T_Transaksi || []).filter(tx => {
+            const txDesc = (getProp(tx, 'Keterangan') || '').toLowerCase();
+            const txCat = (getProp(tx, 'Kategori') || '').toLowerCase();
+            return txDesc.includes(nama.toLowerCase()) && 
+                   (txCat.includes('hutang') || txCat.includes('piutang') || txDesc.includes('bayar'));
+        });
+
+        paymentTrxs.sort((a, b) => new Date(getProp(b, 'Tanggal') || 0).getTime() - new Date(getProp(a, 'Tanggal') || 0).getTime());
+
+        let trxsHtml = '';
+        if (paymentTrxs.length > 0) {
+            trxsHtml += `<div class="mt-3 pt-3 border-t border-gray-100 dark:border-gray-800/60 space-y-2">`;
+            paymentTrxs.forEach(tx => {
+                const txDateRaw = getProp(tx, 'Tanggal');
+                const txDateObj = txDateRaw ? new Date(txDateRaw) : null;
+                const txDate = txDateObj ? `${txDateObj.getDate().toString().padStart(2, '0')} ${i18n[currentLang]['month-names'][txDateObj.getMonth()].substring(0,3)} ${txDateObj.getFullYear()}` : '-';
+                const txNominal = extractNumber(getProp(tx, 'Jumlah'));
+                
+                trxsHtml += `
+                    <div class="flex justify-between items-center">
+                        <span class="text-[10px] text-gray-500 dark:text-gray-400">${txDate}</span>
+                        <span class="text-[10px] font-bold text-gray-700 dark:text-gray-300 privacy-mask" data-value="${txNominal}">${isPrivate ? '********' : toRp(txNominal)}</span>
+                    </div>
+                `;
+            });
+            trxsHtml += `</div>`;
+        } else {
+            const noHist = lang === 'en' ? 'No payment history' : 'Belum ada riwayat pembayaran';
+            trxsHtml += `<div class="mt-3 pt-3 border-t border-gray-100 dark:border-gray-800/60"><p class="text-[10px] text-gray-400 text-center italic">${noHist}</p></div>`;
+        }
+
+        html += `
+            <div class="bg-white dark:bg-[#1e1e1e] p-4 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-800 transition hover:shadow-md">
+                <div class="flex justify-between items-start mb-2">
+                    <div>
+                        <p class="text-sm font-bold dark:text-gray-200">${nama}</p>
+                        <p class="text-[10px] font-semibold px-2 py-0.5 rounded-full inline-block mt-1 ${bgClass} ${colorClass}">${typeLabel}</p>
+                    </div>
+                    <div class="text-right">
+                        <p class="text-[10px] text-gray-400 uppercase tracking-wider mb-0.5">${t('txt-sisa')}</p>
+                        <p class="text-sm font-black ${colorClass} privacy-mask" data-value="${sisa}">${isPrivate ? '********' : toRp(sisa)}</p>
+                    </div>
+                </div>
+                <div class="flex justify-between items-center text-[10px] text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-[#2d2d2d]/50 p-2 rounded-xl mt-2">
+                    <span>${lblTotal}: <strong class="privacy-mask dark:text-gray-200" data-value="${actualTotal}">${isPrivate ? '********' : toRp(actualTotal)}</strong></span>
+                    <span>${lblPaid}: <strong class="privacy-mask dark:text-gray-200" data-value="${dibayar}">${isPrivate ? '********' : toRp(dibayar)}</strong></span>
+                </div>
+                ${trxsHtml}
+            </div>
+        `;
+    });
+    
+    container.innerHTML = html;
+    applyPrivacyMasks();
+};
+
 async function submitBuyAsset() {
     const jenis = document.getElementById('form-asset-jenis').value, simbol = document.getElementById('form-asset-simbol').value.toUpperCase(), jumlah = parseFloat(document.getElementById('form-asset-jumlah').value.replace(/,/g, '.')) || 0, harga = extractNumber(document.getElementById('form-asset-harga').value), akun = document.getElementById('form-asset-account').value, admin = extractNumber(document.getElementById('form-buy-asset-admin').value) || 0;
     if(!simbol || jumlah <= 0 || harga <= 0 || !akun) return;
