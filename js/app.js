@@ -1,5 +1,5 @@
 /**
- * FINTRACK ENTERPRISE V2.8.1 - CORE JAVASCRIPT
+ * FINTRACK ENTERPRISE V2.9.1 - CORE JAVASCRIPT
  * Architecture: Unified Shell, Data Caching & Smart Routing
  */
 
@@ -157,7 +157,7 @@ const i18n = {
         "pdf-page": "Halaman", "pdf-of": "dari", "mod-level-info-title": "Status Fintrack",
         "txt-level-desc": "Tingkatkan terus kekayaan bersih Anda untuk mencapai kebebasan finansial.",
         "lvl-1-name": "Fase Eliminasi Liabilitas", "lvl-1-desc": "Fokus utama melunasi hutang konsumtif untuk memulihkan arus kas (cash flow).",
-        "lvl-2-name": "Fase Proteksi Likuiditas", "lvl-2-desc": "Hutang telah lunas. Membangun bantalan kas darurat minimal 6x rata-rata pengeluaran bulanan.",
+        "lvl-2-name": "Liquidity Protection Phase", "lvl-2-desc": "Hutang telah lunas. Membangun bantalan kas darurat minimal 6x rata-rata pengeluaran bulanan.",
         "lvl-3-name": "Fase Akumulasi Kapital", "lvl-3-desc": "Dana darurat terpenuhi. Mulai investasi aset agresif dengan target aset mendekati Rp50 Juta.",
         "lvl-4-name": "Alokasi Portofolio Spesifik", "lvl-4-desc": "Total aset > Rp50 Juta. Memecah portofolio berdasarkan manajemen risiko dan tujuan spesifik jangka panjang.",
         "lvl-5-name": "Fase Maksimalisasi Ekuitas", "lvl-5-desc": "Total aset > Rp250 Juta. Fokus memaksimalkan kekayaan bersih dan mengurangi hutang produktif (KPR dll).",
@@ -660,6 +660,7 @@ window.renderDebtHistory = function() {
 
     let html = '';
     filteredDebts.forEach(d => {
+        const idDebt = getProp(d, 'ID_Debt', 'ID Debt', 'ID') || '';
         const nama = getProp(d, 'Kontak', 'Nama', 'Keterangan') || 'Unknown';
         const tipe = (getProp(d, 'Tipe') || '').toString().trim().toUpperCase();
         
@@ -678,10 +679,16 @@ window.renderDebtHistory = function() {
         const lblPaid = lang === 'en' ? 'Paid' : 'Dibayar';
         
         const paymentTrxs = (appData.T_Transaksi || []).filter(tx => {
+            const txRefId = getProp(tx, 'Ref_ID', 'Ref ID', 'Ref_Id', 'Ref_id');
+            
+            if (txRefId && txRefId !== '') {
+                return String(txRefId) === String(idDebt);
+            }
+            
             const txDesc = (getProp(tx, 'Keterangan') || '').toLowerCase();
             const txCat = (getProp(tx, 'Kategori') || '').toLowerCase();
             return txDesc.includes(nama.toLowerCase()) && 
-                   (txCat.includes('hutang') || txCat.includes('piutang') || txDesc.includes('bayar'));
+                   (txCat.includes('hutang') || txCat.includes('piutang') || txDesc.includes('bayar')) && !txRefId;
         });
 
         paymentTrxs.sort((a, b) => new Date(getProp(b, 'Tanggal') || 0).getTime() - new Date(getProp(a, 'Tanggal') || 0).getTime());
