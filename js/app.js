@@ -665,9 +665,23 @@ window.renderDebtHistory = function() {
         const tipe = (getProp(d, 'Tipe') || '').toString().trim().toUpperCase();
         
         const sisa = extractNumber(getProp(d, 'Sisa', 'Sisa Saldo'));
-        const total = extractNumber(getProp(d, 'Jumlah_Awal', 'Total', 'Jumlah')); 
-        const actualTotal = Math.max(total, sisa); 
-        const dibayar = actualTotal - sisa;
+        // PERBAIKAN: Mengambil data jumlah awal dengan fallback yang lebih aman
+        const totalAwal = extractNumber(getProp(d, 'Jumlah_Awal', 'Total', 'Jumlah')); 
+        
+        // Jika totalAwal adalah 0 (mungkin karena data di Sheets kosong), 
+        // kita asumsikan total adalah sisa + total yang sudah dibayar dari history transaksi
+        const paymentTrxs = (appData.T_Transaksi || []).filter(tx => {
+            const txRefId = getProp(tx, 'Ref_ID', 'Ref ID', 'Ref_Id', 'Ref_id');
+            if (txRefId && txRefId !== '') {
+                return String(txRefId) === String(idDebt);
+            }
+            const txDesc = (getProp(tx, 'Keterangan') || '').toLowerCase();
+            const txCat = (getProp(tx, 'Kategori') || '').toLowerCase();
+            return txDesc.includes(nama.toLowerCase()) && (txCat.includes('hutang') || txCat.includes('piutang') || txDesc.includes('bayar')) && !txRefId;
+        });
+
+        const totalDibayar = paymentTrxs.reduce((sum, tx) => sum + extractNumber(getProp(tx, 'Jumlah')), 0);
+        const actualTotal = totalAwal > 0 ? totalAwal : (sisa + totalDibayar);
 
         const isUtang = tipe === 'UTANG';
         const typeLabel = isUtang ? t('txt-mydebt') : t('txt-receivable');
@@ -677,19 +691,6 @@ window.renderDebtHistory = function() {
         const lang = currentLang;
         const lblTotal = lang === 'en' ? 'Total' : 'Total';
         const lblPaid = lang === 'en' ? 'Paid' : 'Dibayar';
-        
-        const paymentTrxs = (appData.T_Transaksi || []).filter(tx => {
-            const txRefId = getProp(tx, 'Ref_ID', 'Ref ID', 'Ref_Id', 'Ref_id');
-            
-            if (txRefId && txRefId !== '') {
-                return String(txRefId) === String(idDebt);
-            }
-            
-            const txDesc = (getProp(tx, 'Keterangan') || '').toLowerCase();
-            const txCat = (getProp(tx, 'Kategori') || '').toLowerCase();
-            return txDesc.includes(nama.toLowerCase()) && 
-                   (txCat.includes('hutang') || txCat.includes('piutang') || txDesc.includes('bayar')) && !txRefId;
-        });
 
         paymentTrxs.sort((a, b) => new Date(getProp(b, 'Tanggal') || 0).getTime() - new Date(getProp(a, 'Tanggal') || 0).getTime());
 
@@ -729,7 +730,7 @@ window.renderDebtHistory = function() {
                 </div>
                 <div class="flex justify-between items-center text-[10px] text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-[#2d2d2d]/50 p-2 rounded-xl mt-2">
                     <span>${lblTotal}: <strong class="privacy-mask dark:text-gray-200" data-value="${actualTotal}">${isPrivate ? '********' : toRp(actualTotal)}</strong></span>
-                    <span>${lblPaid}: <strong class="privacy-mask dark:text-gray-200" data-value="${dibayar}">${isPrivate ? '********' : toRp(dibayar)}</strong></span>
+                    <span>${lblPaid}: <strong class="privacy-mask dark:text-gray-200" data-value="${totalDibayar}">${isPrivate ? '********' : toRp(totalDibayar)}</strong></span>
                 </div>
                 ${trxsHtml}
             </div>
