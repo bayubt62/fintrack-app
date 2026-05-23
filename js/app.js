@@ -1,5 +1,5 @@
 /**
- * FINTRACK ENTERPRISE V2.9.1 - CORE JAVASCRIPT
+ * FINTRACK ENTERPRISE V2.9.2 - CORE JAVASCRIPT
  * Architecture: Unified Shell, Data Caching & Smart Routing
  */
 
@@ -192,6 +192,8 @@ let activeCalDay = new Date().getDate();
 let currentScannedItems = [];
 let debtHistoryTab = 'ACTIVE';
 
+window.isAdvanceMode = false;
+
 window.currentActiveFilter = window.currentActiveFilter || '1H';
 window.currentActiveCurrency = window.currentActiveCurrency || 'IDR'; 
 window.usdExchangeRate = window.usdExchangeRate || 16250; 
@@ -363,6 +365,123 @@ function showLoading(show) {
     else { el.classList.remove('opacity-100'); el.classList.add('opacity-0', 'pointer-events-none'); setTimeout(() => el.classList.add('hidden'), 300); }
 }
 
+// --- FUNGSI ADVANCE SETTING UNTUK ITEM SCAN ---
+
+window.toggleAdvanceMode = function() {
+    window.isAdvanceMode = !window.isAdvanceMode;
+    const btn = document.getElementById('btn-advance-mode');
+    if (btn) {
+        if (window.isAdvanceMode) {
+            btn.classList.add('bg-[#6342E8]', 'text-white');
+            btn.classList.remove('text-[#6342E8]');
+        } else {
+            btn.classList.remove('bg-[#6342E8]', 'text-white');
+            btn.classList.add('text-[#6342E8]');
+        }
+    }
+    window.renderScannedItems();
+};
+
+window.updateScannedItem = function(index, field, value) {
+    if (!currentScannedItems[index]) return;
+    if (field === 'price' || field === 'qty') {
+        currentScannedItems[index][field] = parseFloat(value) || 0;
+    } else {
+        currentScannedItems[index][field] = value;
+    }
+    if (field === 'price') {
+        let totalBelanja = currentScannedItems.reduce((sum, item) => sum + (item.price || 0), 0);
+        const amountInput = document.getElementById('form-trx-amount');
+        if(amountInput) {
+            amountInput.value = totalBelanja;
+            formatRupiahInput(amountInput);
+        }
+    }
+};
+
+window.removeScannedItem = function(index) {
+    currentScannedItems.splice(index, 1);
+    window.renderScannedItems();
+    let totalBelanja = currentScannedItems.reduce((sum, item) => sum + (item.price || 0), 0);
+    const amountInput = document.getElementById('form-trx-amount');
+    if(amountInput) {
+        amountInput.value = totalBelanja;
+        formatRupiahInput(amountInput);
+    }
+};
+
+window.renderScannedItems = function() {
+    const section = document.getElementById('itemListSection');
+    const container = document.getElementById('itemsContainer');
+    if(!container || !section) return;
+    container.innerHTML = '';
+    
+    if (!currentScannedItems || currentScannedItems.length === 0) {
+        section.classList.add('hidden');
+        return;
+    }
+    section.classList.remove('hidden');
+
+    const typeEl = document.getElementById('form-trx-tipe');
+    const type = typeEl ? typeEl.value : 'OUTFLOW';
+    const catOptionsList = (type === 'INFLOW' ? KATEGORI_INFLOW : KATEGORI_OUTFLOW);
+    const mainCatEl = document.getElementById('form-trx-category');
+    const mainCat = (mainCatEl ? mainCatEl.value : null) || catOptionsList[0];
+
+    let totalBelanja = 0;
+
+    currentScannedItems.forEach((item, index) => {
+        const qty = item.qty || 1;
+        const price = item.price || 0;
+        totalBelanja += price;
+        const hargaSatuan = qty > 0 ? price / qty : 0;
+        const itemCat = item.category || mainCat; 
+
+        if (window.isAdvanceMode) {
+            let catSelectHtml = `<select onchange="window.updateScannedItem(${index}, 'category', this.value)" class="w-full mt-1.5 bg-white dark:bg-[#1e1e1e] border border-gray-200 dark:border-gray-700 rounded-lg px-2 py-1.5 text-[10px] font-bold outline-none text-gray-700 dark:text-gray-300">`;
+            catOptionsList.forEach(opt => {
+                catSelectHtml += `<option value="${opt}" ${itemCat === opt ? 'selected' : ''}>${opt}</option>`;
+            });
+            catSelectHtml += `</select>`;
+
+            container.innerHTML += `
+            <div class="flex flex-col gap-1 py-2 border-b border-gray-200 dark:border-gray-700 last:border-0 relative">
+                <div class="flex justify-between items-start gap-2">
+                    <div class="flex-1">
+                        <input type="text" onchange="window.updateScannedItem(${index}, 'name', this.value)" value="${item.name}" class="w-full bg-white dark:bg-[#1e1e1e] border border-gray-200 dark:border-gray-700 rounded-lg px-2 py-1.5 text-xs font-bold uppercase text-gray-800 dark:text-gray-200 outline-none focus:border-[#6342E8] transition">
+                        ${catSelectHtml}
+                    </div>
+                    <div class="w-14">
+                        <input type="number" onchange="window.updateScannedItem(${index}, 'qty', this.value)" value="${qty}" class="w-full bg-white dark:bg-[#1e1e1e] border border-gray-200 dark:border-gray-700 rounded-lg px-1 py-1.5 text-[10px] text-center text-gray-800 dark:text-gray-200 outline-none focus:border-[#6342E8] transition">
+                    </div>
+                    <div class="w-24">
+                        <input type="number" onchange="window.updateScannedItem(${index}, 'price', this.value)" value="${price}" class="w-full bg-white dark:bg-[#1e1e1e] border border-gray-200 dark:border-gray-700 rounded-lg px-2 py-1.5 text-xs font-bold text-right text-gray-800 dark:text-gray-200 outline-none focus:border-[#6342E8] transition">
+                    </div>
+                    <button onclick="window.removeScannedItem(${index})" class="text-red-500 bg-red-50 dark:bg-red-900/30 p-2 rounded-lg hover:bg-red-100 transition active:scale-95"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg></button>
+                </div>
+            </div>`;
+        } else {
+            container.innerHTML += `
+            <div class="flex justify-between items-center text-xs py-1.5 border-b border-gray-100 dark:border-gray-800 last:border-0">
+                <div class="flex flex-col w-2/3 pr-2">
+                    <span class="text-gray-700 dark:text-gray-200 font-bold uppercase truncate">${item.name}</span>
+                    <span class="text-[10px] text-gray-500 font-medium">${qty}x @ ${toRp(hargaSatuan)}</span>
+                    ${item.category && item.category !== mainCat ? `<span class="text-[9px] text-[#6342E8] font-bold mt-0.5">Kat: ${item.category}</span>` : ''}
+                </div>
+                <span class="text-gray-800 dark:text-gray-100 font-bold whitespace-nowrap text-right text-sm">${toRp(price)}</span>
+            </div>`;
+        }
+    });
+
+    if (window.isAdvanceMode) {
+        const amountInput = document.getElementById('form-trx-amount');
+        if(amountInput) {
+            amountInput.value = totalBelanja;
+            formatRupiahInput(amountInput);
+        }
+    }
+};
+
 // ==========================================
 // CORE APP ROUTING & MODAL ENGINE
 // ==========================================
@@ -443,6 +562,9 @@ window.openModal = function(id, type = null) {
         document.getElementById('form-trx-date').value = now.toISOString().split('T')[0];
         document.getElementById('form-trx-time').value = now.getHours().toString().padStart(2, '0') + ':' + now.getMinutes().toString().padStart(2, '0');
         currentScannedItems = [];
+        window.isAdvanceMode = false;
+        const btnAdv = document.getElementById('btn-advance-mode');
+        if(btnAdv) { btnAdv.classList.remove('bg-[#6342E8]', 'text-white'); btnAdv.classList.add('text-[#6342E8]'); }
         const itemListSec = document.getElementById('itemListSection'); if (itemListSec) itemListSec.classList.add('hidden');
         validateTrxForm();
     } else if (id === 'modal-export-pdf') renderExportModal();
@@ -462,6 +584,9 @@ window.closeModal = function(id, forceClose = false) {
         document.getElementById('form-trx-amount').value = ''; document.getElementById('form-trx-desc').value = '';
         if(document.getElementById('form-trx-admin')) document.getElementById('form-trx-admin').value = '';
         currentScannedItems = [];
+        window.isAdvanceMode = false;
+        const btnAdv = document.getElementById('btn-advance-mode');
+        if(btnAdv) { btnAdv.classList.remove('bg-[#6342E8]', 'text-white'); btnAdv.classList.add('text-[#6342E8]'); }
         const itemListSec = document.getElementById('itemListSection'); if (itemListSec) itemListSec.classList.add('hidden');
         const now = new Date(); document.getElementById('form-trx-date').value = now.toISOString().split('T')[0]; document.getElementById('form-trx-time').value = now.getHours().toString().padStart(2, '0') + ':' + now.getMinutes().toString().padStart(2, '0');
     }
@@ -553,6 +678,45 @@ async function submitTransaction() {
 
     if (btn) { btn.disabled = true; btn.classList.add('bg-gray-300', 'dark:bg-gray-700', 'text-gray-400', 'cursor-not-allowed', 'shadow-none'); btn.classList.remove('bg-[#6342E8]', 'text-white', 'shadow-lg'); }
     closeModal('modal-trx', true); 
+
+    // PERBAIKAN LOGIKA ADVANCE MODE - PEMECAHAN KATEGORI TRANSAKSI
+    let itemsByCategory = {};
+    let hasCustomCategory = false;
+
+    if (currentScannedItems && currentScannedItems.length > 0) {
+        currentScannedItems.forEach(item => {
+            let cat = item.category || category; 
+            if (cat !== category) hasCustomCategory = true;
+            if (!itemsByCategory[cat]) itemsByCategory[cat] = { total: 0, items: [] };
+            itemsByCategory[cat].items.push(item);
+            itemsByCategory[cat].total += (item.price || 0);
+        });
+    }
+
+    if (window.isAdvanceMode && hasCustomCategory) {
+        showLoading(true);
+        let allSuccess = true;
+        
+        for (const cat in itemsByCategory) {
+            const group = itemsByCategory[cat];
+            let success = await apiPost({
+                action: 'addTransaction', email: sessionEmail, tipe: type, akun: account,
+                jumlah: group.total, kategori: cat, keterangan: desc,
+                tanggal: combinedDateTime, itemsDetail: JSON.stringify(group.items)
+            });
+            if (!success) allSuccess = false;
+        }
+
+        if (allSuccess) {
+            if (admin > 0) await fetch(API_URL, { method: 'POST', body: JSON.stringify({ action: 'addTransaction', email: sessionEmail, tipe: 'OUTFLOW', akun: account, jumlah: admin, kategori: 'Biaya Admin', keterangan: `Admin trx split (Advance Mode)`, tanggal: combinedDateTime })});
+            await fetchAllData();
+        } else {
+            if (btn) btn.disabled = false;
+        }
+        showLoading(false);
+        return; 
+    }
+    // AKHIR PERBAIKAN LOGIKA
 
     if(await apiPost({ action: 'addTransaction', email: sessionEmail, tipe: type, akun: account, jumlah: amount, kategori: category, keterangan: desc, tanggal: combinedDateTime, itemsDetail: JSON.stringify(currentScannedItems) })) { 
         if (admin > 0) await fetch(API_URL, { method: 'POST', body: JSON.stringify({ action: 'addTransaction', email: sessionEmail, tipe: 'OUTFLOW', akun: account, jumlah: admin, kategori: 'Biaya Admin', keterangan: `Admin trx ${category}`, tanggal: combinedDateTime })});
@@ -665,11 +829,8 @@ window.renderDebtHistory = function() {
         const tipe = (getProp(d, 'Tipe') || '').toString().trim().toUpperCase();
         
         const sisa = extractNumber(getProp(d, 'Sisa', 'Sisa Saldo'));
-        // PERBAIKAN: Mengambil data jumlah awal dengan fallback yang lebih aman
         const totalAwal = extractNumber(getProp(d, 'Jumlah_Awal', 'Total', 'Jumlah')); 
         
-        // Jika totalAwal adalah 0 (mungkin karena data di Sheets kosong), 
-        // kita asumsikan total adalah sisa + total yang sudah dibayar dari history transaksi
         const paymentTrxs = (appData.T_Transaksi || []).filter(tx => {
             const txRefId = getProp(tx, 'Ref_ID', 'Ref ID', 'Ref_Id', 'Ref_id');
             if (txRefId && txRefId !== '') {
@@ -789,11 +950,14 @@ async function processReceiptImage(e) {
             let merchant = result.data.merchant; if (merchant === "TOKO TIDAK TERBACA") merchant = t('txt-unknown-merchant'); const total = result.data.total;
             openModal('modal-trx', 'OUTFLOW'); document.getElementById('form-trx-desc').value = merchant; const amountInput = document.getElementById('form-trx-amount'); amountInput.value = total; formatRupiahInput(amountInput); 
             document.getElementById('form-trx-date').value = result.data.date || new Date().toISOString().split('T')[0]; const now = new Date(); document.getElementById('form-trx-time').value = result.data.time || (now.getHours().toString().padStart(2, '0') + ':' + now.getMinutes().toString().padStart(2, '0'));
-            const section = document.getElementById('itemListSection'), container = document.getElementById('itemsContainer'); container.innerHTML = ''; currentScannedItems = result.data.items || [];
-            if (currentScannedItems.length > 0) {
-                section.classList.remove('hidden');
-                currentScannedItems.forEach(item => { const qty = item.qty || 1, hargaSatuan = item.price / qty; container.innerHTML += `<div class="flex justify-between items-center text-xs"><div class="flex flex-col w-2/3 pr-2"><span class="text-gray-700 dark:text-gray-200 font-bold uppercase truncate">${item.name}</span><span class="text-[10px] text-gray-500 font-medium">${qty}x @ Rp ${new Intl.NumberFormat('id-ID').format(hargaSatuan)}</span></div><span class="text-gray-800 dark:text-gray-100 font-bold whitespace-nowrap text-right text-sm">${new Intl.NumberFormat('id-ID').format(item.price)}</span></div>`; });
-            } else { section.classList.add('hidden'); }
+            
+            // PERBAIKAN: Mengalihkan render ke fungsi renderScannedItems untuk dukungan Advance Mode
+            currentScannedItems = result.data.items || [];
+            window.isAdvanceMode = false;
+            const btnAdv = document.getElementById('btn-advance-mode');
+            if(btnAdv) { btnAdv.classList.remove('bg-[#6342E8]', 'text-white'); btnAdv.classList.add('text-[#6342E8]'); }
+            window.renderScannedItems();
+            
             const amountContainer = document.getElementById('form-trx-amount-container'), currencyLabel = document.getElementById('form-trx-currency');
             amountContainer.classList.remove('bg-white', 'dark:bg-[#1e1e1e]'); amountContainer.classList.add('bg-purple-100', 'dark:bg-purple-900/50'); amountInput.classList.add('animate-pulse'); currencyLabel.classList.add('animate-pulse');
             setTimeout(() => { amountContainer.classList.add('bg-white', 'dark:bg-[#1e1e1e]'); amountContainer.classList.remove('bg-purple-100', 'dark:bg-purple-900/50'); amountInput.classList.remove('animate-pulse'); currencyLabel.classList.remove('animate-pulse'); }, 2000);
