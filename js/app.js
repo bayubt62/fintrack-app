@@ -679,7 +679,9 @@ async function submitTransaction() {
     if (btn) { btn.disabled = true; btn.classList.add('bg-gray-300', 'dark:bg-gray-700', 'text-gray-400', 'cursor-not-allowed', 'shadow-none'); btn.classList.remove('bg-[#6342E8]', 'text-white', 'shadow-lg'); }
     closeModal('modal-trx', true); 
 
-    // PERBAIKAN LOGIKA ADVANCE MODE - PEMECAHAN KATEGORI TRANSAKSI
+    // ID Grup unik untuk nota ini (untuk menghubungkan transaksi pecah)
+    let receiptRefId = "REF-" + new Date().getTime();
+    
     let itemsByCategory = {};
     let hasCustomCategory = false;
 
@@ -702,13 +704,13 @@ async function submitTransaction() {
             let success = await apiPost({
                 action: 'addTransaction', email: sessionEmail, tipe: type, akun: account,
                 jumlah: group.total, kategori: cat, keterangan: desc,
-                tanggal: combinedDateTime, itemsDetail: JSON.stringify(group.items)
+                tanggal: combinedDateTime, itemsDetail: JSON.stringify(group.items), refId: receiptRefId
             });
             if (!success) allSuccess = false;
         }
 
         if (allSuccess) {
-            if (admin > 0) await fetch(API_URL, { method: 'POST', body: JSON.stringify({ action: 'addTransaction', email: sessionEmail, tipe: 'OUTFLOW', akun: account, jumlah: admin, kategori: 'Biaya Admin', keterangan: `Admin trx split (Advance Mode)`, tanggal: combinedDateTime })});
+            if (admin > 0) await fetch(API_URL, { method: 'POST', body: JSON.stringify({ action: 'addTransaction', email: sessionEmail, tipe: 'OUTFLOW', akun: account, jumlah: admin, kategori: 'Biaya Admin', keterangan: `Admin: ${desc}`, tanggal: combinedDateTime, refId: receiptRefId })});
             await fetchAllData();
         } else {
             if (btn) btn.disabled = false;
@@ -716,10 +718,10 @@ async function submitTransaction() {
         showLoading(false);
         return; 
     }
-    // AKHIR PERBAIKAN LOGIKA
-
-    if(await apiPost({ action: 'addTransaction', email: sessionEmail, tipe: type, akun: account, jumlah: amount, kategori: category, keterangan: desc, tanggal: combinedDateTime, itemsDetail: JSON.stringify(currentScannedItems) })) { 
-        if (admin > 0) await fetch(API_URL, { method: 'POST', body: JSON.stringify({ action: 'addTransaction', email: sessionEmail, tipe: 'OUTFLOW', akun: account, jumlah: admin, kategori: 'Biaya Admin', keterangan: `Admin trx ${category}`, tanggal: combinedDateTime })});
+    
+    // Single transaction path
+    if(await apiPost({ action: 'addTransaction', email: sessionEmail, tipe: type, akun: account, jumlah: amount, kategori: category, keterangan: desc, tanggal: combinedDateTime, itemsDetail: JSON.stringify(currentScannedItems), refId: receiptRefId })) { 
+        if (admin > 0) await fetch(API_URL, { method: 'POST', body: JSON.stringify({ action: 'addTransaction', email: sessionEmail, tipe: 'OUTFLOW', akun: account, jumlah: admin, kategori: 'Biaya Admin', keterangan: `Admin: ${desc}`, tanggal: combinedDateTime, refId: receiptRefId })});
         await fetchAllData(); 
     } else { if (btn) btn.disabled = false; }
 }

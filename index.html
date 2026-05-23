@@ -1050,8 +1050,9 @@
                 const itemsContainer = document.getElementById('dtl-items-container');
                 let items = [];
                 
-                const dbDetail = (typeof appData !== 'undefined') ? (appData.T_Transaksi_Detail || []) : [];
+               const dbDetail = (typeof appData !== 'undefined') ? (appData.T_Transaksi_Detail || []) : [];
                 
+                // Cari berdasarkan ID Transaksi OR Ref_ID (jika ada)
                 if (dbDetail.length > 0 && trxId) {
                     items = dbDetail.filter(d => {
                         const dId = fuzzy(d, 'ID_Transaksi', 'ID_Trx', 'IDTransaksi', 'ID', 'Id');
