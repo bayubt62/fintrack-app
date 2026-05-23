@@ -200,10 +200,6 @@ window.usdExchangeRate = window.usdExchangeRate || 16250;
 window.lastAssetData = window.lastAssetData || null;
 let exportSelectedYear = new Date().getFullYear();
 
-// ==========================================
-// BACKGROUND ENGINES & INITIALIZERS
-// ==========================================
-
 if (typeof window.hasInitiatedForexFetch === 'undefined') {
     window.hasInitiatedForexFetch = true;
     fetch('https://open.er-api.com/v6/latest/USD').then(res => res.json()).then(data => {
@@ -296,10 +292,6 @@ function initPTR() {
     });
 }
 
-// ==========================================
-// UTILITIES & HELPERS
-// ==========================================
-
 function t(key) { return i18n[currentLang][key] || key; }
 
 function getProp(obj, ...possibleKeys) {
@@ -365,18 +357,19 @@ function showLoading(show) {
     else { el.classList.remove('opacity-100'); el.classList.add('opacity-0', 'pointer-events-none'); setTimeout(() => el.classList.add('hidden'), 300); }
 }
 
-// --- FUNGSI ADVANCE SETTING UNTUK ITEM SCAN ---
-
 window.toggleAdvanceMode = function() {
     window.isAdvanceMode = !window.isAdvanceMode;
     const btn = document.getElementById('btn-advance-mode');
+    const catSelect = document.getElementById('form-trx-category');
     if (btn) {
         if (window.isAdvanceMode) {
             btn.classList.add('bg-[#6342E8]', 'text-white');
             btn.classList.remove('text-[#6342E8]');
+            if (catSelect && catSelect.parentElement) catSelect.parentElement.classList.add('hidden');
         } else {
             btn.classList.remove('bg-[#6342E8]', 'text-white');
             btn.classList.add('text-[#6342E8]');
+            if (catSelect && catSelect.parentElement) catSelect.parentElement.classList.remove('hidden');
         }
     }
     window.renderScannedItems();
@@ -461,12 +454,13 @@ window.renderScannedItems = function() {
                 </div>
             </div>`;
         } else {
+            const catLabel = item.category && item.category !== mainCat ? `<span class="text-[9px] text-[#6342E8] font-bold mt-0.5">Kat: ${item.category}</span>` : '';
             container.innerHTML += `
             <div class="flex justify-between items-center text-xs py-1.5 border-b border-gray-100 dark:border-gray-800 last:border-0">
                 <div class="flex flex-col w-2/3 pr-2">
                     <span class="text-gray-700 dark:text-gray-200 font-bold uppercase truncate">${item.name}</span>
                     <span class="text-[10px] text-gray-500 font-medium">${qty}x @ ${toRp(hargaSatuan)}</span>
-                    ${item.category && item.category !== mainCat ? `<span class="text-[9px] text-[#6342E8] font-bold mt-0.5">Kat: ${item.category}</span>` : ''}
+                    ${catLabel}
                 </div>
                 <span class="text-gray-800 dark:text-gray-100 font-bold whitespace-nowrap text-right text-sm">${toRp(price)}</span>
             </div>`;
@@ -481,10 +475,6 @@ window.renderScannedItems = function() {
         }
     }
 };
-
-// ==========================================
-// CORE APP ROUTING & MODAL ENGINE
-// ==========================================
 
 window.showPage = async function(pageId) {
     document.querySelectorAll('.nav-btn').forEach(btn => { btn.classList.remove('active-nav', 'text-[#6342E8]'); btn.classList.add('text-gray-400'); });
@@ -502,20 +492,14 @@ window.showPage = async function(pageId) {
         if (!window.pageCache[pageId]) {
             showLoading(true);
             try {
-                // Pencari Cerdas: Cek di root directory dulu, kalau gagal cari di folder pages/
                 let res = await fetch(`${pageId}.html?t=${new Date().getTime()}`);
                 if (!res.ok) res = await fetch(`pages/${pageId}.html?t=${new Date().getTime()}`);
                 
                 if (res.ok) {
                     const htmlText = await res.text();
-                    // Proteksi jika server malah mengembalikan halaman 404 teks
-                    if (htmlText.includes("Cannot GET") || htmlText.includes("404 Not Found")) {
-                        throw new Error("File missing");
-                    }
+                    if (htmlText.includes("Cannot GET") || htmlText.includes("404 Not Found")) throw new Error("File missing");
                     window.pageCache[pageId] = htmlText;
-                } else {
-                    throw new Error("HTTP error " + res.status);
-                }
+                } else { throw new Error("HTTP error " + res.status); }
             } catch (e) {
                 mainContent.innerHTML = `
                     <div class="flex flex-col items-center justify-center pt-24 text-center">
@@ -523,7 +507,7 @@ window.showPage = async function(pageId) {
                             <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
                         </div>
                         <h2 class="text-lg font-bold text-gray-800 dark:text-white">Gagal Memuat Halaman</h2>
-                        <p class="text-xs text-gray-500 mt-2 max-w-[250px]">File <b>${pageId}.html</b> tidak ditemukan. Pastikan file berada di tempat yang sama dengan index.html Anda.</p>
+                        <p class="text-xs text-gray-500 mt-2 max-w-[250px]">File <b>${pageId}.html</b> tidak ditemukan.</p>
                     </div>`;
                 mainContent.classList.add('active-page'); mainContent.style.opacity = '1'; mainContent.style.transform = 'translateY(0) scale(1)';
                 showLoading(false);
@@ -554,18 +538,30 @@ window.openModal = function(id, type = null) {
     if (el) { el.classList.remove('hidden-page', 'hidden'); el.style.display = ''; }
     
     if(id === 'modal-trx') {
+        const catSelect = document.getElementById('form-trx-category');
+        if (catSelect && catSelect.parentElement) {
+            catSelect.parentElement.classList.remove('hidden');
+        }
+
         document.getElementById('modal-trx-title').innerText = type === 'INFLOW' ? t('mod-trx-in') : t('mod-trx-out');
         document.getElementById('form-trx-tipe').value = type; 
-        const catSel = document.getElementById('form-trx-category'); catSel.innerHTML = '';
-        (type === 'INFLOW' ? KATEGORI_INFLOW : KATEGORI_OUTFLOW).forEach(opt => catSel.innerHTML += `<option value="${opt}">${opt}</option>`);
+        const catSel = document.getElementById('form-trx-category'); 
+        if(catSel) {
+            catSel.innerHTML = '';
+            (type === 'INFLOW' ? KATEGORI_INFLOW : KATEGORI_OUTFLOW).forEach(opt => catSel.innerHTML += `<option value="${opt}">${opt}</option>`);
+        }
         const now = new Date();
         document.getElementById('form-trx-date').value = now.toISOString().split('T')[0];
         document.getElementById('form-trx-time').value = now.getHours().toString().padStart(2, '0') + ':' + now.getMinutes().toString().padStart(2, '0');
+        
         currentScannedItems = [];
         window.isAdvanceMode = false;
+        
         const btnAdv = document.getElementById('btn-advance-mode');
         if(btnAdv) { btnAdv.classList.remove('bg-[#6342E8]', 'text-white'); btnAdv.classList.add('text-[#6342E8]'); }
-        const itemListSec = document.getElementById('itemListSection'); if (itemListSec) itemListSec.classList.add('hidden');
+        const itemListSec = document.getElementById('itemListSection'); 
+        if (itemListSec) itemListSec.classList.add('hidden');
+        
         validateTrxForm();
     } else if (id === 'modal-export-pdf') renderExportModal();
     else if (id === 'modal-debt-history') renderDebtHistory();
@@ -640,10 +636,6 @@ window.togglePrivacy = function() {
 
 window.applyPrivacyMasks = function() { document.querySelectorAll('.privacy-mask').forEach(el => { const val = extractNumber(el.getAttribute('data-value') || 0); el.innerText = isPrivate ? '********' : toRp(val); }); };
 
-// ==========================================
-// API TRANSACTIONS & CORE DB LOGIC
-// ==========================================
-
 async function handleLogin() {
     const email = document.getElementById('login-email').value.trim(), password = document.getElementById('login-password').value.trim();
     if(!email || !password) return; showLoading(true);
@@ -670,32 +662,88 @@ async function apiPost(payload) {
     try { const response = await fetch(API_URL, { method: 'POST', body: JSON.stringify(payload) }); const result = await response.json(); if(result.status === 'success') return true; else { alert(result.message); return false; } } catch(e) { return false; } finally { showLoading(false); } 
 }
 
-async function submitTransaction() {
-    const btn = document.getElementById('form-trx-submit-btn'); if (btn && btn.disabled) return; 
-    const amount = extractNumber(document.getElementById('form-trx-amount').value), account = document.getElementById('form-trx-account').value, type = document.getElementById('form-trx-tipe').value, category = document.getElementById('form-trx-category').value, admin = extractNumber(document.getElementById('form-trx-admin').value) || 0, desc = document.getElementById('form-trx-desc').value;
+window.submitTransaction = async function() {
+    const btn = document.getElementById('form-trx-submit-btn'); 
+    if (btn && btn.disabled) return; 
+    
+    // Ini adalah nominal final (setelah diskon) yang Anda ketik/lihat di form paling atas
+    const amount = extractNumber(document.getElementById('form-trx-amount').value);
+    const account = document.getElementById('form-trx-account').value;
+    const type = document.getElementById('form-trx-tipe').value;
+    const category = document.getElementById('form-trx-category').value;
+    const admin = extractNumber(document.getElementById('form-trx-admin').value) || 0;
+    const desc = document.getElementById('form-trx-desc').value;
     const combinedDateTime = `${document.getElementById('form-trx-date').value} ${document.getElementById('form-trx-time').value}`;
+    
     if(amount <= 0 || !account || !category) return;
 
-    if (btn) { btn.disabled = true; btn.classList.add('bg-gray-300', 'dark:bg-gray-700', 'text-gray-400', 'cursor-not-allowed', 'shadow-none'); btn.classList.remove('bg-[#6342E8]', 'text-white', 'shadow-lg'); }
-    closeModal('modal-trx', true); 
+    if (btn) { 
+        btn.disabled = true; 
+        btn.classList.add('bg-gray-300', 'dark:bg-gray-700', 'text-gray-400', 'cursor-not-allowed', 'shadow-none'); 
+        btn.classList.remove('bg-[#6342E8]', 'text-white', 'shadow-lg'); 
+    }
 
-    // ID Grup unik untuk nota ini (untuk menghubungkan transaksi pecah)
     let receiptRefId = "REF-" + new Date().getTime();
-    
     let itemsByCategory = {};
     let hasCustomCategory = false;
 
-    if (currentScannedItems && currentScannedItems.length > 0) {
-        currentScannedItems.forEach(item => {
-            let cat = item.category || category; 
-            if (cat !== category) hasCustomCategory = true;
-            if (!itemsByCategory[cat]) itemsByCategory[cat] = { total: 0, items: [] };
-            itemsByCategory[cat].items.push(item);
-            itemsByCategory[cat].total += (item.price || 0);
+    const itemsToSend = JSON.parse(JSON.stringify(currentScannedItems));
+    const isAdvMode = window.isAdvanceMode;
+
+    // 1. Hitung total harga kotor semua barang (sebelum diskon)
+    let totalRawPrice = 0;
+    if (itemsToSend && itemsToSend.length > 0) {
+        itemsToSend.forEach(item => {
+            totalRawPrice += (item.price || 0);
         });
     }
 
-    if (window.isAdvanceMode && hasCustomCategory) {
+    // 2. Tentukan rasio diskon (Total Form dibagi Total Kotor Barang)
+    // Contoh: 85.400 / 95.000 = 0.8989...
+    let discountRatio = 1;
+    if (totalRawPrice > 0 && amount > 0) {
+        discountRatio = amount / totalRawPrice;
+    }
+
+    if (itemsToSend && itemsToSend.length > 0) {
+        itemsToSend.forEach(item => {
+            let cat = item.category || category; 
+            if (cat !== category) hasCustomCategory = true;
+            if (!itemsByCategory[cat]) itemsByCategory[cat] = { total: 0, items: [] };
+            
+            // --- APLIKASIKAN DISKON PRORATA KE SETIAP BARANG ---
+            // Harga barang dikurangi secara proporsional sesuai diskon nota
+            item.price = Math.round((item.price || 0) * discountRatio); 
+
+            itemsByCategory[cat].items.push(item);
+            itemsByCategory[cat].total += item.price;
+        });
+    }
+
+    // 3. Koreksi pembulatan: pastikan total detail jika dijumlah persis sama dengan 'amount' (Rp 85.400)
+    let sumAfterDiscount = 0;
+    for (const cat in itemsByCategory) {
+        sumAfterDiscount += itemsByCategory[cat].total;
+    }
+    
+    let selisihPembulatan = amount - sumAfterDiscount;
+
+    // Jika ada selisih 1-2 Rupiah karena pembulatan desimal, masukkan ke barang terakhir
+    if (hasCustomCategory && selisihPembulatan !== 0) {
+        let catKeys = Object.keys(itemsByCategory);
+        if (catKeys.length > 0) {
+            let lastCat = catKeys[catKeys.length - 1];
+            itemsByCategory[lastCat].total += selisihPembulatan;
+            
+            let lastGroupItems = itemsByCategory[lastCat].items;
+            if (lastGroupItems.length > 0) {
+                lastGroupItems[lastGroupItems.length - 1].price += selisihPembulatan;
+            }
+        }
+    }
+
+    // JIKA ADVANCE MODE AKTIF
+    if (isAdvMode && hasCustomCategory) {
         showLoading(true);
         let allSuccess = true;
         
@@ -703,15 +751,17 @@ async function submitTransaction() {
             const group = itemsByCategory[cat];
             let success = await apiPost({
                 action: 'addTransaction', email: sessionEmail, tipe: type, akun: account,
-                jumlah: group.total, kategori: cat, keterangan: desc,
+                jumlah: group.total, // Menggunakan total yang sudah didiskon
+                kategori: cat, keterangan: desc,
                 tanggal: combinedDateTime, itemsDetail: JSON.stringify(group.items), refId: receiptRefId
             });
             if (!success) allSuccess = false;
         }
 
         if (allSuccess) {
-            if (admin > 0) await fetch(API_URL, { method: 'POST', body: JSON.stringify({ action: 'addTransaction', email: sessionEmail, tipe: 'OUTFLOW', akun: account, jumlah: admin, kategori: 'Biaya Admin', keterangan: `Admin: ${desc}`, tanggal: combinedDateTime, refId: receiptRefId })});
+            if (admin > 0) await fetch(API_URL, { method: 'POST', body: JSON.stringify({ action: 'addTransaction', email: sessionEmail, tipe: 'OUTFLOW', akun: account, jumlah: admin, kategori: 'Biaya Admin', keterangan: `Admin trx split`, tanggal: combinedDateTime, refId: receiptRefId })});
             await fetchAllData();
+            closeModal('modal-trx', true); 
         } else {
             if (btn) btn.disabled = false;
         }
@@ -719,12 +769,19 @@ async function submitTransaction() {
         return; 
     }
     
-    // Single transaction path
-    if(await apiPost({ action: 'addTransaction', email: sessionEmail, tipe: type, akun: account, jumlah: amount, kategori: category, keterangan: desc, tanggal: combinedDateTime, itemsDetail: JSON.stringify(currentScannedItems), refId: receiptRefId })) { 
-        if (admin > 0) await fetch(API_URL, { method: 'POST', body: JSON.stringify({ action: 'addTransaction', email: sessionEmail, tipe: 'OUTFLOW', akun: account, jumlah: admin, kategori: 'Biaya Admin', keterangan: `Admin: ${desc}`, tanggal: combinedDateTime, refId: receiptRefId })});
+    // JIKA TRANSAKSI NORMAL
+    if (selisihPembulatan !== 0 && !hasCustomCategory && itemsToSend.length > 0) {
+         itemsToSend[itemsToSend.length - 1].price += selisihPembulatan;
+    }
+
+    if(await apiPost({ action: 'addTransaction', email: sessionEmail, tipe: type, akun: account, jumlah: amount, kategori: category, keterangan: desc, tanggal: combinedDateTime, itemsDetail: JSON.stringify(itemsToSend), refId: receiptRefId })) { 
+        if (admin > 0) await fetch(API_URL, { method: 'POST', body: JSON.stringify({ action: 'addTransaction', email: sessionEmail, tipe: 'OUTFLOW', akun: account, jumlah: admin, kategori: 'Biaya Admin', keterangan: `Admin trx ${category}`, tanggal: combinedDateTime, refId: receiptRefId })});
         await fetchAllData(); 
-    } else { if (btn) btn.disabled = false; }
-}
+        closeModal('modal-trx', true); 
+    } else { 
+        if (btn) btn.disabled = false; 
+    }
+};
 
 async function submitTransfer() {
     const fromAcc = document.getElementById('form-tf-from').value, toAcc = document.getElementById('form-tf-to').value, amount = extractNumber(document.getElementById('form-tf-amount').value), admin = extractNumber(document.getElementById('form-tf-admin').value) || 0, descRaw = document.getElementById('form-tf-desc').value;
@@ -766,21 +823,21 @@ window.deleteRecurringAction = async function() {
 async function submitGoal() { const name = document.getElementById('form-goal-name').value, amount = extractNumber(document.getElementById('form-goal-amount').value); if(!name || amount <= 0) return; if(await apiPost({ action: 'addGoal', email: sessionEmail, nama: name, target: amount })) { closeModal('modal-goal'); await fetchAllData(); } }
 async function submitDebt() { const name = document.getElementById('form-debt-name').value, amount = extractNumber(document.getElementById('form-debt-amount').value); if(!name || amount <= 0) return; if(await apiPost({ action: 'addDebt', email: sessionEmail, tipe: document.getElementById('form-debt-tipe').value, kontak: name, jumlah: amount })) { closeModal('modal-debt'); await fetchAllData(); } }
 
-function preparePayDebt(nama, tipe, sisa) {
+window.preparePayDebt = function(nama, tipe, sisa) {
     const debtItem = (appData.M_Debt || []).find(d => getProp(d, 'Kontak', 'Nama', 'Keterangan') === nama && getProp(d, 'Tipe') === tipe && extractNumber(getProp(d, 'Sisa', 'Sisa Saldo', 'Jumlah')) === sisa), idDebt = debtItem ? getProp(debtItem, 'ID_Debt', 'ID Debt') : '';
     document.getElementById('form-pay-debt-id').value = idDebt; document.getElementById('form-pay-debt-name').value = nama; document.getElementById('form-pay-debt-tipe').value = tipe; document.getElementById('form-pay-debt-max').value = sisa;
     document.getElementById('pay-debt-name-display').innerText = nama; document.getElementById('pay-debt-sisa-display').innerText = toRp(sisa);
     const isUtang = tipe === 'UTANG'; document.getElementById('mod-pay-debt-title').innerText = isUtang ? t('title-pay-debt') : t('title-recv-debt'); document.getElementById('txt-pay-debt-desc').innerText = isUtang ? t('desc-pay-debt') : t('desc-recv-debt'); document.getElementById('btn-pay-debt-submit').innerText = isUtang ? t('btn-pay-debt') : t('btn-recv-debt'); document.getElementById('form-pay-debt-account').innerHTML = document.getElementById('form-trx-account').innerHTML; 
     openModal('modal-pay-debt');
-}
+};
 
-async function submitPayDebt() {
+window.submitPayDebt = async function() {
     const idDebt = document.getElementById('form-pay-debt-id').value, nama = document.getElementById('form-pay-debt-name').value, tipe = document.getElementById('form-pay-debt-tipe').value, maxSisa = parseFloat(document.getElementById('form-pay-debt-max').value), amount = extractNumber(document.getElementById('form-pay-debt-amount').value), akun = document.getElementById('form-pay-debt-account').value;
     if (amount <= 0 || !akun || amount > maxSisa || !idDebt) { alert(currentLang === 'id' ? "Nominal tidak valid atau melebihi sisa." : "Invalid amount or exceeds remaining balance."); return; }
     if (tipe === 'UTANG') { const accData = (appData.M_Akun || []).find(a => getProp(a, 'Nama_Akun', 'Nama Akun') === akun); if(accData && extractNumber(getProp(accData, 'Saldo_Realtime', 'Saldo Realtime', 'Saldo_Awal')) < amount) return alert(currentLang === 'id' ? "Saldo tidak mencukupi." : "Insufficient balance."); }
     closeModal('modal-pay-debt'); showLoading(true);
     try { await fetch(API_URL, { method: 'POST', body: JSON.stringify({ action: 'payDebt', email: sessionEmail, idDebt: idDebt, nominal: amount, akun: akun }) }); document.getElementById('form-pay-debt-amount').value = ''; await fetchAllData(); } catch(e) { console.error(e); } finally { showLoading(false); }
-}
+};
 
 window.toggleDebtHistoryTab = function(tab) {
     debtHistoryTab = tab;
@@ -904,7 +961,7 @@ window.renderDebtHistory = function() {
     applyPrivacyMasks();
 };
 
-async function submitBuyAsset() {
+window.submitBuyAsset = async function() {
     const jenis = document.getElementById('form-asset-jenis').value, simbol = document.getElementById('form-asset-simbol').value.toUpperCase(), jumlah = parseFloat(document.getElementById('form-asset-jumlah').value.replace(/,/g, '.')) || 0, harga = extractNumber(document.getElementById('form-asset-harga').value), akun = document.getElementById('form-asset-account').value, admin = extractNumber(document.getElementById('form-buy-asset-admin').value) || 0;
     if(!simbol || jumlah <= 0 || harga <= 0 || !akun) return;
     const accData = (appData.M_Akun || []).find(a => getProp(a, 'Nama_Akun', 'Nama Akun') === akun);
@@ -914,18 +971,18 @@ async function submitBuyAsset() {
         closeModal('modal-buy-asset'); document.getElementById('form-asset-simbol').value = ''; document.getElementById('form-asset-jumlah').value = ''; document.getElementById('form-asset-harga').value = ''; document.getElementById('form-buy-asset-admin').value = '';
         await fetchAllData(); 
     }
-}
+};
 
-async function submitSellAsset() {
+window.submitSellAsset = async function() {
     const idAset = document.getElementById('form-sell-asset-id').value, simbol = document.getElementById('form-sell-asset-simbol').value, unitDijual = parseFloat(document.getElementById('form-sell-asset-jumlah').value.replace(/,/g, '.')) || 0, hargaJual = extractNumber(document.getElementById('form-sell-asset-harga').value), akunTujuan = document.getElementById('form-sell-asset-account').value, maxUnit = parseFloat(document.getElementById('sell-asset-max-display').innerText) || 0, admin = extractNumber(document.getElementById('form-sell-asset-admin').value) || 0;
     if (unitDijual <= 0 || hargaJual <= 0 || !akunTujuan || unitDijual > maxUnit) return;
     if(await apiPost({ action: 'sellAsset', email: sessionEmail, idAset: idAset, simbol: simbol, jumlahJual: unitDijual, totalDapat: unitDijual * hargaJual, akunTujuan: akunTujuan })) { 
         if (admin > 0) await fetch(API_URL, { method: 'POST', body: JSON.stringify({ action: 'addTransaction', email: sessionEmail, tipe: 'OUTFLOW', akun: akunTujuan, jumlah: admin, kategori: 'Biaya Admin', keterangan: `Admin jual aset ${simbol}` })});
         closeModal('modal-sell-asset'); document.getElementById('form-sell-asset-jumlah').value = ''; document.getElementById('form-sell-asset-admin').value = ''; await fetchAllData(); 
     }
-}
+};
 
-async function processGoalAction(actionType, isAchieved) {
+window.processGoalAction = async function(actionType, isAchieved) {
     const amount = extractNumber(document.getElementById(actionType === 'withdraw' ? 'form-withdraw-amount' : 'form-add-savings-amount').value), account = document.getElementById(actionType === 'withdraw' ? 'form-withdraw-account' : 'form-add-savings-account').value;
     if(amount <= 0 || !account) return;
     if(actionType === 'add') { const accData = (appData.M_Akun || []).find(a => getProp(a, 'Nama_Akun', 'Nama Akun') === account); if(accData && extractNumber(getProp(accData, 'Saldo_Realtime', 'Saldo Realtime', 'Saldo_Awal', 'Saldo Awal')) < amount) return alert(currentLang === 'id' ? "Saldo tidak mencukupi." : "Insufficient balance."); }
@@ -940,9 +997,9 @@ async function processGoalAction(actionType, isAchieved) {
             closeModal('modal-withdraw-goal'); closeModal('modal-add-savings'); document.getElementById('form-withdraw-amount').value = ''; document.getElementById('form-add-savings-amount').value = ''; await fetchAllData(); 
         } else { alert(result.message); }
     } catch(e) { console.error(e); } finally { showLoading(false); }
-}
+};
 
-async function processReceiptImage(e) {
+window.processReceiptImage = async function(e) {
     const file = e.target.files[0]; if (!file) return;
     const loadingTextEl = document.getElementById('loading-text'); loadingTextEl.innerText = t('txt-analyze'); showLoading(true);
     try {
@@ -953,11 +1010,14 @@ async function processReceiptImage(e) {
             openModal('modal-trx', 'OUTFLOW'); document.getElementById('form-trx-desc').value = merchant; const amountInput = document.getElementById('form-trx-amount'); amountInput.value = total; formatRupiahInput(amountInput); 
             document.getElementById('form-trx-date').value = result.data.date || new Date().toISOString().split('T')[0]; const now = new Date(); document.getElementById('form-trx-time').value = result.data.time || (now.getHours().toString().padStart(2, '0') + ':' + now.getMinutes().toString().padStart(2, '0'));
             
-            // PERBAIKAN: Mengalihkan render ke fungsi renderScannedItems untuk dukungan Advance Mode
             currentScannedItems = result.data.items || [];
             window.isAdvanceMode = false;
             const btnAdv = document.getElementById('btn-advance-mode');
             if(btnAdv) { btnAdv.classList.remove('bg-[#6342E8]', 'text-white'); btnAdv.classList.add('text-[#6342E8]'); }
+            
+            const catSelect = document.getElementById('form-trx-category');
+            if (catSelect && catSelect.parentElement) catSelect.parentElement.classList.remove('hidden');
+
             window.renderScannedItems();
             
             const amountContainer = document.getElementById('form-trx-amount-container'), currencyLabel = document.getElementById('form-trx-currency');
@@ -965,7 +1025,7 @@ async function processReceiptImage(e) {
             setTimeout(() => { amountContainer.classList.add('bg-white', 'dark:bg-[#1e1e1e]'); amountContainer.classList.remove('bg-purple-100', 'dark:bg-purple-900/50'); amountInput.classList.remove('animate-pulse'); currencyLabel.classList.remove('animate-pulse'); }, 2000);
         } else { alert(t('err-scan-fail') + result.message); }
     } catch (err) { console.error(err); alert(t('err-scan-sys')); } finally { loadingTextEl.innerText = t('sync'); showLoading(false); e.target.value = ''; }
-}
+};
 
 function compressImage(file, maxWidth, quality) { return new Promise((resolve, reject) => { const reader = new FileReader(); reader.readAsDataURL(file); reader.onload = event => { const img = new Image(); img.src = event.target.result; img.onload = () => { const canvas = document.createElement('canvas'); let width = img.width, height = img.height; if (width > maxWidth) { height = Math.round((height * maxWidth) / width); width = maxWidth; } canvas.width = width; canvas.height = height; const ctx = canvas.getContext('2d'); ctx.drawImage(img, 0, 0, width, height); resolve(canvas.toDataURL('image/jpeg', quality)); }; img.onerror = error => reject(error); }; reader.onerror = error => reject(error); }); }
 
@@ -1060,11 +1120,11 @@ function renderGoals() {
     container.innerHTML = html;
 }
 
-function prepareGoalAction(actionType, namaGoal) {
+window.prepareGoalAction = function(actionType, namaGoal) {
     activeGoalName = namaGoal;
     if(actionType === 'add') { document.getElementById('add-savings-goal-name').innerText = namaGoal; openModal('modal-add-savings'); } 
     else if(actionType === 'withdraw') { document.getElementById('withdraw-goal-name-display').innerText = namaGoal; openModal('modal-withdraw-goal'); }
-}
+};
 
 function renderRecurring() {
     const container = document.getElementById('recurring-list'); if(!container) return;
@@ -1173,7 +1233,22 @@ function renderMockPriceChart(assetName, currentPrice) {
 window.setCurrencyFilter = function(currency) { window.currentActiveCurrency = currency; window.updateAssetDetailCurrencyView(); };
 window.setChartFilter = function(filter) { window.currentActiveFilter = filter; document.querySelectorAll('.time-filter-btn').forEach(btn => btn.classList.remove('active')); const targetedBtn = document.querySelector(`[data-filter="${filter}"]`); if (targetedBtn) targetedBtn.classList.add('active'); window.updateAssetDetailCurrencyView(); };
 
-// --- FUNGSI RENDER HISTORY & CALENDAR --- //
+window.setHistoryFilter = function(filterType) {
+    histFilterTime = filterType;
+    document.querySelectorAll('#main-content button[id^="filter-"]').forEach(b => { b.classList.remove('bg-[#6342E8]', 'text-white', 'shadow-md'); b.classList.add('bg-white', 'dark:bg-[#1e1e1e]', 'text-gray-600', 'dark:text-gray-300', 'shadow-sm'); });
+    const btn = document.getElementById('filter-' + filterType); if(btn) { btn.classList.remove('bg-white', 'dark:bg-[#1e1e1e]', 'text-gray-600', 'dark:text-gray-300', 'shadow-sm'); btn.classList.add('bg-[#6342E8]', 'text-white', 'shadow-md'); }
+    const customPanel = document.getElementById('custom-date-container'); if(customPanel) { if (filterType === 'custom') { customPanel.classList.remove('hidden'); customPanel.classList.add('grid'); } else { customPanel.classList.add('hidden'); customPanel.classList.remove('grid'); } }
+    renderHistoryScreen();
+};
+
+window.setHistoryType = function(type) {
+    histToggleType = type;
+    const btnIn = document.getElementById('toggle-inflow'), btnOut = document.getElementById('toggle-outflow'), btnTf = document.getElementById('toggle-transfer');
+    if(btnIn && btnOut && btnTf) { btnIn.classList.remove('toggle-active'); btnOut.classList.remove('toggle-active'); btnTf.classList.remove('toggle-active'); if(type === 'INFLOW') btnIn.classList.add('toggle-active'); else if(type === 'OUTFLOW') btnOut.classList.add('toggle-active'); else btnTf.classList.add('toggle-active'); }
+    renderHistoryScreen();
+};
+
+window.triggerHistoryRender = function() { if(histFilterTime === 'custom') renderHistoryScreen(); };
 
 function getFilteredTransactions() {
     let trxs = appData.T_Transaksi || []; const today = new Date();
@@ -1185,23 +1260,6 @@ function getFilteredTransactions() {
         return true;
     });
 }
-
-function setHistoryFilter(filterType) {
-    histFilterTime = filterType;
-    document.querySelectorAll('#main-content button[id^="filter-"]').forEach(b => { b.classList.remove('bg-[#6342E8]', 'text-white', 'shadow-md'); b.classList.add('bg-white', 'dark:bg-[#1e1e1e]', 'text-gray-600', 'dark:text-gray-300', 'shadow-sm'); });
-    const btn = document.getElementById('filter-' + filterType); if(btn) { btn.classList.remove('bg-white', 'dark:bg-[#1e1e1e]', 'text-gray-600', 'dark:text-gray-300', 'shadow-sm'); btn.classList.add('bg-[#6342E8]', 'text-white', 'shadow-md'); }
-    const customPanel = document.getElementById('custom-date-container'); if(customPanel) { if (filterType === 'custom') { customPanel.classList.remove('hidden'); customPanel.classList.add('grid'); } else { customPanel.classList.add('hidden'); customPanel.classList.remove('grid'); } }
-    renderHistoryScreen();
-}
-
-function setHistoryType(type) {
-    histToggleType = type;
-    const btnIn = document.getElementById('toggle-inflow'), btnOut = document.getElementById('toggle-outflow'), btnTf = document.getElementById('toggle-transfer');
-    if(btnIn && btnOut && btnTf) { btnIn.classList.remove('toggle-active'); btnOut.classList.remove('toggle-active'); btnTf.classList.remove('toggle-active'); if(type === 'INFLOW') btnIn.classList.add('toggle-active'); else if(type === 'OUTFLOW') btnOut.classList.add('toggle-active'); else btnTf.classList.add('toggle-active'); }
-    renderHistoryScreen();
-}
-
-function triggerHistoryRender() { if(histFilterTime === 'custom') renderHistoryScreen(); }
 
 function renderHistoryScreen(drawChart = true) {
     const historyListContainer = document.getElementById('history-list'); if(!historyListContainer) return;
@@ -1249,7 +1307,7 @@ function renderHistoryScreen(drawChart = true) {
     }
 }
 
-function changeCalMonth(step) { currentCalMonth += step; if(currentCalMonth > 11) { currentCalMonth = 0; currentCalYear++; } else if(currentCalMonth < 0) { currentCalMonth = 11; currentCalYear--; } renderCalendar(); showDailyDetail(new Date().getDate(), true); }
+window.changeCalMonth = function(step) { currentCalMonth += step; if(currentCalMonth > 11) { currentCalMonth = 0; currentCalYear++; } else if(currentCalMonth < 0) { currentCalMonth = 11; currentCalYear--; } renderCalendar(); showDailyDetail(new Date().getDate(), true); };
 window.selectCalDay = function(day) { showDailyDetail(day); };
 
 function renderCalendar() {
