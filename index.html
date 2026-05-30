@@ -136,22 +136,18 @@
     </div>
     
     <script>
-        // Logika Eksekusi Instan Anti-Flicker
         (function() {
             var coldSplash = document.getElementById('fintrack-cold-splash');
             if (sessionStorage.getItem('fintrack_cold_splash_shown')) {
-                // Bukan Cold Start: Sembunyikan seketika dalam 0 detik
                 coldSplash.style.display = 'none';
             } else {
-                // Cold Start: Tahan layar ungu selama 2.5 detik lalu pudarkan
                 setTimeout(function() {
                     coldSplash.classList.remove('opacity-100');
                     coldSplash.classList.add('opacity-0');
                     setTimeout(function() {
                         coldSplash.style.display = 'none';
-                        // Berikan stempel sessionStorage agar tidak muncul lagi saat navigasi
                         sessionStorage.setItem('fintrack_cold_splash_shown', 'true');
-                    }, 500); // Durasi fade-out Tailwnind
+                    }, 500); 
                 }, 2500);
             }
         })();
@@ -603,7 +599,7 @@
             <div class="space-y-4 max-h-[65vh] overflow-y-auto pr-1 custom-scrollbar">
                 <div class="grid grid-cols-2 gap-3">
                     <div class="bg-gray-50/80 dark:bg-[#222]/30 p-3.5 rounded-xl border border-gray-100 dark:border-gray-800/60">
-                        <label class="text-[9px] text-gray-400 block mb-1 font-bold uppercase">Jenis Aset</label>
+                        <label class="text-[9px] text-gray-400 block mb-1 font-bold uppercase" data-i18n="lbl-asset-type">Jenis Aset</label>
                         <select id="form-asset-jenis" class="w-full bg-transparent outline-none text-xs font-bold text-gray-700 dark:text-gray-300 cursor-pointer appearance-none">
                             <option value="Cryptocurrency" class="lang-custom" data-id="Kripto (Crypto)" data-en="Crypto">Kripto (Crypto)</option>
                             <option value="Saham Indonesia" class="lang-custom" data-id="Saham Indonesia" data-en="Indonesian Stocks">Saham Indonesia</option>
@@ -612,8 +608,8 @@
                         </select>
                     </div>
                     <div class="bg-gray-50/80 dark:bg-[#222]/30 p-3.5 rounded-xl border border-gray-100 dark:border-gray-800/60">
-                        <label class="text-[9px] text-gray-400 block mb-1 font-bold uppercase">Simbol Kode</label>
-                        <input type="text" id="form-asset-simbol" placeholder="misal: BTC, BBCA" class="w-full bg-transparent outline-none text-xs font-bold uppercase text-[#6342E8] dark:text-[#a88fff]">
+                        <label class="text-[9px] text-gray-400 block mb-1 font-bold uppercase" data-i18n="lbl-asset-symbol">Simbol Kode</label>
+                        <input type="text" id="form-asset-simbol" data-i18n="ph-asset-symbol" placeholder="misal: BTC, BBCA" class="w-full bg-transparent outline-none text-xs font-bold uppercase text-[#6342E8] dark:text-[#a88fff]">
                     </div>
                 </div>
                 <div class="grid grid-cols-2 gap-3">
@@ -998,7 +994,7 @@
         .dark .custom-scrollbar::-webkit-scrollbar-thumb { background: #2d2d2d; }
     </style>
     
-    <script src="js/app.js?v=2.9.3"></script>
+    <script src="js/app.js?v=9.9"></script>
 
     <script>
         window.openTransactionDetail = function(jsonStr) {

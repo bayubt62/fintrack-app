@@ -84,7 +84,8 @@ const i18n = {
         "lbl-avg-price": "Average Price", "lbl-invested": "Invested Amount", "lbl-total-val": "Total Value",
         "lbl-return": "Return", "btn-buy-asset-2": "Buy", "btn-hist-debt": "History",
         "mod-debt-hist-title": "Debt & Receivable History", "tab-active": "Active",
-        "tab-lunas": "Settled", "txt-sisa": "Remaining:"
+        "tab-lunas": "Settled", "txt-sisa": "Remaining:",
+        "lbl-asset-type": "Asset Type", "lbl-asset-symbol": "Symbol Code", "ph-asset-symbol": "e.g., BTC, AAPL"
     },
     id: {
         "app-desc": "Manajemen Kekayaan Enterprise", "login-title": "Masuk ke Akun",
@@ -172,13 +173,14 @@ const i18n = {
         "lbl-invested": "Diinvestasikan", "lbl-total-val": "Total Nilai",
         "lbl-return": "Return", "btn-buy-asset-2": "Beli", "btn-hist-debt": "Riwayat",
         "mod-debt-hist-title": "Riwayat Hutang & Piutang", "tab-active": "Berjalan",
-        "tab-lunas": "Lunas", "txt-sisa": "Sisa:"
+        "tab-lunas": "Lunas", "txt-sisa": "Sisa:",
+        "lbl-asset-type": "Jenis Aset", "lbl-asset-symbol": "Simbol Kode", "ph-asset-symbol": "misal: BTC, BBCA"
     }
 };
 
 let currentLang = 'en'; 
 const API_URL = "https://script.google.com/macros/s/AKfycbx5QKPwG7auSpUI--xScR1uHZuGaDMt23gpPasBQB2LNGT8bB0pD_1M20LYIU5kN9OYiQ/exec"; 
-const KATEGORI_INFLOW = ["Gaji & Pemasukan", "Hasil Usaha", "Pemberian", "Dividen"];
+const KATEGORI_INFLOW = ["Gaji & Pemasukan", "Hasil Usaha", "Pemberian"];
 const KATEGORI_OUTFLOW = ["Makanan", "Hiburan", "Tagihan", "Tabungan & Investasi", "Kewajiban & Sosial", "Transportasi", "Lainnya"];
 const CHART_COLORS = ['#6342E8', '#8B5CF6', '#A78BFA', '#C084FC', '#38BDF8', '#818CF8', '#4F46E5', '#E879F9'];
 
@@ -342,7 +344,7 @@ function getAccountLogo(accountName) {
     return null; 
 }
 
-function getCategoryIcon(cat) { const map = { "Makanan": "🍽️", "Hiburan": "🎬", "Tagihan": "🧾", "Tabungan & Investasi": "📈", "Kewajiban & Sosial": "🧾", "Transportasi": "🚗", "Gaji & Pemasukan": "💼", "Hasil Usaha": "🏪", "Pemberian": "🎁", "Biaya Admin": "🏦", "Dividen": "💰" }; return map[cat] || "🏷️"; }
+function getCategoryIcon(cat) { const map = { "Makanan": "🍽️", "Hiburan": "🎬", "Tagihan": "🧾", "Tabungan & Investasi": "📈", "Kewajiban & Sosial": "🧾", "Transportasi": "🚗", "Gaji & Pemasukan": "💼", "Hasil Usaha": "🏪", "Pemberian": "🎁", "Biaya Admin": "🏦" }; return map[cat] || "🏷️"; }
 
 function getAssetLogoHtml(simbol) {
     let s = simbol.toUpperCase().trim(), cryptoBase = s.replace('USD', '').replace('IDR', '').toLowerCase();
@@ -1160,7 +1162,8 @@ function renderPortfolioScreen(drawChart = true) {
     const aggregatedAssets = {}; let html = '', rdnBalance = 0;
     
     if (rdnAccount) { 
-        let rdnName = getProp(rdnAccount, 'Nama_Akun', 'Nama Akun') || 'RDN', valReal = getProp(rdnAccount, 'Saldo_Realtime', 'Saldo Realtime', 'Saldo_Realtime'), valAwal = getProp(rdnAccount, 'Saldo_Awal', 'Saldo Awal', 'Saldo_Awal'); rdnBalance = extractNumber((valReal !== undefined && valReal !== null && valReal !== "") ? valReal : valAwal); 
+        let rdnName = getProp(rdnAccount, 'Nama_Akun', 'Nama Akun') || 'RDN', valReal = getProp(rdnAccount, 'Saldo_Realtime', 'Saldo Realtime', 'Saldo_Realtime'), valAwal = getProp(rdnAccount, 'Saldo_Awal', 'Saldo Awal', 'Saldo_Awal'); 
+        rdnBalance = extractNumber((valReal !== undefined && valReal !== null && valReal !== "") ? valReal : valAwal); 
         html += `<div class="flex items-center justify-between p-4 bg-white dark:bg-[#1e1e1e] border border-blue-100 dark:border-blue-900/50 rounded-2xl shadow-sm mb-2 hover:shadow-md transition duration-300"><div class="flex items-center gap-3"><div class="w-10 h-10 bg-blue-50 dark:bg-blue-900/30 flex items-center justify-center rounded-xl font-bold text-blue-600">RDN</div><div><p class="text-sm font-bold dark:text-gray-200">${rdnName}</p><p class="text-[10px] text-gray-500">Saldo Cash</p></div></div><div class="text-right"><p class="text-sm font-bold privacy-mask text-[#6342E8]" data-value="${rdnBalance}">${isPrivate?'********':toRp(rdnBalance)}</p></div></div>`; 
     }
     
@@ -1170,7 +1173,6 @@ function renderPortfolioScreen(drawChart = true) {
         porto.forEach(a => { 
             const idAset = getProp(a, 'ID_Aset', 'ID Aset');
             const simbol = getProp(a, 'Simbol', 'Nama Aset') || 'Aset';
-            // NEW: Menarik data Jenis Aset
             const jenisAset = getProp(a, 'Jenis_Aset', 'Jenis Aset', 'Jenis') || '';
             const jumlahRaw = (getProp(a, 'Jumlah', 'Unit') || "0").toString();
             const jumlah = parseFloat(jumlahRaw.replace(',', '.')) || 0;
@@ -1191,7 +1193,6 @@ function renderPortfolioScreen(drawChart = true) {
             const pnl = a.totalInvestasi > 0 ? (nominalReturn / a.totalInvestasi) * 100 : 0;
             const pnlColor = nominalReturn >= 0 ? 'text-green-500 dark:text-green-400' : 'text-red-500 dark:text-red-400';
             const pnlSign = nominalReturn > 0 ? '+' : ''; 
-            // Menyisipkan jenisAset ke dalam parameter pemanggilan fungsi detail aset
             html += `<div onclick="window.openAssetDetailModal('${a.idAset}', '${a.simbol}', '${a.jenisAset}', ${a.totalJumlah}, ${avgHargaBeli}, ${a.totalInvestasi}, ${a.hargaSekarang}, ${totalValSekarang}, ${nominalReturn}, ${pnl})" class="cursor-pointer flex items-center justify-between p-4 bg-white dark:bg-[#1e1e1e] border border-gray-50 dark:border-gray-800 rounded-2xl shadow-sm mb-2 hover:shadow-md active:scale-[0.98] transition-all duration-300"><div class="flex items-center gap-3">${getAssetLogoHtml(a.simbol)}<div><p class="text-sm font-bold dark:text-gray-200">${a.simbol}</p><p class="text-[10px] text-gray-500">${a.totalJumlah.toLocaleString('en-US', {maximumFractionDigits: 6})} ${t('unit')}</p><p class="text-[10px] text-[#6342E8] dark:text-[#a78bfa] font-semibold mt-1">${t('live')}: ${toRp(a.hargaSekarang)}</p></div></div><div class="text-right flex flex-col justify-center"><p class="text-sm font-bold privacy-mask dark:text-white" data-value="${totalValSekarang}">${isPrivate?'********':toRp(totalValSekarang)}</p><p class="text-[10px] font-semibold ${pnlColor} mt-1">${pnlSign}${toRp(Math.abs(nominalReturn))} (${pnlSign}${pnl.toFixed(2)}%)</p></div></div>`; 
         });
         assetContainer.innerHTML = html;
@@ -1239,7 +1240,6 @@ window.updateAssetDetailCurrencyView = function() {
     renderMockPriceChart(simbol, liveHarga);
 };
 
-// Parameter jenisAset telah ditambahkan
 window.openAssetDetailModal = function(idAset, simbol, jenisAset, lot, avgHarga, investasi, liveHarga, totalVal, nominalReturn, pnlPercent) {
     window.lastAssetData = { idAset, simbol, jenisAset, lot, avgHarga, investasi, liveHarga, totalVal, nominalReturn, pnlPercent };
     const simbolEl = document.getElementById('det-aset-simbol'); if (simbolEl) simbolEl.innerText = simbol;
@@ -1252,7 +1252,6 @@ window.openAssetDetailModal = function(idAset, simbol, jenisAset, lot, avgHarga,
     
     const btnDividen = document.getElementById('btn-det-dividen');
     if (btnDividen) {
-        // Pengecekan membaca string jenisAset yang ditarik dari database backend
         if (jenisAset && (jenisAset.toUpperCase().includes('SAHAM INDONESIA') || jenisAset.toUpperCase() === 'SAHAM INDONESIA')) {
             btnDividen.classList.remove('hidden');
             btnDividen.onclick = () => { closeModal('modal-asset-detail'); window.prepareReceiveDividend(simbol); };
@@ -1572,7 +1571,6 @@ window.submitReceiveDividend = async function() {
     const btn = document.getElementById('btn-dividend-submit');
     if (btn) { btn.disabled = true; btn.classList.add('bg-gray-300', 'cursor-not-allowed'); btn.classList.remove('bg-green-500', 'hover:bg-green-600'); }
     
-    // Penyesuaian bahasa otomatis
     const desc = currentLang === 'en' ? `Receiving dividend for stock ${simbol}` : `Menerima dividen saham ${simbol}`;
     const now = new Date(), combinedDateTime = now.toISOString().split('T')[0] + ' ' + now.getHours().toString().padStart(2, '0') + ':' + now.getMinutes().toString().padStart(2, '0');
     
