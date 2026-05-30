@@ -10,7 +10,7 @@
     <link rel="apple-touch-icon" href="Display_Logo.png">
     <link rel="icon" type="image/png" href="Display_Logo.png">
     
-    <title>Fintrack Enterprise V2.9.2 - Bilingual Edition</title>
+    <title>Fintrack Enterprise V2.9.3 - Bilingual Edition</title>
     <script src="https://cdn.tailwindcss.com"></script>
     
     <script>
@@ -605,10 +605,10 @@
                     <div class="bg-gray-50/80 dark:bg-[#222]/30 p-3.5 rounded-xl border border-gray-100 dark:border-gray-800/60">
                         <label class="text-[9px] text-gray-400 block mb-1 font-bold uppercase">Jenis Aset</label>
                         <select id="form-asset-jenis" class="w-full bg-transparent outline-none text-xs font-bold text-gray-700 dark:text-gray-300 cursor-pointer appearance-none">
-                            <option value="Cryptocurrency">Kripto (Crypto)</option>
-                            <option value="Saham Indonesia">Saham Indonesia</option>
-                            <option value="Reksadana">Reksadana</option>
-                            <option value="Emas">Emas / Logam Mulia</option>
+                            <option value="Cryptocurrency" class="lang-custom" data-id="Kripto (Crypto)" data-en="Crypto">Kripto (Crypto)</option>
+                            <option value="Saham Indonesia" class="lang-custom" data-id="Saham Indonesia" data-en="Indonesian Stocks">Saham Indonesia</option>
+                            <option value="Reksadana" class="lang-custom" data-id="Reksadana" data-en="Mutual Funds">Reksadana</option>
+                            <option value="Emas" class="lang-custom" data-id="Emas / Logam Mulia" data-en="Gold / Precious Metals">Emas / Logam Mulia</option>
                         </select>
                     </div>
                     <div class="bg-gray-50/80 dark:bg-[#222]/30 p-3.5 rounded-xl border border-gray-100 dark:border-gray-800/60">
@@ -929,6 +929,7 @@
                         </div>
                     </div>
                 </div>
+                <button id="btn-det-dividen" class="hidden w-full text-center py-3 bg-green-500 text-white text-xs font-bold rounded-xl transition shadow-lg active:scale-95 shadow-[0_10px_20px_rgba(34,197,94,0.2)] lang-custom mb-4" data-id="Terima Dividen" data-en="Receive Dividend">Terima Dividen</button>
                 <div class="grid grid-cols-2 gap-4">
                     <button id="btn-det-jual" class="w-full text-center py-3 bg-[#EF4444] text-white text-xs font-bold rounded-xl transition shadow-lg active:scale-95" data-i18n="btn-sell">Jual</button>
                     <button id="btn-det-beli" class="w-full text-center py-3 bg-[#6342E8] text-white text-xs font-bold rounded-xl transition shadow-lg active:scale-95 shadow-[0_10px_20px_rgba(99,66,232,0.2)]" data-i18n="btn-buy-asset-2">Beli</button>
@@ -954,6 +955,38 @@
         </div>
     </div>
 
+    <div id="modal-dividend" class="hidden fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm transition-all duration-300">
+        <div class="bg-white dark:bg-[#1a1a1a] w-full max-w-sm rounded-[28px] p-6 shadow-2xl border border-gray-100/50 dark:border-gray-800/60 transform transition-all duration-300 scale-100">
+            <div class="flex justify-between items-center mb-5 pb-3 border-b border-gray-100 dark:border-gray-800">
+                <div class="flex items-center gap-3">
+                    <div class="w-1.5 h-6 bg-green-500 rounded-full"></div>
+                    <h3 class="text-base font-black text-green-500 tracking-tight lang-custom" data-id="Terima Dividen" data-en="Receive Dividend">Terima Dividen</h3>
+                </div>
+                <button onclick="closeModal('modal-dividend'); document.getElementById('modal-dividend').classList.add('hidden');" class="w-8 h-8 flex items-center justify-center bg-gray-50 hover:bg-gray-100 dark:bg-[#252525] dark:hover:bg-[#303030] text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 rounded-full text-xl font-semibold transition-all duration-200">&times;</button>
+            </div>
+            <div class="space-y-4 max-h-[70vh] overflow-y-auto custom-scrollbar pr-1">
+                <div class="text-center p-4 bg-gray-50/80 dark:bg-[#222]/40 rounded-2xl border border-gray-100 dark:border-gray-800/60">
+                    <p class="text-xs text-gray-500 dark:text-gray-400 leading-relaxed mb-1.5">
+                        <span class="lang-custom" data-id="Menerima dividen untuk saham" data-en="Receiving dividend for stock">Menerima dividen untuk saham</span> 
+                        <span id="dividend-asset-simbol-display" class="font-black text-green-500 uppercase"></span>
+                    </p>
+                </div>
+                <div class="space-y-1">
+                    <label class="text-[10px] text-gray-400 dark:text-gray-500 font-bold uppercase tracking-wider px-1 lang-custom" data-id="Nominal Dividen" data-en="Dividend Amount">Nominal Dividen</label>
+                    <div class="bg-green-500/5 dark:bg-green-500/10 rounded-2xl p-4 border border-green-500/10 text-center flex items-center justify-center gap-1.5">
+                        <span class="text-2xl font-black text-green-500">Rp</span>
+                        <input type="text" inputmode="numeric" id="form-dividend-amount" placeholder="0" oninput="formatRupiahInput(this)" class="text-2xl font-black text-green-500 bg-transparent outline-none w-full text-left placeholder-green-200 dark:placeholder-green-900/40">
+                    </div>
+                </div>
+                <div class="space-y-1">
+                    <label class="text-[10px] text-gray-400 dark:text-gray-500 font-bold uppercase tracking-wider px-1 lang-custom" data-id="Cairkan ke Rekening" data-en="Deposit to Account">Cairkan ke Rekening</label>
+                    <select id="form-dividend-account" class="w-full p-3.5 rounded-xl border border-gray-100 dark:border-gray-800/80 bg-gray-50 dark:bg-[#222]/50 outline-none text-xs font-bold text-center text-gray-700 dark:text-gray-300 cursor-pointer appearance-none"></select>
+                </div>
+                <button onclick="submitReceiveDividend()" class="w-full bg-green-500 hover:bg-green-600 text-white py-3.5 rounded-xl font-bold text-xs transition shadow-lg shadow-green-500/15 mt-2 lang-custom" id="btn-dividend-submit" data-id="Konfirmasi Dividen" data-en="Confirm Dividend">Konfirmasi Dividen</button>
+            </div>
+        </div>
+    </div>
+
     <style>
         .time-filter-btn { color: #6b7280; background-color: #f9fafb; border: 1px solid #f3f4f6; }
         .dark .time-filter-btn { color: #9ca3af; background-color: #1f1f1f; border: 1px solid #2d2d2d; }
@@ -965,7 +998,7 @@
         .dark .custom-scrollbar::-webkit-scrollbar-thumb { background: #2d2d2d; }
     </style>
     
-    <script src="js/app.js?v=9.9"></script>
+    <script src="js/app.js?v=2.9.3"></script>
 
     <script>
         window.openTransactionDetail = function(jsonStr) {
