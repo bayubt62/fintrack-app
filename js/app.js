@@ -76,7 +76,7 @@ const i18n = {
         "lvl-6-name": "Financial Independence", "lvl-6-desc": "Total Assets > 25x Yearly Expenses. Portfolio yield is able to automatically fund your lifestyle.",
         "msg-level-up": "You have successfully advanced to a new financial phase.",
         "msg-level-down": "Your financial phase has decreased. Time to re-evaluate your cash flow.",
-        "txt-congrats": "Congratulations!", "txt-warning": "Warning!", "btn-continue": "Continue",
+        "txt-congrats": "Selamat!", "txt-warning": "Warning!", "btn-continue": "Continue",
         "ph-amount": "Amount", "title-pay-debt": "Pay Debt", "title-recv-debt": "Receive Funds",
         "desc-pay-debt": "Paying debt to", "desc-recv-debt": "Receiving funds from",
         "btn-pay-debt": "Pay Now", "btn-recv-debt": "Receive Funds", "txt-paid": "Paid",
@@ -1617,7 +1617,7 @@ function renderHistoryScreen(drawChart = true) {
             else { const logoSrc = getAccountLogo(akun); iconHtml = logoSrc ? `<img src="${logoSrc}" class="w-10 h-10 object-contain rounded-full bg-white dark:bg-[#1e1e1e] border border-gray-100 dark:border-gray-700 p-1">` : `<div class="w-10 h-10 rounded-full ${isOut ? 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-300' : 'bg-green-50 text-green-500 dark:bg-green-900/30'} flex items-center justify-center"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="${isOut ? 'M19 9l-7 7-7-7' : 'M5 15l7-7 7 7'}"></path></svg></div>`; }
             
             const val = extractNumber(getProp(tobj, 'Jumlah')), tobjJSON = encodeURIComponent(JSON.stringify(tobj));
-            html += `<div onclick="window.openTransactionDetail('${tobjJSON}')" class="cursor-pointer flex items-center justify-between p-4 bg-white dark:bg-[#1e1e1e] border border-gray-50 dark:border-gray-800 rounded-2xl shadow-sm mb-2 hover:bg-gray-50 dark:hover:bg-[#2d2d2d] active:scale-[0.98] transition-all duration-200"><div class="flex items-center gap-3">${iconHtml}<div class="overflow-hidden"><p class="text-sm font-bold truncate w-32 dark:text-white">${kategori}</p><p class="text-[10px] text-gray-500 truncate w-32 uppercase tracking-wide">${getProp(tobj, 'Keterangan') || akun}</p></div></div><p class="text-sm font-bold ${color} whitespace-nowrap">${sign} <span class="privacy-mask" data-value="${val}">${isPrivate?'********':toRp(val)}</span></p></div>`;
+            html += `<div onclick="window.openTransactionDetail('${tobjJSON}')" class="cursor-pointer flex items-center justify-between p-4 bg-white dark:bg-[#1e1e1e] border border-gray-50 dark:border-gray-800 last:border-0 hover:bg-gray-50 dark:hover:bg-[#2d2d2d] active:scale-[0.98] transition-all duration-200"><div class="flex items-center gap-3">${iconHtml}<div class="overflow-hidden"><p class="text-sm font-bold truncate w-32 dark:text-white">${kategori}</p><p class="text-[10px] text-gray-500 truncate w-32 uppercase tracking-wide">${getProp(tobj, 'Keterangan') || akunDisplay}</p></div></div><p class="text-sm font-bold ${color} whitespace-nowrap">${sign} <span class="privacy-mask" data-value="${val}">${isPrivate?'********':toRp(val)}</span></p></div>`;
         });
         historyListContainer.innerHTML = html;
     }
@@ -1813,7 +1813,7 @@ window.submitReceiveDividend = async function() {
     const now = new Date(), combinedDateTime = now.toISOString().split('T')[0] + ' ' + now.getHours().toString().padStart(2, '0') + ':' + now.getMinutes().toString().padStart(2, '0');
     
     showLoading(true);
-try { 
+    try { 
         if (await apiPost({ action: 'addTransaction', email: sessionEmail, tipe: 'INFLOW', akun: account, jumlah: amount, kategori: 'Dividen', keterangan: desc, tanggal: combinedDateTime, refId: "DIV-" + new Date().getTime() })) { 
             closeModal('modal-dividend'); 
             await fetchAllData(); 
@@ -1958,4 +1958,9 @@ window.openTransactionDetail = function(jsonStr) {
     } catch (e) {
         console.error("Gagal mengeksekusi pop-up:", e);
     }
+};
+
+window.setCurrencyFilter = function(currency) {
+    window.currentActiveCurrency = currency;
+    window.updateAssetDetailCurrencyView();
 };
