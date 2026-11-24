@@ -6,9 +6,10 @@
  * - 3D Stacked Sliding Account Cards Deck (Touch Swipe, Click-to-Front, Keyboard & Dots)
  * - Multi-Page SPA Router (dashboard, calendar, portfolio, history, settings)
  * - Offline-First State Engine + Google Apps Script (GAS) Cloud Sync
- * - Multi-User Profile Support (Bayu & Dedek Indra) + Multi-Currency Forex Formatter
- * - Live Portfolio Valuation (Harga_Saat_Ini + USD/IDR Forex) & Same-Symbol Merging
+ * - Multi-User Profile Support (Bayu & Dedek Indra) + Multi-Currency Formatter
+ * - Receipt Scanner / Image Compression & Auto-Fill Workflow
  * - Chart.js Wealth Distribution & Category Analytics (Emerald & Obsidian Palette)
+ * - Due-Date Smart Alerts, Monthly-Locked Recurring Bills, Debts & PDF Export
  * ============================================================================
  */
 
@@ -26,23 +27,15 @@
   const GAS_URL_KEY = 'fintrack_gas_url';
   const ACTIVE_USER_KEY = 'fintrack_active_user';
 
-  const DEFAULT_API_URL =
-    'https://script.google.com/macros/s/AKfycbz9a9kYr2cwtxxHZBewNNMdvE-43HPX1Vx6H7uoct8yFaluTj-vKzaQp1ehD21fTehNlg/exec';
-
   const CURRENCY_CONFIG = {
     IDR: { symbol: 'Rp', locale: 'id-ID', rate: 1, decimals: 0 },
-    USD: { symbol: '$', locale: 'en-US', rate: 0.0000615, decimals: 2 },
+    USD: { symbol: '$', locale: 'en-US', rate: 0.000062, decimals: 2 },
     SGD: { symbol: 'S$', locale: 'en-SG', rate: 0.000083, decimals: 2 },
     EUR: { symbol: '€', locale: 'de-DE', rate: 0.000057, decimals: 2 },
     JPY: { symbol: '¥', locale: 'ja-JP', rate: 0.0095, decimals: 0 },
     MYR: { symbol: 'RM', locale: 'ms-MY', rate: 0.00027, decimals: 2 },
     AUD: { symbol: 'A$', locale: 'en-AU', rate: 0.000095, decimals: 2 }
   };
-
-  window.usdExchangeRate = window.usdExchangeRate || 16250;
-  window.currentActiveCurrency = window.currentActiveCurrency || 'IDR';
-  window.currentActiveFilter = window.currentActiveFilter || '1H';
-  window.lastAssetData = window.lastAssetData || null;
 
   const CARD_THEMES = {
     emerald: {
@@ -112,6 +105,8 @@
       'btn-add-acc': '+ Tambah Akun',
       'dash-sub': 'Langganan Aktif',
       'btn-add-sub': '+ Tagihan',
+      'btn-pay-bill': 'Bayar',
+      'btn-paid-bill': 'Lunas',
       'dash-debt': 'Hutang & Piutang',
       'btn-hist-debt': 'Riwayat',
       'btn-add-debt': '+ Catat',
@@ -170,6 +165,8 @@
       'btn-add-acc': '+ Add Account',
       'dash-sub': 'Active Subscriptions',
       'btn-add-sub': '+ Add Bill',
+      'btn-pay-bill': 'Pay',
+      'btn-paid-bill': 'Paid',
       'dash-debt': 'Debts & Receivables',
       'btn-hist-debt': 'History',
       'btn-add-debt': '+ Add Debt',
@@ -218,147 +215,88 @@
   };
 
   /* --------------------------------------------------------------------------
-   * 3. DATE & NUMERIC PARSING HELPERS
+   * 3. DATE NORMALIZER & APPLICATION STATE
    * -------------------------------------------------------------------------- */
-  const todayISO = () => {
-    const d = new Date();
+  const formatLocalYMD = (d) => {
     const y = d.getFullYear();
     const m = String(d.getMonth() + 1).padStart(2, '0');
     const day = String(d.getDate()).padStart(2, '0');
     return `${y}-${m}-${day}`;
+  };
+
+  const todayISO = () => formatLocalYMD(new Date());
+
+  const currentYearMonth = () => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
   };
 
   const offsetDateISO = (daysOffset) => {
     const d = new Date();
     d.setDate(d.getDate() + daysOffset);
-    const y = d.getFullYear();
-    const m = String(d.getMonth() + 1).padStart(2, '0');
-    const day = String(d.getDate()).padStart(2, '0');
-    return `${y}-${m}-${day}`;
+    return formatLocalYMD(d);
   };
 
-  function toLocalISODate(rawDate) {
-    if (!rawDate) return todayISO();
-    const str = String(rawDate).trim();
-    const isoMatch = str.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
-    if (isoMatch) {
-      return `${isoMatch[1]}-${isoMatch[2].padStart(2, '0')}-${isoMatch[3].padStart(2, '0')}`;
+  /**
+   * Bulletproof date parser compatible with iOS Safari, Chrome, Google Sheets
+   * Date objects (ISO strings), space-separated "YYYY-MM-DD HH:mm",
+   * Indonesian "DD/MM/YYYY", and Google Sheets serial numbers.
+   */
+  function normalizeDateISO(rawVal, fallback = todayISO()) {
+    if (rawVal === undefined || rawVal === null || rawVal === '') return fallback;
+
+    if (rawVal instanceof Date && !isNaN(rawVal.getTime())) {
+      return formatLocalYMD(rawVal);
     }
-    const dmyMatch = str.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})/);
+
+    if (typeof rawVal === 'number' && rawVal > 20000 && rawVal < 100000) {
+      const utcMs = Math.round((rawVal - 25569) * 86400 * 1000);
+      const d = new Date(utcMs);
+      if (!isNaN(d.getTime())) return formatLocalYMD(d);
+    }
+
+    const str = String(rawVal).trim();
+    if (!str) return fallback;
+
+    // 1. ISO string with timezone (e.g. "2026-11-12T09:49:00.000Z") -> convert to local Y-M-D
+    if (/^\d{4}-\d{2}-\d{2}T.*(Z|[+-]\d{2}:?\d{2})$/i.test(str)) {
+      const parsed = new Date(str);
+      if (!isNaN(parsed.getTime())) {
+        return formatLocalYMD(parsed);
+      }
+    }
+
+    // 2. YYYY-MM-DD or YYYY/MM/DD (with optional " HH:mm[:ss]" — safe on iOS Safari)
+    const ymdMatch = str.match(/^(\d{4})[-\/](\d{1,2})[-\/](\d{1,2})/);
+    if (ymdMatch) {
+      const y = ymdMatch[1];
+      const m = String(Number(ymdMatch[2])).padStart(2, '0');
+      const d = String(Number(ymdMatch[3])).padStart(2, '0');
+      return `${y}-${m}-${d}`;
+    }
+
+    // 3. DD/MM/YYYY or DD-MM-YYYY (Indonesian / Sheets locale)
+    const dmyMatch = str.match(/^(\d{1,2})[-\/](\d{1,2})[-\/](\d{4})/);
     if (dmyMatch) {
-      return `${dmyMatch[3]}-${dmyMatch[2].padStart(2, '0')}-${dmyMatch[1].padStart(2, '0')}`;
+      const p1 = Number(dmyMatch[1]);
+      const p2 = Number(dmyMatch[2]);
+      const y = dmyMatch[3];
+      // Default to DD/MM/YYYY unless p2 > 12 (MM/DD/YYYY)
+      const day = p2 > 12 ? p2 : p1;
+      const month = p2 > 12 ? p1 : p2;
+      return `${y}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
     }
-    const d = new Date(str);
+
+    // 4. Fallback native parser (replacing space before time with T for Safari)
+    const safeIso = str.replace(/^(\d{4}-\d{2}-\d{2})\s+(\d{2}:\d{2})/, '$1T$2');
+    const d = new Date(safeIso);
     if (!isNaN(d.getTime())) {
-      const y = d.getFullYear();
-      const m = String(d.getMonth() + 1).padStart(2, '0');
-      const day = String(d.getDate()).padStart(2, '0');
-      return `${y}-${m}-${day}`;
+      return formatLocalYMD(d);
     }
-    return todayISO();
+
+    return fallback;
   }
 
-  function extractNumber(val) {
-    if (val === undefined || val === null || val === '') return 0;
-    if (typeof val === 'number') return isNaN(val) ? 0 : val;
-    let str = val.toString().replace(/Rp|USD|\$/gi, '').trim();
-    if (str.indexOf(',') > -1 && str.indexOf('.') !== -1 && str.lastIndexOf(',') > str.lastIndexOf('.')) {
-      str = str.replace(/\./g, '').replace(',', '.');
-    } else if (str.indexOf(',') > -1 && str.indexOf('.') === -1) {
-      const parts = str.split(',');
-      str = parts[1] && parts[1].length === 3 ? str.replace(/,/g, '') : str.replace(',', '.');
-    } else if (str.indexOf(',') > -1) {
-      str = str.replace(/,/g, '');
-    } else if (str.indexOf('.') > -1 && str.split('.').length > 2) {
-      str = str.replace(/\./g, '');
-    } else if (str.indexOf('.') > -1) {
-      const parts = str.split('.');
-      if (parts[0] !== '0' && parts[0] !== '-0' && parts[1] && parts[1].length === 3) {
-        str = str.replace(/\./g, '');
-      }
-    }
-    const num = parseFloat(str);
-    return isNaN(num) ? 0 : num;
-  }
-
-  function extractPriceNumber(val, currency = 'IDR') {
-    if (val === undefined || val === null || val === '') return 0;
-    if (typeof val === 'number') return isNaN(val) ? 0 : val;
-    const curr = String(currency || 'IDR').toUpperCase().trim();
-    if (curr !== 'IDR') {
-      let str = val.toString().replace(/Rp|USD|\$/gi, '').trim();
-      if (str.indexOf(',') > -1 && str.indexOf('.') > -1) {
-        if (str.lastIndexOf(',') > str.lastIndexOf('.')) {
-          str = str.replace(/\./g, '').replace(',', '.');
-        } else {
-          str = str.replace(/,/g, '');
-        }
-      } else if (str.indexOf(',') > -1) {
-        str = str.replace(',', '.');
-      }
-      const parsed = parseFloat(str);
-      return isNaN(parsed) ? 0 : parsed;
-    }
-    return extractNumber(val);
-  }
-
-  function normalizeTrxType(t) {
-    if (!t) return 'OUTFLOW';
-    const raw = String(t.type || t.Tipe || t.tipe || '')
-      .trim()
-      .toUpperCase();
-    const cat = String(t.category || t.Kategori || t.kategori || '')
-      .trim()
-      .toLowerCase();
-
-    if (raw === 'NEUTRAL' || raw === 'NETRAL') return 'NEUTRAL';
-    if (
-      raw.includes('TF') ||
-      raw.includes('TRANSFER') ||
-      cat === 'transfer masuk' ||
-      cat === 'transfer keluar' ||
-      cat === 'transfer antar akun' ||
-      cat === 'transfer'
-    ) {
-      return 'TRANSFER';
-    }
-    if (
-      raw === 'INFLOW' ||
-      raw === 'INCOME' ||
-      raw === 'PEMASUKAN' ||
-      raw === 'MASUK' ||
-      raw === 'CREDIT' ||
-      raw === 'KREDIT'
-    ) {
-      return 'INFLOW';
-    }
-    return 'OUTFLOW';
-  }
-
-  // Fetch live USD -> IDR exchange rate for foreign-currency portfolio assets
-  function refreshForexRate() {
-    if (window._fintrackForexLoading) return;
-    window._fintrackForexLoading = true;
-    fetch('https://open.er-api.com/v6/latest/USD')
-      .then((res) => res.json())
-      .then((data) => {
-        if (data && data.rates && data.rates.IDR) {
-          window.usdExchangeRate = Number(data.rates.IDR) || 16250;
-          CURRENCY_CONFIG.USD.rate = 1 / window.usdExchangeRate;
-          if (activePage === 'portfolio') renderPortfolioPage();
-        }
-      })
-      .catch(() => {
-        // Fallback rate remains active
-      })
-      .finally(() => {
-        window._fintrackForexLoading = false;
-      });
-  }
-
-  /* --------------------------------------------------------------------------
-   * 4. APPLICATION STATE & DEFAULT SEED DATA
-   * -------------------------------------------------------------------------- */
   function getDefaultState() {
     return {
       version: '3.0.0',
@@ -401,6 +339,7 @@
           category: 'Freelance & Project',
           amount: 4500000,
           accountId: 'acc_bca',
+          accountName: 'BCA Tahapan',
           note: 'Client Visual & UI Delivery',
           receipt: ''
         },
@@ -411,6 +350,7 @@
           category: 'Makan & Kopi',
           amount: 85000,
           accountId: 'acc_gopay',
+          accountName: 'GoPay & Cash',
           note: 'Kopi Susu & Makan Siang',
           receipt: ''
         },
@@ -421,6 +361,7 @@
           category: 'Transport & BBM',
           amount: 150000,
           accountId: 'acc_gopay',
+          accountName: 'GoPay & Cash',
           note: 'Pertamax Full Tank',
           receipt: ''
         },
@@ -431,6 +372,7 @@
           category: 'Dividen & Yield',
           amount: 1250000,
           accountId: 'acc_mandiri',
+          accountName: 'Mandiri Livin',
           note: 'Imbal Hasil Portofolio',
           receipt: ''
         },
@@ -441,6 +383,7 @@
           category: 'Software & Cloud',
           amount: 249000,
           accountId: 'acc_bca',
+          accountName: 'BCA Tahapan',
           note: 'Domain & Cloud Hosting',
           receipt: ''
         }
@@ -497,10 +440,8 @@
       assets: [
         {
           id: 'ast_1',
-          symbol: 'ADRO',
-          name: 'Adaro Energy',
+          name: 'Adaro Energy (ADRO)',
           category: 'Saham IDX',
-          currency: 'IDR',
           qty: 1500,
           buyPrice: 3650,
           currentPrice: 3920,
@@ -508,10 +449,8 @@
         },
         {
           id: 'ast_2',
-          symbol: 'SOL',
-          name: 'Solana',
+          name: 'Solana (SOL)',
           category: 'Crypto',
-          currency: 'IDR',
           qty: 2.5,
           buyPrice: 2100000,
           currentPrice: 2480000,
@@ -519,10 +458,8 @@
         },
         {
           id: 'ast_3',
-          symbol: 'GOLD',
           name: 'Emas Antam Digital',
           category: 'Emas',
-          currency: 'IDR',
           qty: 5,
           buyPrice: 1380000,
           currentPrice: 1510000,
@@ -563,7 +500,6 @@
   }
 
   let state = loadState();
-  let rawBackendData = {};
   let activePage = 'dashboard';
   let activeDeckIndex = 0;
   let dueBannerDismissed = false;
@@ -582,8 +518,6 @@
   // Chart instances
   let portfolioChartInstance = null;
   let categoryChartInstance = null;
-  let assetDetailLineChartInstance = null;
-  let exportSelectedYear = new Date().getFullYear();
 
   function loadState() {
     try {
@@ -606,27 +540,19 @@
     }
   }
 
-  let cloudSyncTimer = null;
-  function scheduleCloudSync() {
-    if (cloudSyncTimer) clearTimeout(cloudSyncTimer);
-    cloudSyncTimer = setTimeout(() => {
-      // Background persistence hook ready
-    }, 1000);
-  }
-
   function saveState(skipCloud) {
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
     } catch (err) {
       console.error('[Fintrack] Failed to persist state:', err);
     }
-    if (!skipCloud) {
+    if (!skipCloud && typeof scheduleCloudSync === 'function') {
       scheduleCloudSync();
     }
   }
 
   /* --------------------------------------------------------------------------
-   * 5. CURRENCY, PRIVACY, THEME & I18N HELPERS
+   * 4. CURRENCY, PRIVACY, THEME & I18N HELPERS
    * -------------------------------------------------------------------------- */
   function getCurrency() {
     return localStorage.getItem(CURRENCY_KEY) || 'IDR';
@@ -643,31 +569,6 @@
     }).format(Math.abs(converted));
     const sign = numeric < 0 ? '-' : '';
     return `${sign}${cfg.symbol} ${formatted}`;
-  }
-
-  function formatNativeAssetPrice(amount, currency = 'IDR') {
-    const curr = String(currency || 'IDR').toUpperCase().trim();
-    const num = Number(amount) || 0;
-    if (curr === 'IDR') {
-      return formatCurrency(num, 'IDR');
-    }
-    const decimals = num > 0 && num < 0.01 ? 6 : num < 1 ? 4 : 2;
-    const prefix = curr === 'USD' ? '$' : `${curr} `;
-    return (
-      prefix +
-      new Intl.NumberFormat('en-US', {
-        minimumFractionDigits: 2,
-        maximumFractionDigits: decimals
-      }).format(num)
-    );
-  }
-
-  function formatUnitQty(qty) {
-    const num = Number(qty) || 0;
-    return num.toLocaleString('en-US', {
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 6
-    });
   }
 
   function setCurrency(code) {
@@ -786,39 +687,24 @@
     const btnEn = document.getElementById('lang-btn-en');
     if (btnId && btnEn) {
       if (lang === 'id') {
-        btnId.className =
-          'px-2.5 py-1.5 rounded-full bg-[#0F5132] dark:bg-emerald-500 text-white dark:text-[#070908] shadow-sm transition-all duration-200';
+        btnId.className = 'px-2.5 py-1.5 rounded-full bg-[#0F5132] dark:bg-emerald-500 text-white dark:text-[#070908] shadow-sm transition-all duration-200';
         btnEn.className = 'px-2.5 py-1.5 rounded-full text-stone-500 dark:text-stone-400 transition-all duration-200';
       } else {
-        btnEn.className =
-          'px-2.5 py-1.5 rounded-full bg-[#0F5132] dark:bg-emerald-500 text-white dark:text-[#070908] shadow-sm transition-all duration-200';
+        btnEn.className = 'px-2.5 py-1.5 rounded-full bg-[#0F5132] dark:bg-emerald-500 text-white dark:text-[#070908] shadow-sm transition-all duration-200';
         btnId.className = 'px-2.5 py-1.5 rounded-full text-stone-500 dark:text-stone-400 transition-all duration-200';
       }
     }
   }
 
-  function getAssetAvatarHtml(symbol) {
-    const s = String(symbol || 'AS').toUpperCase().trim();
-    const base = s.replace(/USD$|IDR$/i, '').toLowerCase();
-    const coinUrl = `https://assets.coincap.io/assets/icons/${base}@2x.png`;
-    const fallbackUrl = `https://ui-avatars.com/api/?name=${encodeURIComponent(
-      s.substring(0, 4)
-    )}&background=0F5132&color=fff&rounded=true&bold=true`;
-    return `<img src="${coinUrl}" onerror="this.onerror=null;this.src='${fallbackUrl}';" alt="${escapeHTML(
-      s
-    )}" class="w-10 h-10 object-contain rounded-full bg-[#FAF8F5] dark:bg-[#161D19] border border-stone-200/70 dark:border-stone-800 p-1 shrink-0">`;
-  }
-
   /* --------------------------------------------------------------------------
-   * 6. TOAST NOTIFICATION SYSTEM
+   * 5. TOAST NOTIFICATION SYSTEM
    * -------------------------------------------------------------------------- */
   function showToast(message, type = 'info') {
     let container = document.getElementById('fintrack-toast-container');
     if (!container) {
       container = document.createElement('div');
       container.id = 'fintrack-toast-container';
-      container.className =
-        'fixed top-5 left-1/2 -translate-x-1/2 z-[120] flex flex-col items-center gap-2 pointer-events-none px-4 w-full max-w-sm';
+      container.className = 'fixed top-5 left-1/2 -translate-x-1/2 z-[120] flex flex-col items-center gap-2 pointer-events-none px-4 w-full max-w-sm';
       document.body.appendChild(container);
     }
 
@@ -830,9 +716,7 @@
     };
 
     const toast = document.createElement('div');
-    toast.className = `${
-      colorMap[type] || colorMap.info
-    } px-4 py-2.5 rounded-full text-xs font-bold shadow-xl border backdrop-blur-md transition-all duration-300 opacity-0 -translate-y-2`;
+    toast.className = `${colorMap[type] || colorMap.info} px-4 py-2.5 rounded-full text-xs font-bold shadow-xl border backdrop-blur-md transition-all duration-300 opacity-0 -translate-y-2`;
     toast.textContent = message;
     container.appendChild(toast);
 
@@ -847,7 +731,7 @@
   }
 
   /* --------------------------------------------------------------------------
-   * 7. SPA ROUTER & NAVIGATION
+   * 6. SPA ROUTER & NAVIGATION
    * -------------------------------------------------------------------------- */
   function getPageContainer() {
     return (
@@ -884,6 +768,7 @@
     if (existingSection) {
       document.querySelectorAll('[id^="page-"]').forEach((sec) => sec.classList.add('hidden'));
       existingSection.classList.remove('hidden');
+      applyTranslations();
       renderCurrentPage();
       return;
     }
@@ -929,12 +814,12 @@
       badge.classList.remove('opacity-0');
       badge.classList.remove('bg-stone-500');
       badge.classList.add('bg-emerald-600', 'dark:bg-emerald-500');
-      badgeText.textContent = 'Fase Akumulasi Aset';
+      badgeText.textContent = getLang() === 'en' ? 'Asset Accumulation Phase' : 'Fase Akumulasi Aset';
     }
   }
 
   /* --------------------------------------------------------------------------
-   * 8. DASHBOARD RENDERER & 3D STACKED SLIDING ACCOUNT CARDS
+   * 7. DASHBOARD RENDERER, 3D STACKED ACCOUNT CARDS & RECURRING BILLS
    * -------------------------------------------------------------------------- */
   function getUserAccounts() {
     if (!state.accounts || state.accounts.length === 0) return [];
@@ -954,21 +839,71 @@
     return filtered.length > 0 ? filtered : state.accounts;
   }
 
+  function findAccountByRef(accountRef) {
+    if (!accountRef) return null;
+    const key = String(accountRef).trim().toLowerCase();
+    return (state.accounts || []).find(
+      (a) =>
+        String(a.id || '').trim().toLowerCase() === key ||
+        String(a.name || '').trim().toLowerCase() === key
+    ) || null;
+  }
+
+  /**
+   * Checks whether a recurring subscription has already been paid in the
+   * current calendar month (YYYY-MM), either via local state or via
+   * synced OUTFLOW rows in T_Transaksi.
+   */
+  function isRecurringPaidThisMonth(rec) {
+    if (!rec) return false;
+    const ymPrefix = currentYearMonth();
+
+    if (rec.lastPaidMonth === ymPrefix) return true;
+
+    const recId = String(rec.id || '').trim().toLowerCase();
+    const recName = String(rec.name || '').trim().toLowerCase();
+    // Strip common prefixes like "bayar " or "subscription " for resilient matching
+    const coreName = recName.replace(/^(bayar|subscription|langganan|tagihan)\s+/i, '').trim();
+
+    return (state.transactions || []).some((t) => {
+      if (t.type !== 'OUTFLOW') return false;
+      const trxDate = normalizeDateISO(t.date, '');
+      if (!trxDate.startsWith(ymPrefix)) return false;
+
+      if (recId && t.refId && String(t.refId).trim().toLowerCase() === recId) {
+        return true;
+      }
+
+      const noteLower = String(t.note || '').trim().toLowerCase();
+      if (recName && noteLower.includes(recName)) {
+        return true;
+      }
+
+      const catLower = String(t.category || '').trim().toLowerCase();
+      const isBillCat = catLower.includes('tagihan') || catLower.includes('rutin') || catLower.includes('bill');
+      if (isBillCat && coreName && noteLower.includes(coreName)) {
+        return true;
+      }
+
+      return false;
+    });
+  }
+
   function renderDashboardPage() {
     const accounts = getUserAccounts();
     const totalBalance = accounts.reduce((sum, a) => sum + (Number(a.balance) || 0), 0);
 
-    const now = new Date();
-    const ymPrefix = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+    // Current month inflow & outflow
+    const ymPrefix = currentYearMonth();
     let monthIn = 0;
     let monthOut = 0;
 
     (state.transactions || []).forEach((t) => {
-      const dateStr = toLocalISODate(t.date);
-      if (dateStr && dateStr.startsWith(ymPrefix)) {
-        const normType = normalizeTrxType(t);
-        if (normType === 'INFLOW') monthIn += Number(t.amount) || 0;
-        else if (normType === 'OUTFLOW') monthOut += Number(t.amount) || 0;
+      const trxDate = normalizeDateISO(t.date, '');
+      if (trxDate.startsWith(ymPrefix)) {
+        const amt = Math.abs(Number(t.amount) || 0);
+        if (t.type === 'INFLOW') monthIn += amt;
+        else if (t.type === 'OUTFLOW') monthOut += amt;
       }
     });
 
@@ -976,6 +911,7 @@
     setMaskedValue(document.getElementById('summary-income'), formatCurrency(monthIn), monthIn);
     setMaskedValue(document.getElementById('summary-expense'), formatCurrency(monthOut), monthOut);
 
+    // Net badge growth indicator
     const badge = document.getElementById('dash-net-badge');
     if (badge) {
       const net = monthIn - monthOut;
@@ -1002,13 +938,14 @@
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     const alerts = [];
+    const isEn = getLang() === 'en';
 
     (state.recurring || []).forEach((r) => {
       if (!r.active || !r.dueDate) return;
-      const dueStr = String(r.dueDate);
-      if (!dueStr.includes('-')) return;
+      if (isRecurringPaidThisMonth(r)) return;
+      const dueStr = String(r.dueDate).trim();
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(dueStr)) return;
       const due = new Date(dueStr + 'T00:00:00');
-      if (isNaN(due.getTime())) return;
       const diffDays = Math.ceil((due - today) / 86400000);
       if (diffDays <= 5) {
         alerts.push({
@@ -1020,15 +957,15 @@
 
     (state.debts || []).forEach((d) => {
       if (d.settled || !d.dueDate) return;
-      const dueStr = String(d.dueDate);
-      if (!dueStr.includes('-')) return;
+      const dueStr = String(d.dueDate).trim();
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(dueStr)) return;
       const due = new Date(dueStr + 'T00:00:00');
-      if (isNaN(due.getTime())) return;
       const diffDays = Math.ceil((due - today) / 86400000);
       if (diffDays <= 5) {
         const rem = (Number(d.amount) || 0) - (Number(d.paid) || 0);
+        const prefix = d.type === 'DEBT' ? (isEn ? 'Debt' : 'Hutang') : (isEn ? 'Receivable' : 'Piutang');
         alerts.push({
-          label: `${d.type === 'DEBT' ? 'Hutang' : 'Piutang'}: ${d.person} (${formatCurrency(rem)})`,
+          label: `${prefix}: ${d.person} (${formatCurrency(rem)})`,
           days: diffDays
         });
       }
@@ -1044,10 +981,10 @@
       .map((a) => {
         const tag =
           a.days < 0
-            ? `<span class="text-red-600 dark:text-red-400 font-extrabold">Terlambat ${Math.abs(a.days)}h</span>`
+            ? `<span class="text-red-600 dark:text-red-400 font-extrabold">${isEn ? `Overdue ${Math.abs(a.days)}d` : `Terlambat ${Math.abs(a.days)}h`}</span>`
             : a.days === 0
-            ? `<span class="text-amber-700 dark:text-amber-300 font-extrabold">Hari Ini</span>`
-            : `<span class="text-amber-700 dark:text-amber-300 font-bold">H-${a.days}</span>`;
+              ? `<span class="text-amber-700 dark:text-amber-300 font-extrabold">${isEn ? 'Today' : 'Hari Ini'}</span>`
+              : `<span class="text-amber-700 dark:text-amber-300 font-bold">D-${a.days}</span>`;
         return `<div class="flex items-center justify-between gap-2 text-[11px] text-amber-900 dark:text-amber-200">
           <span class="truncate font-medium">• ${escapeHTML(a.label)}</span>
           <span class="shrink-0">${tag}</span>
@@ -1068,13 +1005,14 @@
     const counterEl = document.getElementById('accounts-deck-counter');
     if (!stage) return;
 
+    const isEn = getLang() === 'en';
     const accounts = getUserAccounts();
     if (accounts.length === 0) {
       stage.style.height = '130px';
       stage.innerHTML = `
         <div class="w-full h-full rounded-[24px] border border-dashed border-white/20 flex flex-col items-center justify-center text-center p-4">
-          <p class="text-xs font-bold text-stone-300 mb-2">Belum ada akun terdaftar</p>
-          <button type="button" onclick="openAccountModal()" class="text-[11px] font-bold px-3.5 py-1.5 rounded-full bg-emerald-500 text-[#070908]">+ Tambah Akun Pertama</button>
+          <p class="text-xs font-bold text-stone-300 mb-2">${isEn ? 'No accounts registered yet' : 'Belum ada akun terdaftar'}</p>
+          <button type="button" onclick="openAccountModal()" class="text-[11px] font-bold px-3.5 py-1.5 rounded-full bg-emerald-500 text-[#070908]">${isEn ? '+ Add First Account' : '+ Tambah Akun Pertama'}</button>
         </div>`;
       if (dotsEl) dotsEl.innerHTML = '';
       if (counterEl) counterEl.textContent = '0/0';
@@ -1121,27 +1059,21 @@
               transition: transform 0.42s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.35s ease, filter 0.35s ease;
               pointer-events: ${isHidden ? 'none' : 'auto'};
             "
-            class="rounded-[24px] p-5 text-white border border-white/15 shadow-[0_18px_36px_rgba(0,0,0,0.45)] flex flex-col justify-between select-none overflow-hidden ${
-              isFront ? 'cursor-grab active:cursor-grabbing' : 'cursor-pointer'
-            }"
+            class="rounded-[24px] p-5 text-white border border-white/15 shadow-[0_18px_36px_rgba(0,0,0,0.45)] flex flex-col justify-between select-none overflow-hidden ${isFront ? 'cursor-grab active:cursor-grabbing' : 'cursor-pointer'}"
           >
             <div class="absolute -right-10 -top-10 w-36 h-36 rounded-full opacity-20 pointer-events-none" style="background: radial-gradient(circle, ${theme.accent}, transparent 70%);"></div>
 
             <div class="flex items-start justify-between gap-2 relative z-10">
               <div>
                 <div class="flex items-center gap-2">
-                  <span class="text-[9px] font-extrabold tracking-widest uppercase px-2 py-0.5 rounded-full bg-white/12 text-white/90 border border-white/10">${escapeHTML(
-                    acc.type || theme.badge
-                  )}</span>
-                  <span class="text-[11px] font-mono text-white/65 tracking-wider">${escapeHTML(
-                    acc.number || '•••• 0000'
-                  )}</span>
+                  <span class="text-[9px] font-extrabold tracking-widest uppercase px-2 py-0.5 rounded-full bg-white/12 text-white/90 border border-white/10">${escapeHTML(acc.type || theme.badge)}</span>
+                  <span class="text-[11px] font-mono text-white/65 tracking-wider">${escapeHTML(acc.number || '•••• 0000')}</span>
                 </div>
                 <h4 class="text-base font-extrabold tracking-tight text-white mt-1.5">${escapeHTML(acc.name)}</h4>
               </div>
 
               <div class="flex items-center gap-1.5">
-                <button type="button" onclick="event.stopPropagation(); openAccountModal('${acc.id}')" class="w-7 h-7 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-white/80 hover:text-white transition" title="Edit Akun">
+                <button type="button" onclick="event.stopPropagation(); openAccountModal('${acc.id}')" class="w-7 h-7 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-white/80 hover:text-white transition" title="${isEn ? 'Edit Account' : 'Edit Akun'}">
                   <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path></svg>
                 </button>
               </div>
@@ -1149,10 +1081,8 @@
 
             <div class="flex items-end justify-between relative z-10">
               <div>
-                <p class="text-[10px] font-bold uppercase tracking-wider text-white/60">Available Balance</p>
-                <p class="text-xl font-black tracking-tight text-white privacy-mask mt-0.5" data-raw-text="${escapeHTML(
-                  formatCurrency(acc.balance)
-                )}">${isPrivacyEnabled() ? '••••••••' : escapeHTML(formatCurrency(acc.balance))}</p>
+                <p class="text-[10px] font-bold uppercase tracking-wider text-white/60">${isEn ? 'Available Balance' : 'Saldo Tersedia'}</p>
+                <p class="text-xl font-black tracking-tight text-white privacy-mask mt-0.5" data-raw-text="${escapeHTML(formatCurrency(acc.balance))}">${isPrivacyEnabled() ? '••••••••' : escapeHTML(formatCurrency(acc.balance))}</p>
               </div>
               <div class="w-9 h-6 rounded-md bg-gradient-to-br from-amber-200/80 to-amber-400/60 border border-amber-100/40 flex items-center justify-center opacity-85">
                 <div class="w-5 h-3.5 border border-amber-900/30 rounded-xs"></div>
@@ -1171,9 +1101,7 @@
       dotsEl.innerHTML = accounts
         .map((_, idx) => {
           const active = idx === activeDeckIndex;
-          return `<button type="button" onclick="selectAccountCard(${idx})" aria-label="Card ${
-            idx + 1
-          }" class="h-1.5 rounded-full transition-all duration-300 ${
+          return `<button type="button" onclick="selectAccountCard(${idx})" aria-label="Card ${idx + 1}" class="h-1.5 rounded-full transition-all duration-300 ${
             active ? 'w-5 bg-emerald-400' : 'w-1.5 bg-white/25 hover:bg-white/45'
           }"></button>`;
         })
@@ -1235,39 +1163,58 @@
     renderAccountsDeck();
   }
 
+  function formatRecurringDueLabel(dueDateVal, isEn) {
+    if (dueDateVal === undefined || dueDateVal === null || dueDateVal === '') return '-';
+    const str = String(dueDateVal).trim();
+    if (/^\d{1,2}$/.test(str)) {
+      const dayNum = Number(str);
+      return isEn ? `Every ${dayNum}th` : `Tgl ${dayNum} / bln`;
+    }
+    return str;
+  }
+
   function renderRecurringList() {
     const listEl = document.getElementById('recurring-list');
     if (!listEl) return;
 
+    const isEn = getLang() === 'en';
+    const dict = I18N[getLang()] || I18N.id;
+
     if (!state.recurring || state.recurring.length === 0) {
-      listEl.innerHTML = `<p class="text-xs text-stone-400 text-center py-4 bg-white/5 rounded-2xl border border-white/5">Belum ada tagihan rutin aktif</p>`;
+      listEl.innerHTML = `<p class="text-xs text-stone-400 text-center py-4 bg-white/5 rounded-2xl border border-white/5">${
+        isEn ? 'No active recurring bills yet' : 'Belum ada tagihan rutin aktif'
+      }</p>`;
       return;
     }
 
     listEl.innerHTML = state.recurring
       .map((item) => {
-        const acc = state.accounts.find((a) => a.id === item.accountId || a.name === item.accountId);
+        const acc = findAccountByRef(item.accountId);
+        const accLabel = acc ? acc.name : (item.accountId || (isEn ? 'Primary Account' : 'Akun Utama'));
+        const dueLabel = formatRecurringDueLabel(item.dueDate, isEn);
+        const isPaid = isRecurringPaidThisMonth(item);
+
+        const payBtnLabel = isPaid ? dict['btn-paid-bill'] : dict['btn-pay-bill'];
+        const payButtonHTML = isPaid
+          ? `<button type="button" disabled aria-disabled="true" class="text-[10px] font-bold px-2.5 py-1 rounded-full bg-stone-500/20 text-stone-400 border border-white/10 cursor-not-allowed opacity-75 flex items-center gap-1 select-none">
+              <svg class="w-3 h-3 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"></path></svg>
+              <span>${escapeHTML(payBtnLabel)}</span>
+            </button>`
+          : `<button type="button" onclick="payRecurringNow('${escapeHTML(item.id)}')" class="text-[10px] font-bold px-2.5 py-1 rounded-full bg-emerald-500/20 hover:bg-emerald-500/35 text-emerald-300 border border-emerald-400/25 transition active:scale-95">${escapeHTML(payBtnLabel)}</button>`;
+
         return `
-          <div class="p-3.5 rounded-2xl bg-white/5 hover:bg-white/8 border border-white/10 flex items-center justify-between gap-3 transition">
+          <div class="p-3.5 rounded-2xl ${isPaid ? 'bg-white/[0.03] border-white/5' : 'bg-white/5 hover:bg-white/8 border-white/10'} border flex items-center justify-between gap-3 transition">
             <div class="min-w-0">
               <div class="flex items-center gap-2">
-                <span class="w-2 h-2 rounded-full bg-emerald-400 shrink-0"></span>
-                <p class="text-xs font-extrabold text-white truncate">${escapeHTML(item.name)}</p>
+                <span class="w-2 h-2 rounded-full ${isPaid ? 'bg-stone-500' : 'bg-emerald-400'} shrink-0"></span>
+                <p class="text-xs font-extrabold ${isPaid ? 'text-stone-300' : 'text-white'} truncate">${escapeHTML(item.name)}</p>
               </div>
-              <p class="text-[10px] text-stone-400 mt-1">Tgl ${escapeHTML(String(item.dueDate || '-'))} • ${escapeHTML(
-          acc ? acc.name : item.accountId || 'Akun Utama'
-        )}</p>
+              <p class="text-[10px] text-stone-400 mt-1">${escapeHTML(dueLabel)} • ${escapeHTML(accLabel)}</p>
             </div>
             <div class="flex items-center gap-2 shrink-0">
-              <span class="text-xs font-extrabold text-emerald-300 privacy-mask" data-raw-text="${escapeHTML(
-                formatCurrency(item.amount)
-              )}">${isPrivacyEnabled() ? '••••••••' : escapeHTML(formatCurrency(item.amount))}</span>
-              <button type="button" onclick="payRecurringNow('${
-                item.id
-              }')" class="text-[10px] font-bold px-2.5 py-1 rounded-full bg-emerald-500/20 hover:bg-emerald-500/35 text-emerald-300 border border-emerald-400/25 transition">Bayar</button>
-              <button type="button" onclick="deleteRecurring('${
-                item.id
-              }')" class="text-stone-400 hover:text-red-400 p-1 transition" title="Hapus">
+              <span class="text-xs font-extrabold ${isPaid ? 'text-stone-400' : 'text-emerald-300'} privacy-mask" data-raw-text="${escapeHTML(formatCurrency(item.amount))}">${isPrivacyEnabled() ? '••••••••' : escapeHTML(formatCurrency(item.amount))}</span>
+              ${payButtonHTML}
+              <button type="button" onclick="deleteRecurring('${escapeHTML(item.id)}')" class="text-stone-400 hover:text-red-400 p-1 transition" title="${isEn ? 'Delete' : 'Hapus'}">
                 <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
               </button>
             </div>
@@ -1281,6 +1228,7 @@
     const listEl = document.getElementById('debt-list');
     const outEl = document.getElementById('debt-out');
     const inEl = document.getElementById('debt-in');
+    const isEn = getLang() === 'en';
 
     let totalDebtOut = 0;
     let totalDebtIn = 0;
@@ -1297,7 +1245,9 @@
 
     if (!listEl) return;
     if (activeDebts.length === 0) {
-      listEl.innerHTML = `<p class="text-xs text-stone-400 text-center py-3 bg-white/5 rounded-2xl border border-white/5">Tidak ada catatan hutang/piutang aktif</p>`;
+      listEl.innerHTML = `<p class="text-xs text-stone-400 text-center py-3 bg-white/5 rounded-2xl border border-white/5">${
+        isEn ? 'No active debts or receivables' : 'Tidak ada catatan hutang/piutang aktif'
+      }</p>`;
       return;
     }
 
@@ -1305,28 +1255,20 @@
       .map((d) => {
         const rem = Math.max(0, (Number(d.amount) || 0) - (Number(d.paid) || 0));
         const isDebt = d.type === 'DEBT';
+        const badgeLabel = isDebt ? (isEn ? 'Debt' : 'Hutang') : (isEn ? 'Receivable' : 'Piutang');
+        const settleLabel = isEn ? 'Settle' : 'Lunas';
         return `
           <div class="p-3.5 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-between gap-3">
             <div class="min-w-0">
               <div class="flex items-center gap-2">
-                <span class="text-[9px] font-extrabold uppercase px-2 py-0.5 rounded-full ${
-                  isDebt ? 'bg-red-500/20 text-red-300' : 'bg-emerald-500/20 text-emerald-300'
-                }">${isDebt ? 'Hutang' : 'Piutang'}</span>
+                <span class="text-[9px] font-extrabold uppercase px-2 py-0.5 rounded-full ${isDebt ? 'bg-red-500/20 text-red-300' : 'bg-emerald-500/20 text-emerald-300'}">${badgeLabel}</span>
                 <p class="text-xs font-extrabold text-white truncate">${escapeHTML(d.person)}</p>
               </div>
-              <p class="text-[10px] text-stone-400 mt-1 truncate">${escapeHTML(d.note || '-')} • JT: ${escapeHTML(
-          d.dueDate || '-'
-        )}</p>
+              <p class="text-[10px] text-stone-400 mt-1 truncate">${escapeHTML(d.note || '-')} • ${isEn ? 'Due' : 'JT'}: ${escapeHTML(d.dueDate || '-')}</p>
             </div>
             <div class="flex items-center gap-2 shrink-0">
-              <span class="text-xs font-extrabold ${
-                isDebt ? 'text-red-300' : 'text-emerald-300'
-              } privacy-mask" data-raw-text="${escapeHTML(formatCurrency(rem))}">${
-          isPrivacyEnabled() ? '••••••••' : escapeHTML(formatCurrency(rem))
-        }</span>
-              <button type="button" onclick="settleDebt('${
-                d.id
-              }')" class="text-[10px] font-bold px-2.5 py-1 rounded-full bg-white/10 hover:bg-emerald-500 hover:text-[#070908] text-white transition">Lunas</button>
+              <span class="text-xs font-extrabold ${isDebt ? 'text-red-300' : 'text-emerald-300'} privacy-mask" data-raw-text="${escapeHTML(formatCurrency(rem))}">${isPrivacyEnabled() ? '••••••••' : escapeHTML(formatCurrency(rem))}</span>
+              <button type="button" onclick="settleDebt('${d.id}')" class="text-[10px] font-bold px-2.5 py-1 rounded-full bg-white/10 hover:bg-emerald-500 hover:text-[#070908] text-white transition">${settleLabel}</button>
             </div>
           </div>
         `;
@@ -1335,7 +1277,7 @@
   }
 
   /* --------------------------------------------------------------------------
-   * 9. CALENDAR PAGE RENDERER
+   * 8. CALENDAR PAGE RENDERER
    * -------------------------------------------------------------------------- */
   function renderCalendarPage() {
     const grid = document.getElementById('calendar-grid');
@@ -1353,12 +1295,12 @@
 
     const dailyMap = {};
     (state.transactions || []).forEach((t) => {
-      if (!t.date) return;
-      const iso = toLocalISODate(t.date);
-      if (!dailyMap[iso]) dailyMap[iso] = { in: 0, out: 0 };
-      const normType = normalizeTrxType(t);
-      if (normType === 'INFLOW') dailyMap[iso].in += Number(t.amount) || 0;
-      else if (normType === 'OUTFLOW') dailyMap[iso].out += Number(t.amount) || 0;
+      const dStr = normalizeDateISO(t.date, '');
+      if (!dStr) return;
+      if (!dailyMap[dStr]) dailyMap[dStr] = { in: 0, out: 0 };
+      const amt = Math.abs(Number(t.amount) || 0);
+      if (t.type === 'INFLOW') dailyMap[dStr].in += amt;
+      if (t.type === 'OUTFLOW') dailyMap[dStr].out += amt;
     });
 
     let cells = '';
@@ -1380,22 +1322,14 @@
             isSelected
               ? 'bg-[#0F5132] dark:bg-emerald-500 text-white dark:text-[#070908] border-transparent shadow-md font-extrabold'
               : isToday
-              ? 'bg-[#EDF5F0] dark:bg-emerald-500/15 text-[#0F5132] dark:text-emerald-300 border-[#0F5132]/30 dark:border-emerald-500/30 font-extrabold'
-              : 'bg-[#FAF8F5] dark:bg-[#161D19] text-stone-700 dark:text-stone-200 border-transparent hover:border-stone-300 dark:hover:border-stone-700 font-bold'
+                ? 'bg-[#EDF5F0] dark:bg-emerald-500/15 text-[#0F5132] dark:text-emerald-300 border-[#0F5132]/30 dark:border-emerald-500/30 font-extrabold'
+                : 'bg-[#FAF8F5] dark:bg-[#161D19] text-stone-700 dark:text-stone-200 border-transparent hover:border-stone-300 dark:hover:border-stone-700 font-bold'
           }"
         >
           <span class="text-xs leading-none">${day}</span>
           <div class="flex items-center gap-1 mt-1 h-1.5">
-            ${
-              info && info.in > 0
-                ? `<span class="w-1.5 h-1.5 rounded-full ${isSelected ? 'bg-white dark:bg-[#070908]' : 'bg-emerald-500'}"></span>`
-                : ''
-            }
-            ${
-              info && info.out > 0
-                ? `<span class="w-1.5 h-1.5 rounded-full ${isSelected ? 'bg-amber-300 dark:bg-red-700' : 'bg-red-500'}"></span>`
-                : ''
-            }
+            ${info && info.in > 0 ? `<span class="w-1.5 h-1.5 rounded-full ${isSelected ? 'bg-white dark:bg-[#070908]' : 'bg-emerald-500'}"></span>` : ''}
+            ${info && info.out > 0 ? `<span class="w-1.5 h-1.5 rounded-full ${isSelected ? 'bg-amber-300 dark:bg-red-700' : 'bg-red-500'}"></span>` : ''}
           </div>
         </button>
       `;
@@ -1420,14 +1354,16 @@
     const listEl = document.getElementById('daily-transaction-list');
     if (!listEl) return;
 
+    const isEn = getLang() === 'en';
     if (titleEl) {
-      titleEl.textContent =
-        iso === todayISO() ? (getLang() === 'id' ? 'Transaksi Hari Ini' : "Today's Transactions") : iso;
+      titleEl.textContent = iso === todayISO() ? (isEn ? "Today's Transactions" : 'Transaksi Hari Ini') : iso;
     }
 
-    const items = (state.transactions || []).filter((t) => toLocalISODate(t.date) === iso);
+    const items = (state.transactions || []).filter((t) => normalizeDateISO(t.date, '') === iso);
     if (items.length === 0) {
-      listEl.innerHTML = `<p class="text-xs text-stone-400 text-center py-8 bg-white/5 rounded-2xl border border-white/5">Tidak ada transaksi pada tanggal ini</p>`;
+      listEl.innerHTML = `<p class="text-xs text-stone-400 text-center py-8 bg-white/5 rounded-2xl border border-white/5">${
+        isEn ? 'No transactions on this date' : 'Tidak ada transaksi pada tanggal ini'
+      }</p>`;
       return;
     }
 
@@ -1435,10 +1371,10 @@
   }
 
   function renderDarkSheetTransactionRow(t) {
-    const acc = state.accounts.find((a) => a.id === t.accountId || a.name === t.accountId);
-    const normType = normalizeTrxType(t);
-    const isIn = normType === 'INFLOW';
-    const isTf = normType === 'TRANSFER';
+    const acc = findAccountByRef(t.accountId);
+    const accLabel = acc ? acc.name : (t.accountName || t.accountId || '-');
+    const isIn = t.type === 'INFLOW';
+    const isTf = t.type === 'TRANSFER';
     const colorClass = isIn ? 'text-emerald-400' : isTf ? 'text-sky-400' : 'text-red-400';
     const sign = isIn ? '+' : isTf ? '' : '-';
 
@@ -1446,17 +1382,11 @@
       <div class="p-3.5 rounded-2xl bg-white/5 hover:bg-white/10 border border-white/10 flex items-center justify-between gap-3 transition">
         <div class="min-w-0">
           <p class="text-xs font-extrabold text-white truncate">${escapeHTML(t.note || t.category)}</p>
-          <p class="text-[10px] text-stone-400 mt-0.5">${escapeHTML(t.category)} • ${escapeHTML(
-      acc ? acc.name : t.accountId || '-'
-    )}</p>
+          <p class="text-[10px] text-stone-400 mt-0.5">${escapeHTML(t.category)} • ${escapeHTML(accLabel)}</p>
         </div>
         <div class="flex items-center gap-2.5 shrink-0">
-          <span class="text-xs font-extrabold ${colorClass} privacy-mask" data-raw-text="${sign}${escapeHTML(
-      formatCurrency(t.amount)
-    )}">${isPrivacyEnabled() ? '••••••••' : `${sign}${escapeHTML(formatCurrency(t.amount))}`}</span>
-          <button type="button" onclick="deleteTransaction('${
-            t.id
-          }')" class="text-stone-500 hover:text-red-400 p-1 transition" title="Hapus">
+          <span class="text-xs font-extrabold ${colorClass} privacy-mask" data-raw-text="${sign}${escapeHTML(formatCurrency(t.amount))}">${isPrivacyEnabled() ? '••••••••' : `${sign}${escapeHTML(formatCurrency(t.amount))}`}</span>
+          <button type="button" onclick="deleteTransaction('${t.id}')" class="text-stone-500 hover:text-red-400 p-1 transition" title="${getLang() === 'en' ? 'Delete' : 'Hapus'}">
             <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
           </button>
         </div>
@@ -1465,235 +1395,75 @@
   }
 
   /* --------------------------------------------------------------------------
-   * 10. PORTFOLIO PAGE RENDERER (LIVE VALUATION + SAME-SYMBOL MERGING)
+   * 9. PORTFOLIO PAGE RENDERER
    * -------------------------------------------------------------------------- */
-  function getAssetFxRateToIDR(currency) {
-    const curr = String(currency || 'IDR').toUpperCase().trim();
-    if (curr === 'IDR') return 1;
-    if (curr === 'USD') return Number(window.usdExchangeRate) || 16250;
-    const cfg = CURRENCY_CONFIG[curr];
-    return cfg && cfg.rate > 0 ? 1 / cfg.rate : Number(window.usdExchangeRate) || 16250;
-  }
-
-  function aggregatePortfolioAssets(assetsList) {
-    const grouped = {};
-
-    (assetsList || []).forEach((raw) => {
-      const rawName = String(raw.name || '').trim();
-      const parenMatch = rawName.match(/^(.+?)\s*\(([A-Za-z0-9._-]+)\)$/);
-      const symbol = String(raw.symbol || (parenMatch ? parenMatch[2] : rawName) || 'ASET')
-        .trim()
-        .toUpperCase();
-      const cleanName = String(parenMatch ? parenMatch[1] : rawName || symbol).trim();
-      const category = String(raw.category || 'Saham').trim();
-      const currency = String(raw.currency || 'IDR').trim().toUpperCase();
-      const qty = Number(raw.qty) || 0;
-      const buyPrice = Number(raw.buyPrice) || 0;
-      const currentPrice = Number(raw.currentPrice) > 0 ? Number(raw.currentPrice) : buyPrice;
-
-      if (qty <= 0) return;
-
-      const groupKey = `${symbol}__${currency}`;
-      if (!grouped[groupKey]) {
-        grouped[groupKey] = {
-          id: raw.id,
-          symbol,
-          name: cleanName,
-          category,
-          currency,
-          totalQty: 0,
-          totalInvestedNative: 0,
-          livePriceNative: currentPrice,
-          walletId: raw.walletId || '',
-          lotCount: 0
-        };
-      }
-
-      grouped[groupKey].totalQty += qty;
-      grouped[groupKey].totalInvestedNative += qty * buyPrice;
-      if (currentPrice > 0) grouped[groupKey].livePriceNative = currentPrice;
-      if (cleanName && cleanName.toUpperCase() !== symbol) {
-        grouped[groupKey].name = cleanName;
-      }
-      grouped[groupKey].lotCount += 1;
-    });
-
-    return Object.values(grouped).map((item) => {
-      const avgBuyPriceNative = item.totalQty > 0 ? item.totalInvestedNative / item.totalQty : 0;
-      const livePriceNative = item.livePriceNative > 0 ? item.livePriceNative : avgBuyPriceNative;
-      const totalLiveValueNative = item.totalQty * livePriceNative;
-      const pnlNative = totalLiveValueNative - item.totalInvestedNative;
-      const pnlPct = item.totalInvestedNative > 0 ? (pnlNative / item.totalInvestedNative) * 100 : 0;
-      const fxRate = getAssetFxRateToIDR(item.currency);
-      const totalLiveValueIDR = totalLiveValueNative * fxRate;
-      const totalInvestedIDR = item.totalInvestedNative * fxRate;
-      const pnlIDR = totalLiveValueIDR - totalInvestedIDR;
-
-      return {
-        ...item,
-        avgBuyPriceNative,
-        livePriceNative,
-        totalLiveValueNative,
-        pnlNative,
-        pnlPct,
-        fxRate,
-        totalLiveValueIDR,
-        totalInvestedIDR,
-        pnlIDR
-      };
-    });
-  }
-
   function renderPortfolioPage() {
+    const isEn = getLang() === 'en';
+    const cashTotal = getUserAccounts().reduce((s, a) => s + (Number(a.balance) || 0), 0);
     const walletCash = (state.wallets || []).reduce((s, w) => s + (Number(w.balance) || 0), 0);
-    const mergedAssets = aggregatePortfolioAssets(state.assets || []);
-    const regularAssets = mergedAssets.filter((a) => a.category !== 'Valuta Asing');
-    const valasAssets = mergedAssets.filter((a) => a.category === 'Valuta Asing');
-
-    const assetsLiveTotalIDR = mergedAssets.reduce((s, a) => s + (Number(a.totalLiveValueIDR) || 0), 0);
-    const goalsSavedTotal = (state.goals || [])
-      .filter((g) => g.status !== 'COMPLETED')
-      .reduce((s, g) => s + (Number(g.saved ?? g.current) || 0), 0);
-
-    // Live Total Net Asset = Live Market Value of All Portfolio Assets + Investment Wallets + Target Savings
-    const netWorth = assetsLiveTotalIDR + walletCash + goalsSavedTotal;
+    const assetValue = (state.assets || []).reduce(
+      (s, a) => s + (Number(a.qty) || 0) * (Number(a.currentPrice) || Number(a.buyPrice) || 0),
+      0
+    );
+    const netWorth = cashTotal + walletCash + assetValue;
 
     setMaskedValue(document.getElementById('porto-center-val'), formatCurrency(netWorth), netWorth);
 
-    // Render Investment Wallets (+ Valuta Asing Wallets)
     const walletListEl = document.getElementById('wallet-list');
     if (walletListEl) {
-      const walletCards = (state.wallets || []).map(
-        (w) => `
-          <div onclick="openWalletDetailModal('${escapeHTML(w.name)}', ${Number(w.balance) || 0})" class="cursor-pointer p-3.5 rounded-2xl bg-[#FAF8F5] dark:bg-[#161D19] hover:bg-[#EDF5F0]/70 dark:hover:bg-[#1B241F] border border-stone-200/70 dark:border-stone-800/80 flex items-center justify-between gap-3 transition">
-            <div class="flex items-center gap-3 min-w-0">
-              <div class="w-9 h-9 rounded-xl bg-[#0F5132]/10 dark:bg-emerald-500/15 text-[#0F5132] dark:text-emerald-300 font-extrabold text-xs flex items-center justify-center shrink-0">
-                ${escapeHTML((w.name || 'WL').substring(0, 2).toUpperCase())}
-              </div>
-              <div class="min-w-0">
-                <p class="text-xs font-extrabold text-stone-900 dark:text-white truncate">${escapeHTML(w.name)}</p>
+      if (!state.wallets || state.wallets.length === 0) {
+        walletListEl.innerHTML = `<p class="text-xs text-stone-400 text-center py-3">${
+          isEn ? 'No investment wallets yet' : 'Belum ada dompet investasi'
+        }</p>`;
+      } else {
+        walletListEl.innerHTML = state.wallets
+          .map(
+            (w) => `
+            <div class="p-3.5 rounded-2xl bg-[#FAF8F5] dark:bg-[#161D19] border border-stone-200/70 dark:border-stone-800/80 flex items-center justify-between gap-3">
+              <div>
+                <p class="text-xs font-extrabold text-stone-900 dark:text-white">${escapeHTML(w.name)}</p>
                 <p class="text-[10px] font-semibold text-stone-400">${escapeHTML(w.platform || 'Investment')}</p>
               </div>
-            </div>
-            <div class="flex items-center gap-2 shrink-0">
-              <span class="text-xs font-extrabold text-[#0F5132] dark:text-emerald-300 privacy-mask" data-raw-text="${escapeHTML(
-                formatCurrency(w.balance)
-              )}">${isPrivacyEnabled() ? '••••••••' : escapeHTML(formatCurrency(w.balance))}</span>
-              <button type="button" onclick="event.stopPropagation(); deleteWallet('${
-                w.id
-              }')" class="text-stone-400 hover:text-red-500 p-1 transition" title="Hapus Dompet">
-                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
-              </button>
-            </div>
-          </div>
-        `
-      );
-
-      valasAssets.forEach((v) => {
-        const isPos = v.pnlIDR >= 0;
-        walletCards.push(`
-          <div onclick="openAssetDetailModal('${v.id}', '${escapeHTML(v.symbol)}', '${escapeHTML(v.category)}', ${
-          v.totalQty
-        }, ${v.avgBuyPriceNative * v.fxRate}, ${v.totalInvestedIDR}, ${v.livePriceNative * v.fxRate}, ${
-          v.totalLiveValueIDR
-        }, ${v.pnlIDR}, ${v.pnlPct})" class="cursor-pointer p-3.5 rounded-2xl bg-[#FAF8F5] dark:bg-[#161D19] border border-stone-200/70 dark:border-stone-800/80 flex items-center justify-between gap-3 transition">
-            <div class="flex items-center gap-3 min-w-0">
-              ${getAssetAvatarHtml(v.symbol)}
-              <div class="min-w-0">
-                <p class="text-xs font-extrabold text-stone-900 dark:text-white truncate">${escapeHTML(v.symbol)} Wallet</p>
-                <p class="text-[10px] font-semibold text-stone-400">${formatUnitQty(v.totalQty)} unit • Live: ${escapeHTML(
-          formatCurrency(v.livePriceNative * v.fxRate)
-        )}</p>
+              <div class="flex items-center gap-2">
+                <span class="text-xs font-extrabold text-[#0F5132] dark:text-emerald-300 privacy-mask" data-raw-text="${escapeHTML(formatCurrency(w.balance))}">${isPrivacyEnabled() ? '••••••••' : escapeHTML(formatCurrency(w.balance))}</span>
+                <button type="button" onclick="deleteWallet('${w.id}')" class="text-stone-400 hover:text-red-500 p-1 transition">
+                  <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                </button>
               </div>
             </div>
-            <div class="text-right shrink-0">
-              <p class="text-xs font-extrabold text-[#0F5132] dark:text-emerald-300 privacy-mask" data-raw-text="${escapeHTML(
-                formatCurrency(v.totalLiveValueIDR)
-              )}">${isPrivacyEnabled() ? '••••••••' : escapeHTML(formatCurrency(v.totalLiveValueIDR))}</p>
-              <p class="text-[10px] font-bold ${isPos ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-500'}">${
-          isPos ? '+' : ''
-        }${v.pnlPct.toFixed(1)}%</p>
-            </div>
-          </div>
-        `);
-      });
-
-      walletListEl.innerHTML =
-        walletCards.length === 0
-          ? `<p class="text-xs text-stone-400 text-center py-3">Belum ada dompet investasi</p>`
-          : walletCards.join('');
+          `
+          )
+          .join('');
+      }
     }
 
-    // Render Merged Asset Ownership List
     const assetListEl = document.getElementById('asset-list');
     if (assetListEl) {
-      if (regularAssets.length === 0) {
-        assetListEl.innerHTML = `<p class="text-xs text-stone-400 text-center py-4 bg-white dark:bg-[#111613] rounded-2xl border border-stone-200/70 dark:border-stone-800">Belum ada aset terdaftar</p>`;
+      if (!state.assets || state.assets.length === 0) {
+        assetListEl.innerHTML = `<p class="text-xs text-stone-400 text-center py-4 bg-white dark:bg-[#111613] rounded-2xl border border-stone-200/70 dark:border-stone-800">${
+          isEn ? 'No assets registered yet' : 'Belum ada aset terdaftar'
+        }</p>`;
       } else {
-        const sortedAssets = [...regularAssets].sort((a, b) => b.totalLiveValueIDR - a.totalLiveValueIDR);
-        assetListEl.innerHTML = sortedAssets
+        assetListEl.innerHTML = state.assets
           .map((a) => {
-            const isPos = a.pnlNative >= 0;
-            const hasDistinctName = a.name && a.name.toUpperCase() !== a.symbol.toUpperCase();
-            const headingLabel = hasDistinctName ? `${a.name} (${a.symbol})` : a.symbol;
-            const nativeTotalStr = formatNativeAssetPrice(a.totalLiveValueNative, a.currency);
-            const idrSubStr = a.currency !== 'IDR' ? `≈ ${formatCurrency(a.totalLiveValueIDR)}` : '';
-            const avgStr = formatNativeAssetPrice(a.avgBuyPriceNative, a.currency);
-            const liveStr = formatNativeAssetPrice(a.livePriceNative, a.currency);
+            const val = (Number(a.qty) || 0) * (Number(a.currentPrice) || Number(a.buyPrice) || 0);
+            const cost = (Number(a.qty) || 0) * (Number(a.buyPrice) || 0);
+            const pnl = val - cost;
+            const pnlPct = cost > 0 ? ((pnl / cost) * 100).toFixed(1) : '0.0';
+            const isPos = pnl >= 0;
 
             return `
-              <div onclick="openAssetDetailModal('${a.id}', '${escapeHTML(a.symbol)}', '${escapeHTML(
-              a.category
-            )}', ${a.totalQty}, ${a.avgBuyPriceNative * a.fxRate}, ${a.totalInvestedIDR}, ${
-              a.livePriceNative * a.fxRate
-            }, ${a.totalLiveValueIDR}, ${a.pnlIDR}, ${
-              a.pnlPct
-            })" class="cursor-pointer p-4 rounded-[22px] bg-white dark:bg-[#111613] hover:border-[#0F5132]/40 dark:hover:border-emerald-500/40 border border-stone-200/70 dark:border-stone-800/80 shadow-sm flex items-center justify-between gap-3 transition active:scale-[0.99]">
-                <div class="flex items-center gap-3 min-w-0">
-                  ${getAssetAvatarHtml(a.symbol)}
-                  <div class="min-w-0">
-                    <div class="flex items-center gap-1.5 flex-wrap">
-                      <span class="text-[9px] font-extrabold uppercase px-2 py-0.5 rounded-full bg-[#EDF5F0] dark:bg-emerald-500/15 text-[#0F5132] dark:text-emerald-300">${escapeHTML(
-                        a.category || 'Asset'
-                      )}</span>
-                      ${
-                        a.currency !== 'IDR'
-                          ? `<span class="text-[9px] font-extrabold uppercase px-1.5 py-0.5 rounded-full bg-stone-100 dark:bg-stone-800 text-stone-500 dark:text-stone-400">${escapeHTML(
-                              a.currency
-                            )}</span>`
-                          : ''
-                      }
-                      ${
-                        a.lotCount > 1
-                          ? `<span class="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-amber-500/15 text-amber-700 dark:text-amber-300">${a.lotCount}x posisi</span>`
-                          : ''
-                      }
-                    </div>
-                    <p class="text-xs font-extrabold text-stone-900 dark:text-white truncate mt-1">${escapeHTML(
-                      headingLabel
-                    )}</p>
-                    <p class="text-[10px] text-stone-500 dark:text-stone-400 mt-0.5 truncate">${formatUnitQty(
-                      a.totalQty
-                    )} unit • Avg ${escapeHTML(avgStr)}</p>
-                    <p class="text-[10px] font-semibold text-[#0F5132] dark:text-emerald-400 mt-0.5 truncate">Live: ${escapeHTML(
-                      liveStr
-                    )}</p>
+              <div class="p-4 rounded-[22px] bg-white dark:bg-[#111613] border border-stone-200/70 dark:border-stone-800/80 shadow-sm flex items-center justify-between gap-3">
+                <div class="min-w-0">
+                  <div class="flex items-center gap-2">
+                    <span class="text-[9px] font-extrabold uppercase px-2 py-0.5 rounded-full bg-[#EDF5F0] dark:bg-emerald-500/15 text-[#0F5132] dark:text-emerald-300">${escapeHTML(a.category || 'Asset')}</span>
+                    <p class="text-xs font-extrabold text-stone-900 dark:text-white truncate">${escapeHTML(a.name)}</p>
                   </div>
+                  <p class="text-[11px] text-stone-500 dark:text-stone-400 mt-1">${a.qty} unit • Avg ${escapeHTML(formatCurrency(a.buyPrice))}</p>
                 </div>
                 <div class="text-right shrink-0">
-                  <p class="text-xs font-extrabold text-stone-900 dark:text-white privacy-mask" data-raw-text="${escapeHTML(
-                    nativeTotalStr
-                  )}">${isPrivacyEnabled() ? '••••••••' : escapeHTML(nativeTotalStr)}</p>
-                  ${
-                    idrSubStr
-                      ? `<p class="text-[10px] font-semibold text-stone-400 dark:text-stone-500 privacy-mask mt-0.5" data-raw-text="${escapeHTML(
-                          idrSubStr
-                        )}">${isPrivacyEnabled() ? '••••••••' : escapeHTML(idrSubStr)}</p>`
-                      : ''
-                  }
-                  <p class="text-[10px] font-bold ${
-                    isPos ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-500'
-                  } mt-0.5">${isPos ? '+' : ''}${a.pnlPct.toFixed(2)}%</p>
+                  <p class="text-xs font-extrabold text-stone-900 dark:text-white privacy-mask" data-raw-text="${escapeHTML(formatCurrency(val))}">${isPrivacyEnabled() ? '••••••••' : escapeHTML(formatCurrency(val))}</p>
+                  <p class="text-[10px] font-bold ${isPos ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-500'} mt-0.5">${isPos ? '+' : ''}${pnlPct}%</p>
                 </div>
               </div>
             `;
@@ -1702,14 +1472,14 @@
       }
     }
 
-    // Render Target Savings Goals
     const goalsEl = document.getElementById('porto-goals-list');
     if (goalsEl) {
-      const activeGoals = (state.goals || []).filter((g) => g.status !== 'COMPLETED');
-      if (activeGoals.length === 0) {
-        goalsEl.innerHTML = `<p class="text-xs text-stone-400 text-center py-4 bg-white/5 rounded-2xl border border-white/5">Belum ada target tabungan</p>`;
+      if (!state.goals || state.goals.length === 0) {
+        goalsEl.innerHTML = `<p class="text-xs text-stone-400 text-center py-4 bg-white/5 rounded-2xl border border-white/5">${
+          isEn ? 'No savings targets yet' : 'Belum ada target tabungan'
+        }</p>`;
       } else {
-        goalsEl.innerHTML = activeGoals
+        goalsEl.innerHTML = state.goals
           .map((g) => {
             const title = g.title || g.name || 'Target';
             const savedVal = Number(g.saved ?? g.current) || 0;
@@ -1720,17 +1490,15 @@
                 <div class="flex items-center justify-between gap-2">
                   <div>
                     <p class="text-xs font-extrabold text-white">${escapeHTML(title)}</p>
-                    <p class="text-[10px] text-stone-400 mt-0.5 privacy-mask" data-raw-text="${escapeHTML(
-                      formatCurrency(savedVal)
-                    )} / ${escapeHTML(formatCurrency(targetVal))}">${
-              isPrivacyEnabled() ? '••••••••' : `${escapeHTML(formatCurrency(savedVal))} / ${escapeHTML(formatCurrency(targetVal))}`
-            }</p>
+                    <p class="text-[10px] text-stone-400 mt-0.5 privacy-mask" data-raw-text="${escapeHTML(formatCurrency(savedVal))} / ${escapeHTML(formatCurrency(g.target))}">${
+                      isPrivacyEnabled() ? '••••••••' : `${escapeHTML(formatCurrency(savedVal))} / ${escapeHTML(formatCurrency(g.target))}`
+                    }</p>
                   </div>
                   <div class="flex items-center gap-2">
                     <span class="text-xs font-black text-emerald-400">${pct}%</span>
-                    <button type="button" onclick="topupGoal('${
-                      g.id
-                    }')" class="text-[10px] font-bold px-2.5 py-1 rounded-full bg-emerald-500/20 hover:bg-emerald-500/35 text-emerald-300 border border-emerald-400/25">+ Nabung</button>
+                    <button type="button" onclick="topupGoal('${g.id}')" class="text-[10px] font-bold px-2.5 py-1 rounded-full bg-emerald-500/20 hover:bg-emerald-500/35 text-emerald-300 border border-emerald-400/25">${
+                      isEn ? '+ Save' : '+ Nabung'
+                    }</button>
                   </div>
                 </div>
                 <div class="w-full h-2 rounded-full bg-white/10 overflow-hidden">
@@ -1743,10 +1511,10 @@
       }
     }
 
-    renderPortfolioDoughnut(mergedAssets, walletCash, goalsSavedTotal);
+    renderPortfolioDoughnut(cashTotal, walletCash, assetValue);
   }
 
-  function renderPortfolioDoughnut(mergedAssets, walletCash, goalsSavedTotal) {
+  function renderPortfolioDoughnut(cashTotal, walletCash, assetValue) {
     const canvas = document.getElementById('portfolioChart');
     if (!canvas || typeof Chart === 'undefined') return;
 
@@ -1755,25 +1523,11 @@
     }
 
     const isDark = document.documentElement.classList.contains('dark');
-    const labels = [];
-    const data = [];
-
-    if (goalsSavedTotal > 0) {
-      labels.push('Tabungan Target');
-      data.push(goalsSavedTotal);
-    }
-    if (walletCash > 0) {
-      labels.push('Dompet Investasi');
-      data.push(walletCash);
-    }
-    (mergedAssets || [])
-      .filter((a) => a.totalLiveValueIDR > 0)
-      .sort((a, b) => b.totalLiveValueIDR - a.totalLiveValueIDR)
-      .forEach((a) => {
-        labels.push(a.symbol);
-        data.push(a.totalLiveValueIDR);
-      });
-
+    const isEn = getLang() === 'en';
+    const labels = isEn
+      ? ['Cash & Bank', 'Investment Wallets', 'Portfolio Assets']
+      : ['Kas & Bank', 'Dompet Investasi', 'Aset Portofolio'];
+    const data = [cashTotal, walletCash, assetValue];
     const hasData = data.some((v) => v > 0);
 
     portfolioChartInstance = new Chart(canvas, {
@@ -1783,9 +1537,7 @@
         datasets: [
           {
             data: hasData ? data : [1],
-            backgroundColor: hasData
-              ? labels.map((_, i) => CHART_PALETTE[i % CHART_PALETTE.length])
-              : [isDark ? '#1E2722' : '#E7E5E4'],
+            backgroundColor: hasData ? ['#0F5132', '#10B981', '#D97706'] : [isDark ? '#1E2722' : '#E7E5E4'],
             borderColor: isDark ? '#111613' : '#FFFFFF',
             borderWidth: 3,
             hoverOffset: 6
@@ -1810,7 +1562,7 @@
   }
 
   /* --------------------------------------------------------------------------
-   * 11. HISTORY PAGE RENDERER, FILTERS & CATEGORY DOUGHNUT
+   * 10. HISTORY / FINANCIAL RECAP RENDERER, FILTERS & CATEGORY DOUGHNUT
    * -------------------------------------------------------------------------- */
   function setHistoryFilter(period) {
     historyPeriod = period;
@@ -1842,14 +1594,17 @@
       const btn = document.getElementById(`toggle-${t.toLowerCase()}`);
       if (!btn) return;
       const isActive = t === historyType;
-      btn.className = isActive
-        ? 'flex-1 py-2 rounded-full text-xs font-bold bg-[#0F5132] dark:bg-emerald-500 text-white dark:text-[#070908] shadow-sm transition-all toggle-active toggle-btn'
-        : 'flex-1 py-2 rounded-full text-xs font-bold text-stone-500 dark:text-stone-400 hover:text-stone-800 dark:hover:text-stone-200 transition-all toggle-btn';
+      btn.classList.toggle('toggle-active', isActive);
+      if (isActive) {
+        btn.className = 'flex-1 py-2 rounded-full text-xs font-extrabold bg-[#0F5132] dark:bg-emerald-500 text-white dark:text-[#070908] shadow-sm toggle-active toggle-btn transition';
+      } else {
+        btn.className = 'flex-1 py-2 rounded-full text-xs font-bold text-stone-500 dark:text-stone-400 hover:text-stone-800 dark:hover:text-stone-200 toggle-btn transition';
+      }
     });
   }
 
   function setHistoryType(type) {
-    historyType = String(type || 'OUTFLOW').toUpperCase();
+    historyType = type;
     updateHistoryTogglePills();
     renderHistoryPage();
   }
@@ -1870,8 +1625,7 @@
     historyCategoryFilter = catEl ? catEl.value : 'ALL';
 
     if (clearBtn) clearBtn.classList.toggle('hidden', !historySearchQuery);
-    const hasFilter =
-      Boolean(historySearchQuery) || historyAccountFilter !== 'ALL' || historyCategoryFilter !== 'ALL';
+    const hasFilter = Boolean(historySearchQuery) || historyAccountFilter !== 'ALL' || historyCategoryFilter !== 'ALL';
     if (resetBtn) resetBtn.classList.toggle('hidden', !hasFilter);
 
     renderHistoryPage();
@@ -1894,22 +1648,20 @@
   }
 
   function getPeriodFilteredTransactions() {
-    const now = new Date();
-    const ymPrefix = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+    const ymPrefix = currentYearMonth();
     const sevenDaysAgo = offsetDateISO(-7);
     const startCustom = document.getElementById('date-start')?.value || '';
     const endCustom = document.getElementById('date-end')?.value || '';
 
     return (state.transactions || []).filter((t) => {
-      if (!t.date) return false;
-      const normType = normalizeTrxType(t);
-      if (normType === 'NEUTRAL') return false;
-      const dateStr = toLocalISODate(t.date);
-      if (historyPeriod === 'month') return dateStr.startsWith(ymPrefix);
-      if (historyPeriod === '7days') return dateStr >= sevenDaysAgo;
+      if (t.type === 'NEUTRAL') return false;
+      const dStr = normalizeDateISO(t.date, '');
+      if (!dStr) return false;
+      if (historyPeriod === 'month') return dStr.startsWith(ymPrefix);
+      if (historyPeriod === '7days') return dStr >= sevenDaysAgo;
       if (historyPeriod === 'custom') {
-        if (startCustom && dateStr < startCustom) return false;
-        if (endCustom && dateStr > endCustom) return false;
+        if (startCustom && dStr < startCustom) return false;
+        if (endCustom && dStr > endCustom) return false;
         return true;
       }
       return true;
@@ -1919,29 +1671,30 @@
   function populateHistoryDropdowns() {
     const accEl = document.getElementById('hist-filter-account');
     const catEl = document.getElementById('hist-filter-category');
+    const isEn = getLang() === 'en';
 
     if (accEl) {
       const current = accEl.value || 'ALL';
-      const opts = [`<option value="ALL">${getLang() === 'id' ? 'Semua Akun' : 'All Accounts'}</option>`];
+      const opts = [`<option value="ALL">${isEn ? 'All Accounts' : 'Semua Akun'}</option>`];
       getUserAccounts().forEach((a) => {
         opts.push(`<option value="${escapeHTML(a.id)}">${escapeHTML(a.name)}</option>`);
       });
       accEl.innerHTML = opts.join('');
-      accEl.value = Array.from(accEl.options).some((o) => o.value === current) ? current : 'ALL';
+      accEl.value = current;
     }
 
     if (catEl) {
       const current = catEl.value || 'ALL';
       const cats = new Set();
       (state.transactions || []).forEach((t) => {
-        if (t.category) cats.add(t.category);
+        if (t.category && t.type !== 'NEUTRAL') cats.add(t.category);
       });
-      const opts = [`<option value="ALL">${getLang() === 'id' ? 'Semua Kategori' : 'All Categories'}</option>`];
+      const opts = [`<option value="ALL">${isEn ? 'All Categories' : 'Semua Kategori'}</option>`];
       Array.from(cats).forEach((c) => {
         opts.push(`<option value="${escapeHTML(c)}">${escapeHTML(c)}</option>`);
       });
       catEl.innerHTML = opts.join('');
-      catEl.value = Array.from(catEl.options).some((o) => o.value === current) ? current : 'ALL';
+      catEl.value = current;
     }
   }
 
@@ -1949,15 +1702,15 @@
     updateHistoryTogglePills();
     populateHistoryDropdowns();
 
+    const isEn = getLang() === 'en';
     const periodTrx = getPeriodFilteredTransactions();
     let totalIn = 0;
     let totalOut = 0;
 
     periodTrx.forEach((t) => {
-      const normType = normalizeTrxType(t);
-      const amt = Number(t.amount) || extractNumber(t.Jumlah) || 0;
-      if (normType === 'INFLOW') totalIn += amt;
-      else if (normType === 'OUTFLOW') totalOut += amt;
+      const amt = Math.abs(Number(t.amount) || 0);
+      if (t.type === 'INFLOW') totalIn += amt;
+      else if (t.type === 'OUTFLOW') totalOut += amt;
     });
 
     const diff = totalIn - totalOut;
@@ -1969,58 +1722,40 @@
       diff
     );
 
-    // Category breakdown & Doughnut Chart for active historyType (INFLOW / OUTFLOW / TRANSFER)
+    // Category breakdown for selected historyType
     const byCat = {};
-    const countByCat = {};
     let typeTotal = 0;
-
     periodTrx
-      .filter((t) => {
-        const normType = normalizeTrxType(t);
-        if (historyType === 'TRANSFER') {
-          if (normType !== 'TRANSFER') return false;
-          const catLow = String(t.category || '').toLowerCase();
-          // Avoid double-counting paired Transfer Keluar + Transfer Masuk in doughnut total
-          if (catLow === 'transfer keluar') return false;
-          return true;
-        }
-        return normType === historyType;
-      })
+      .filter((t) => t.type === historyType)
       .forEach((t) => {
-        const amt = Number(t.amount) || extractNumber(t.Jumlah) || 0;
-        const accObj = state.accounts.find((a) => a.id === t.accountId || a.name === t.accountId);
-        const key =
-          historyType === 'TRANSFER'
-            ? accObj
-              ? accObj.name
-              : t.accountId || t.category || 'Transfer'
-            : t.category || 'Lainnya';
+        const key = t.category || 'Lainnya';
+        const amt = Math.abs(Number(t.amount) || 0);
         byCat[key] = (byCat[key] || 0) + amt;
-        countByCat[key] = (countByCat[key] || 0) + 1;
         typeTotal += amt;
       });
 
     setMaskedValue(document.getElementById('chart-center-val'), formatCurrency(typeTotal), typeTotal);
     renderCategoryDoughnut(byCat);
-    renderCategoryBreakdownList(byCat, countByCat, typeTotal);
+    renderCategoryBreakdownList(byCat, typeTotal);
 
-    // Apply search + account + category filters for bottom transaction list
+    // Apply search + account + category filters for transaction list
+    const selectedAccObj = historyAccountFilter !== 'ALL' ? findAccountByRef(historyAccountFilter) : null;
+
     const filteredList = periodTrx
       .filter((t) => {
         if (historyAccountFilter !== 'ALL') {
-          const matchingAcc = state.accounts.find((a) => a.id === historyAccountFilter);
           const matchesId = t.accountId === historyAccountFilter;
-          const matchesName = matchingAcc && t.accountId === matchingAcc.name;
+          const matchesName = selectedAccObj && String(t.accountName || t.accountId || '').trim().toLowerCase() === selectedAccObj.name.trim().toLowerCase();
           if (!matchesId && !matchesName) return false;
         }
         if (historyCategoryFilter !== 'ALL' && t.category !== historyCategoryFilter) return false;
         if (historySearchQuery) {
-          const hay = `${t.note || ''} ${t.category || ''} ${t.amount || ''}`.toLowerCase();
+          const hay = `${t.note || ''} ${t.category || ''} ${t.amount || ''} ${t.accountName || ''}`.toLowerCase();
           if (!hay.includes(historySearchQuery)) return false;
         }
         return true;
       })
-      .sort((a, b) => toLocalISODate(b.date).localeCompare(toLocalISODate(a.date)));
+      .sort((a, b) => normalizeDateISO(b.date, '').localeCompare(normalizeDateISO(a.date, '')));
 
     const badge = document.getElementById('hist-count-badge');
     if (badge) badge.textContent = String(filteredList.length);
@@ -2029,56 +1764,44 @@
     if (!listEl) return;
 
     if (filteredList.length === 0) {
-      listEl.innerHTML = `<div class="p-8 text-center text-xs font-semibold text-stone-400">Tidak ada transaksi yang cocok dengan filter</div>`;
+      listEl.innerHTML = `<div class="p-8 text-center text-xs font-semibold text-stone-400">${
+        isEn ? 'No transactions match the selected filter' : 'Tidak ada transaksi yang cocok dengan filter'
+      }</div>`;
       return;
     }
 
     listEl.innerHTML = filteredList
       .map((t, idx) => {
-        const acc = state.accounts.find((a) => a.id === t.accountId || a.name === t.accountId);
-        const normType = normalizeTrxType(t);
-        const rawDir = String(t.rawTipe || t.type || '').toUpperCase();
-        const catLow = String(t.category || '').toLowerCase();
-        const isIn = normType === 'INFLOW';
-        const isTf = normType === 'TRANSFER';
-        const isOutDir = !isIn && (!isTf || catLow.includes('keluar') || rawDir === 'OUTFLOW');
-
+        const acc = findAccountByRef(t.accountId);
+        const accLabel = acc ? acc.name : (t.accountName || t.accountId || '-');
+        const dateLabel = normalizeDateISO(t.date, t.date || '-');
+        const isIn = t.type === 'INFLOW';
+        const isTf = t.type === 'TRANSFER';
         const badgeBg = isIn
           ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300'
           : isTf
-          ? 'bg-sky-500/15 text-sky-700 dark:text-sky-300'
-          : 'bg-red-500/15 text-red-600 dark:text-red-400';
+            ? 'bg-sky-500/15 text-sky-700 dark:text-sky-300'
+            : 'bg-red-500/15 text-red-600 dark:text-red-400';
         const amountColor = isIn
           ? 'text-[#0F5132] dark:text-emerald-400'
           : isTf
-          ? 'text-sky-600 dark:text-sky-400'
-          : 'text-red-600 dark:text-red-400';
-        const sign = isIn ? '+' : isTf ? (catLow.includes('masuk') ? '+' : '-') : isOutDir ? '-' : '';
-        const dateLabel = toLocalISODate(t.date);
+            ? 'text-sky-600 dark:text-sky-400'
+            : 'text-red-600 dark:text-red-400';
+        const sign = isIn ? '+' : isTf ? '' : '-';
 
         return `
-          <div class="p-4 flex items-center justify-between gap-3 ${
-            idx > 0 ? 'border-t border-stone-100 dark:border-stone-800/70' : ''
-          } hover:bg-[#FAF8F5] dark:hover:bg-[#161D19] transition">
+          <div class="p-4 flex items-center justify-between gap-3 ${idx > 0 ? 'border-t border-stone-100 dark:border-stone-800/70' : ''} hover:bg-[#FAF8F5] dark:hover:bg-[#161D19] transition">
             <div class="min-w-0">
               <div class="flex items-center gap-2">
-                <span class="text-[9px] font-extrabold uppercase px-2 py-0.5 rounded-full ${badgeBg}">${escapeHTML(
-          t.category
-        )}</span>
+                <span class="text-[9px] font-extrabold uppercase px-2 py-0.5 rounded-full ${badgeBg}">${escapeHTML(t.category)}</span>
                 <span class="text-[10px] font-semibold text-stone-400">${escapeHTML(dateLabel)}</span>
               </div>
-              <p class="text-xs font-extrabold text-stone-900 dark:text-white truncate mt-1">${escapeHTML(
-                t.note || t.category
-              )}</p>
-              <p class="text-[10px] text-stone-400 mt-0.5">${escapeHTML(acc ? acc.name : t.accountId || '-')}</p>
+              <p class="text-xs font-extrabold text-stone-900 dark:text-white truncate mt-1">${escapeHTML(t.note || t.category)}</p>
+              <p class="text-[10px] text-stone-400 mt-0.5">${escapeHTML(accLabel)}</p>
             </div>
             <div class="flex items-center gap-2 shrink-0">
-              <span class="text-xs font-extrabold ${amountColor} privacy-mask" data-raw-text="${sign}${escapeHTML(
-          formatCurrency(t.amount)
-        )}">${isPrivacyEnabled() ? '••••••••' : `${sign}${escapeHTML(formatCurrency(t.amount))}`}</span>
-              <button type="button" onclick="deleteTransaction('${
-                t.id
-              }')" class="text-stone-400 hover:text-red-500 p-1 transition" title="Hapus">
+              <span class="text-xs font-extrabold ${amountColor} privacy-mask" data-raw-text="${sign}${escapeHTML(formatCurrency(t.amount))}">${isPrivacyEnabled() ? '••••••••' : `${sign}${escapeHTML(formatCurrency(t.amount))}`}</span>
+              <button type="button" onclick="deleteTransaction('${t.id}')" class="text-stone-400 hover:text-red-500 p-1 transition" title="${isEn ? 'Delete' : 'Hapus'}">
                 <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
               </button>
             </div>
@@ -2098,7 +1821,7 @@
 
     const isDark = document.documentElement.classList.contains('dark');
     const entries = Object.entries(byCat).sort((a, b) => b[1] - a[1]);
-    const hasData = entries.length > 0 && entries.some((e) => e[1] > 0);
+    const hasData = entries.length > 0;
 
     categoryChartInstance = new Chart(canvas, {
       type: 'doughnut',
@@ -2111,8 +1834,7 @@
               ? entries.map((_, i) => CHART_PALETTE[i % CHART_PALETTE.length])
               : [isDark ? '#1E2722' : '#E7E5E4'],
             borderColor: isDark ? '#111613' : '#FFFFFF',
-            borderWidth: 3,
-            hoverOffset: 5
+            borderWidth: 3
           }
         ]
       },
@@ -2133,33 +1855,31 @@
     });
   }
 
-  function renderCategoryBreakdownList(byCat, countByCat, total) {
+  function renderCategoryBreakdownList(byCat, total) {
     const listEl = document.getElementById('history-category-list');
     if (!listEl) return;
 
+    const isEn = getLang() === 'en';
     const entries = Object.entries(byCat).sort((a, b) => b[1] - a[1]);
     if (entries.length === 0) {
-      listEl.innerHTML = `<p class="text-xs text-stone-400 text-center py-2">Belum ada data kategori pada periode ini</p>`;
+      listEl.innerHTML = `<p class="text-xs text-stone-400 text-center py-2">${
+        isEn ? 'No category data for this period' : 'Belum ada data kategori pada periode ini'
+      }</p>`;
       return;
     }
 
     listEl.innerHTML = entries
       .map(([cat, amt], idx) => {
         const pct = total > 0 ? Math.round((amt / total) * 100) : 0;
-        const count = countByCat[cat] || 1;
         const color = CHART_PALETTE[idx % CHART_PALETTE.length];
         return `
-          <div class="flex items-center justify-between py-2.5 px-3 rounded-xl bg-[#FAF8F5] dark:bg-[#161D19]">
+          <div class="flex items-center justify-between py-2 px-3 rounded-xl bg-[#FAF8F5] dark:bg-[#161D19]">
             <div class="flex items-center gap-2.5 min-w-0">
               <span class="w-2.5 h-2.5 rounded-full shrink-0" style="background:${color}"></span>
-              <div class="min-w-0">
-                <p class="text-xs font-bold text-stone-800 dark:text-stone-200 truncate">${escapeHTML(cat)}</p>
-                <p class="text-[10px] text-stone-400">${count} transaksi • ${pct}%</p>
-              </div>
+              <span class="text-xs font-bold text-stone-800 dark:text-stone-200 truncate">${escapeHTML(cat)}</span>
+              <span class="text-[10px] font-bold text-stone-400">${pct}%</span>
             </div>
-            <span class="text-xs font-extrabold text-stone-900 dark:text-white privacy-mask shrink-0" data-raw-text="${escapeHTML(
-              formatCurrency(amt)
-            )}">${isPrivacyEnabled() ? '••••••••' : escapeHTML(formatCurrency(amt))}</span>
+            <span class="text-xs font-extrabold text-stone-900 dark:text-white privacy-mask shrink-0" data-raw-text="${escapeHTML(formatCurrency(amt))}">${isPrivacyEnabled() ? '••••••••' : escapeHTML(formatCurrency(amt))}</span>
           </div>
         `;
       })
@@ -2167,7 +1887,7 @@
   }
 
   /* --------------------------------------------------------------------------
-   * 12. SETTINGS PAGE FALLBACK & RENDERER
+   * 11. SETTINGS PAGE FALLBACK & RENDERER
    * -------------------------------------------------------------------------- */
   function buildFallbackSettingsHTML() {
     return `
@@ -2264,11 +1984,12 @@
   }
 
   /* --------------------------------------------------------------------------
-   * 13. MODALS & CRUD OPERATIONS
+   * 12. MODALS & CRUD OPERATIONS
    * -------------------------------------------------------------------------- */
   function openModal(modalId, param) {
     if (modalId === 'modal-account' || modalId === 'modal-manage-account') {
-      modalId = document.getElementById('modal-manage-account') ? 'modal-manage-account' : 'modal-account';
+      const targetId = document.getElementById('modal-manage-account') ? 'modal-manage-account' : 'modal-account';
+      modalId = targetId;
     }
 
     const modal = document.getElementById(modalId);
@@ -2280,11 +2001,7 @@
     populateModalAccountSelects();
 
     if (modalId === 'modal-trx') {
-      const rawType =
-        param ||
-        document.getElementById('trx-type')?.value ||
-        document.getElementById('form-trx-tipe')?.value ||
-        'OUTFLOW';
+      const rawType = param || document.getElementById('trx-type')?.value || document.getElementById('form-trx-tipe')?.value || 'OUTFLOW';
       const type = rawType.toUpperCase().includes('IN') || rawType === 'pemasukan' ? 'INFLOW' : 'OUTFLOW';
 
       const typeInput = document.getElementById('trx-type') || document.getElementById('form-trx-tipe');
@@ -2292,7 +2009,10 @@
 
       const titleEl = document.getElementById('modal-trx-title');
       if (titleEl) {
-        titleEl.textContent = type === 'INFLOW' ? 'Pemasukan Baru' : 'Pengeluaran Baru';
+        const isEn = getLang() === 'en';
+        titleEl.textContent = type === 'INFLOW'
+          ? (isEn ? 'New Income' : 'Pemasukan Baru')
+          : (isEn ? 'New Expenditure' : 'Pengeluaran Baru');
       }
 
       const dateInput = document.getElementById('trx-date') || document.getElementById('form-trx-date');
@@ -2306,11 +2026,7 @@
       renderDebtHistoryModal();
     }
 
-    if (modalId === 'modal-export-pdf') {
-      renderExportModal();
-    }
-
-    modal.classList.remove('hidden', 'hidden-page');
+    modal.classList.remove('hidden');
     modal.classList.add('flex');
   }
 
@@ -2330,9 +2046,7 @@
 
   function populateModalAccountSelects() {
     const accounts = getUserAccounts();
-    const html = accounts
-      .map((a) => `<option value="${escapeHTML(a.id)}">${escapeHTML(a.name)} (${formatCurrency(a.balance)})</option>`)
-      .join('');
+    const html = accounts.map((a) => `<option value="${a.id}">${escapeHTML(a.name)} (${formatCurrency(a.balance)})</option>`).join('');
     [
       'trx-account',
       'form-trx-account',
@@ -2353,29 +2067,16 @@
       if (el) el.innerHTML = html;
     });
 
-    const walletEl =
-      document.getElementById('asset-wallet') ||
-      document.getElementById('form-buy-asset-wallet') ||
-      document.getElementById('form-asset-wallet') ||
-      document.getElementById('form-asset-account');
+    const walletEl = document.getElementById('asset-wallet') || document.getElementById('form-buy-asset-wallet') || document.getElementById('form-asset-wallet');
     if (walletEl) {
-      const walletOpts = (state.wallets || []).map(
-        (w) => `<option value="${escapeHTML(w.id)}">${escapeHTML(w.name)}</option>`
-      );
-      const accOpts = accounts.map((a) => `<option value="${escapeHTML(a.id)}">${escapeHTML(a.name)}</option>`);
-      walletEl.innerHTML = [...walletOpts, ...accOpts].join('');
-    }
-
-    const exportAccEl = document.getElementById('export-pdf-account');
-    if (exportAccEl) {
-      const opts = ['<option value="ALL">SEMUA REKENING</option>'];
-      accounts.forEach((a) => opts.push(`<option value="${escapeHTML(a.name)}">${escapeHTML(a.name)}</option>`));
-      exportAccEl.innerHTML = opts.join('');
+      walletEl.innerHTML = (state.wallets || [])
+        .map((w) => `<option value="${w.id}">${escapeHTML(w.name)}</option>`)
+        .join('');
     }
   }
 
   function populateTrxCategories(type) {
-    const normType = type === 'pemasukan' ? 'INFLOW' : type === 'pengeluaran' ? 'OUTFLOW' : type;
+    const normType = type === 'pemasukan' ? 'INFLOW' : (type === 'pengeluaran' ? 'OUTFLOW' : type);
     const catSelects = [document.getElementById('trx-category'), document.getElementById('form-trx-category')];
     const list = state.categories[normType] || state.categories.OUTFLOW;
     catSelects.forEach((catSelect) => {
@@ -2438,18 +2139,12 @@
   function saveAccount(e) {
     if (e && typeof e.preventDefault === 'function') e.preventDefault();
     const id = document.getElementById('form-acc-id')?.value || document.getElementById('acc-id')?.value || '';
-    const name =
-      document.getElementById('form-acc-name')?.value?.trim() || document.getElementById('acc-name')?.value?.trim();
-    const number =
-      document.getElementById('form-acc-number')?.value?.trim() ||
-      document.getElementById('acc-number')?.value?.trim() ||
-      '•••• 8899';
-    const rawBal =
-      document.getElementById('form-acc-balance')?.value || document.getElementById('acc-balance')?.value || '0';
+    const name = document.getElementById('form-acc-name')?.value?.trim() || document.getElementById('acc-name')?.value?.trim();
+    const number = document.getElementById('form-acc-number')?.value?.trim() || document.getElementById('acc-number')?.value?.trim() || '•••• 8899';
+    const rawBal = document.getElementById('form-acc-balance')?.value || document.getElementById('acc-balance')?.value || '0';
     const balance = Number(String(rawBal).replace(/[^0-9]/g, '')) || 0;
     const type = document.getElementById('form-acc-type')?.value || 'Bank';
-    const theme =
-      document.getElementById('acc-theme')?.value || (type.toUpperCase().includes('WALLET') ? 'ewallet' : 'emerald');
+    const theme = document.getElementById('acc-theme')?.value || (type.toUpperCase().includes('WALLET') ? 'ewallet' : 'emerald');
 
     if (!name) {
       showToast('Nama akun wajib diisi', 'warning');
@@ -2464,20 +2159,12 @@
       existing.number = number;
       existing.balance = balance;
       existing.theme = theme;
-      existing.type = type.toUpperCase().includes('WALLET')
-        ? 'E-WALLET'
-        : type.toUpperCase().includes('TUNAI') || type.toUpperCase().includes('CASH')
-        ? 'CASH'
-        : 'BANK';
+      existing.type = type.toUpperCase().includes('WALLET') ? 'E-WALLET' : (type.toUpperCase().includes('TUNAI') || type.toUpperCase().includes('CASH') ? 'CASH' : 'BANK');
     } else {
       state.accounts.push({
         id: 'acc_' + Date.now(),
         name,
-        type: type.toUpperCase().includes('WALLET')
-          ? 'E-WALLET'
-          : type.toUpperCase().includes('TUNAI') || type.toUpperCase().includes('CASH')
-          ? 'CASH'
-          : 'BANK',
+        type: type.toUpperCase().includes('WALLET') ? 'E-WALLET' : (type.toUpperCase().includes('TUNAI') || type.toUpperCase().includes('CASH') ? 'CASH' : 'BANK'),
         number,
         balance,
         theme,
@@ -2519,34 +2206,22 @@
 
   function saveTransaction(e) {
     if (e && typeof e.preventDefault === 'function') e.preventDefault();
-    const rawType =
-      document.getElementById('trx-type')?.value || document.getElementById('form-trx-tipe')?.value || 'OUTFLOW';
+    const rawType = document.getElementById('trx-type')?.value || document.getElementById('form-trx-tipe')?.value || 'OUTFLOW';
     const type = rawType.toUpperCase().includes('IN') || rawType === 'pemasukan' ? 'INFLOW' : 'OUTFLOW';
     const amountEl = document.getElementById('trx-amount') || document.getElementById('form-trx-amount');
     const rawAmount = amountEl?.value || '0';
-    const amount =
-      typeof rawAmount === 'number' ? rawAmount : Number(String(rawAmount).replace(/[^0-9]/g, '')) || 0;
-    const category =
-      document.getElementById('trx-category')?.value ||
-      document.getElementById('form-trx-category')?.value ||
-      'Lainnya';
-    const accountId =
-      document.getElementById('trx-account')?.value ||
-      document.getElementById('form-trx-account')?.value ||
-      getUserAccounts()[0]?.id;
-    const date =
-      document.getElementById('trx-date')?.value || document.getElementById('form-trx-date')?.value || todayISO();
-    const note =
-      document.getElementById('trx-note')?.value?.trim() ||
-      document.getElementById('form-trx-desc')?.value?.trim() ||
-      category;
+    const amount = typeof rawAmount === 'number' ? rawAmount : (Number(String(rawAmount).replace(/[^0-9]/g, '')) || 0);
+    const category = document.getElementById('trx-category')?.value || document.getElementById('form-trx-category')?.value || 'Lainnya';
+    const accountId = document.getElementById('trx-account')?.value || document.getElementById('form-trx-account')?.value || getUserAccounts()[0]?.id;
+    const date = normalizeDateISO(document.getElementById('trx-date')?.value || document.getElementById('form-trx-date')?.value, todayISO());
+    const note = document.getElementById('trx-note')?.value?.trim() || document.getElementById('form-trx-desc')?.value?.trim() || category;
 
     if (amount <= 0) {
       showToast('Nominal transaksi harus lebih dari 0', 'warning');
       return;
     }
 
-    const acc = state.accounts.find((a) => a.id === accountId || a.name === accountId);
+    const acc = findAccountByRef(accountId);
     if (acc) {
       if (type === 'INFLOW') acc.balance = (Number(acc.balance) || 0) + amount;
       else if (type === 'OUTFLOW') acc.balance = (Number(acc.balance) || 0) - amount;
@@ -2554,11 +2229,12 @@
 
     state.transactions.unshift({
       id: 'trx_' + Date.now(),
-      date: toLocalISODate(date),
+      date,
       type,
       category,
       amount,
       accountId: acc ? acc.id : accountId,
+      accountName: acc ? acc.name : accountId,
       note,
       receipt: ''
     });
@@ -2576,7 +2252,7 @@
     apiPost({
       action: 'addTransaction',
       email: getSessionEmail(),
-      tanggal: `${toLocalISODate(date)} 12:00`,
+      tanggal: `${date} 12:00`,
       tipe: type,
       akun: accountName,
       kategori: category,
@@ -2590,33 +2266,27 @@
     if (idx === -1) return;
     const trx = state.transactions[idx];
 
-    const acc = state.accounts.find((a) => a.id === trx.accountId || a.name === trx.accountId);
+    const acc = findAccountByRef(trx.accountId);
     if (acc) {
-      const normType = normalizeTrxType(trx);
-      if (normType === 'INFLOW') acc.balance = (Number(acc.balance) || 0) - (Number(trx.amount) || 0);
-      else if (normType === 'OUTFLOW') acc.balance = (Number(acc.balance) || 0) + (Number(trx.amount) || 0);
+      if (trx.type === 'INFLOW') acc.balance = (Number(acc.balance) || 0) - (Number(trx.amount) || 0);
+      else if (trx.type === 'OUTFLOW') acc.balance = (Number(acc.balance) || 0) + (Number(trx.amount) || 0);
     }
 
     state.transactions.splice(idx, 1);
     saveState();
     renderCurrentPage();
-    showToast('Transaksi dihapus & saldo disesuaikan', 'info');
+    showToast(getLang() === 'en' ? 'Transaction deleted & balance updated' : 'Transaksi dihapus & saldo disesuaikan', 'info');
   }
 
   function saveTransfer(e) {
     if (e && typeof e.preventDefault === 'function') e.preventDefault();
     const fromId = document.getElementById('tf-from')?.value || document.getElementById('form-tf-from')?.value;
     const toId = document.getElementById('tf-to')?.value || document.getElementById('form-tf-to')?.value;
-    const rawAmt =
-      document.getElementById('tf-amount')?.value || document.getElementById('form-tf-amount')?.value || '0';
+    const rawAmt = document.getElementById('tf-amount')?.value || document.getElementById('form-tf-amount')?.value || '0';
     const amount = Number(String(rawAmt).replace(/[^0-9]/g, '')) || 0;
-    const rawFee =
-      document.getElementById('tf-fee')?.value || document.getElementById('form-tf-admin')?.value || '0';
+    const rawFee = document.getElementById('tf-fee')?.value || document.getElementById('form-tf-admin')?.value || '0';
     const adminFee = Number(String(rawFee).replace(/[^0-9]/g, '')) || 0;
-    const note =
-      document.getElementById('tf-note')?.value?.trim() ||
-      document.getElementById('form-tf-desc')?.value?.trim() ||
-      'Transfer Antar Akun';
+    const note = document.getElementById('tf-note')?.value?.trim() || document.getElementById('form-tf-desc')?.value?.trim() || 'Transfer Antar Akun';
 
     if (!fromId || !toId || fromId === toId) {
       showToast('Pilih akun asal dan tujuan yang berbeda', 'warning');
@@ -2627,8 +2297,8 @@
       return;
     }
 
-    const fromAcc = state.accounts.find((a) => a.id === fromId || a.name === fromId);
-    const toAcc = state.accounts.find((a) => a.id === toId || a.name === toId);
+    const fromAcc = findAccountByRef(fromId);
+    const toAcc = findAccountByRef(toId);
     if (fromAcc) fromAcc.balance = (Number(fromAcc.balance) || 0) - (amount + adminFee);
     if (toAcc) toAcc.balance = (Number(toAcc.balance) || 0) + amount;
 
@@ -2639,6 +2309,7 @@
       category: 'Transfer Antar Akun',
       amount,
       accountId: fromAcc ? fromAcc.id : fromId,
+      accountName: fromAcc ? fromAcc.name : fromId,
       note: `${note} (${fromAcc?.name || ''} → ${toAcc?.name || ''})`
     });
 
@@ -2655,7 +2326,7 @@
       tanggal: `${todayISO()} 12:00`,
       tipe: 'OUTFLOW',
       akun: fromName,
-      kategori: 'Transfer Keluar',
+      kategori: 'Transfer',
       jumlah: amount + adminFee,
       keterangan: `Transfer ke ${toName}`
     });
@@ -2665,7 +2336,7 @@
       tanggal: `${todayISO()} 12:00`,
       tipe: 'INFLOW',
       akun: toName,
-      kategori: 'Transfer Masuk',
+      kategori: 'Transfer',
       jumlah: amount,
       keterangan: `Transfer dari ${fromName}`
     });
@@ -2673,37 +2344,26 @@
 
   function saveRecurring(e) {
     if (e && typeof e.preventDefault === 'function') e.preventDefault();
-    const name =
-      document.getElementById('form-rec-name')?.value?.trim() ||
-      document.getElementById('rec-name')?.value?.trim() ||
-      document.getElementById('form-rec-nama')?.value?.trim();
-    const rawAmt =
-      document.getElementById('form-rec-amount')?.value || document.getElementById('rec-amount')?.value || '0';
+    const name = document.getElementById('form-rec-name')?.value?.trim() || document.getElementById('rec-name')?.value?.trim() || document.getElementById('form-rec-nama')?.value?.trim();
+    const rawAmt = document.getElementById('form-rec-amount')?.value || document.getElementById('rec-amount')?.value || '0';
     const amount = Number(String(rawAmt).replace(/[^0-9]/g, '')) || 0;
-    const dueDate =
-      document.getElementById('form-rec-date')?.value ||
-      document.getElementById('rec-date')?.value ||
-      document.getElementById('form-rec-tgl')?.value ||
-      '1';
-    const accountId =
-      document.getElementById('form-rec-account')?.value ||
-      document.getElementById('rec-account')?.value ||
-      document.getElementById('form-rec-rek')?.value ||
-      getUserAccounts()[0]?.id;
+    const dueDate = document.getElementById('form-rec-date')?.value || document.getElementById('rec-date')?.value || document.getElementById('form-rec-tgl')?.value || '1';
+    const accountId = document.getElementById('form-rec-account')?.value || document.getElementById('rec-account')?.value || document.getElementById('form-rec-rek')?.value || getUserAccounts()[0]?.id;
 
     if (!name || amount <= 0) {
       showToast('Lengkapi nama tagihan dan nominal', 'warning');
       return;
     }
 
+    const acc = findAccountByRef(accountId);
     state.recurring.push({
       id: 'rec_' + Date.now(),
       name,
       amount,
       cycle: 'Monthly',
       dueDate,
-      accountId,
-      category: 'Tagihan & Utilitas',
+      accountId: acc ? acc.id : accountId,
+      category: 'Tagihan',
       active: true
     });
 
@@ -2712,7 +2372,6 @@
     renderCurrentPage();
     showToast('Tagihan rutin berhasil disimpan', 'success');
 
-    const acc = state.accounts.find((a) => a.id === accountId || a.name === accountId);
     apiPost({
       action: 'addRecurring',
       email: getSessionEmail(),
@@ -2725,42 +2384,68 @@
   }
 
   function payRecurringNow(recId) {
-    const rec = state.recurring.find((r) => r.id === recId);
+    const rec = (state.recurring || []).find((r) => r.id === recId);
     if (!rec) return;
 
-    const acc = state.accounts.find((a) => a.id === rec.accountId || a.name === rec.accountId) || getUserAccounts()[0];
-    if (acc) acc.balance = (Number(acc.balance) || 0) - (Number(rec.amount) || 0);
+    const isEn = getLang() === 'en';
+    if (isRecurringPaidThisMonth(rec)) {
+      showToast(isEn ? `${rec.name} is already paid this month` : `Tagihan ${rec.name} bulan ini sudah dibayar`, 'info');
+      return;
+    }
+
+    const acc = findAccountByRef(rec.accountId) || getUserAccounts()[0];
+    const billAmt = Math.abs(Number(rec.amount) || 0);
+    if (acc) acc.balance = (Number(acc.balance) || 0) - billAmt;
+
+    const nowDate = todayISO();
+    const ymPrefix = currentYearMonth();
+    rec.lastPaidMonth = ymPrefix;
 
     state.transactions.unshift({
       id: 'trx_' + Date.now(),
-      date: todayISO(),
+      date: nowDate,
       type: 'OUTFLOW',
-      category: rec.category || 'Tagihan & Utilitas',
-      amount: Number(rec.amount) || 0,
+      category: rec.category || 'Tagihan',
+      amount: billAmt,
       accountId: acc ? acc.id : '',
-      note: `Pembayaran Rutin: ${rec.name}`
+      accountName: acc ? acc.name : '',
+      note: `Tagihan Berulang: ${rec.name}`,
+      refId: rec.id
     });
 
-    if (String(rec.dueDate || '').includes('-')) {
+    // Advance dueDate by 1 month if stored as YYYY-MM-DD
+    if (/^\d{4}-\d{2}-\d{2}$/.test(String(rec.dueDate || ''))) {
       const nextDue = new Date(rec.dueDate + 'T00:00:00');
-      if (!isNaN(nextDue.getTime())) {
-        nextDue.setMonth(nextDue.getMonth() + 1);
-        rec.dueDate = `${nextDue.getFullYear()}-${String(nextDue.getMonth() + 1).padStart(2, '0')}-${String(
-          nextDue.getDate()
-        ).padStart(2, '0')}`;
-      }
+      nextDue.setMonth(nextDue.getMonth() + 1);
+      rec.dueDate = formatLocalYMD(nextDue);
     }
 
     saveState();
     renderCurrentPage();
-    showToast(`Tagihan ${rec.name} dibayar!`, 'success');
+    showToast(isEn ? `${rec.name} paid!` : `Tagihan ${rec.name} dibayar!`, 'success');
+
+    // Sync recurring payment to Google Sheets (T_Transaksi)
+    const nowTime = new Date();
+    const hh = String(nowTime.getHours()).padStart(2, '0');
+    const mm = String(nowTime.getMinutes()).padStart(2, '0');
+    apiPost({
+      action: 'addTransaction',
+      email: getSessionEmail(),
+      tanggal: `${nowDate} ${hh}:${mm}`,
+      tipe: 'OUTFLOW',
+      akun: acc ? acc.name : '',
+      kategori: 'Tagihan',
+      jumlah: billAmt,
+      keterangan: `Tagihan Berulang: ${rec.name}`,
+      refId: rec.id
+    });
   }
 
   function deleteRecurring(recId) {
-    state.recurring = state.recurring.filter((r) => r.id !== recId);
+    state.recurring = (state.recurring || []).filter((r) => r.id !== recId);
     saveState();
     renderCurrentPage();
-    showToast('Tagihan rutin dihapus', 'info');
+    showToast(getLang() === 'en' ? 'Recurring bill deleted' : 'Tagihan rutin dihapus', 'info');
 
     apiPost({
       action: 'deleteRecurring',
@@ -2771,25 +2456,13 @@
 
   function saveDebt(e) {
     if (e && typeof e.preventDefault === 'function') e.preventDefault();
-    const rawType =
-      document.getElementById('form-debt-tipe')?.value || document.getElementById('debt-type')?.value || 'DEBT';
-    const type =
-      rawType.toUpperCase().includes('UTANG') || rawType === 'DEBT' || rawType === 'PAYABLE' ? 'DEBT' : 'RECEIVABLE';
-    const person =
-      document.getElementById('form-debt-name')?.value?.trim() ||
-      document.getElementById('debt-person')?.value?.trim() ||
-      document.getElementById('form-debt-nama')?.value?.trim();
-    const rawAmt =
-      document.getElementById('form-debt-amount')?.value || document.getElementById('debt-amount')?.value || '0';
+    const rawType = document.getElementById('form-debt-tipe')?.value || document.getElementById('debt-type')?.value || 'DEBT';
+    const type = rawType.toUpperCase().includes('UTANG') || rawType === 'DEBT' || rawType === 'PAYABLE' ? 'DEBT' : 'RECEIVABLE';
+    const person = document.getElementById('form-debt-name')?.value?.trim() || document.getElementById('debt-person')?.value?.trim() || document.getElementById('form-debt-nama')?.value?.trim();
+    const rawAmt = document.getElementById('form-debt-amount')?.value || document.getElementById('debt-amount')?.value || '0';
     const amount = Number(String(rawAmt).replace(/[^0-9]/g, '')) || 0;
-    const dueDate =
-      document.getElementById('form-debt-jatuh-tempo')?.value ||
-      document.getElementById('debt-due')?.value ||
-      offsetDateISO(7);
-    const note =
-      document.getElementById('form-debt-desc')?.value?.trim() ||
-      document.getElementById('debt-note')?.value?.trim() ||
-      '';
+    const dueDate = document.getElementById('form-debt-jatuh-tempo')?.value || document.getElementById('debt-due')?.value || offsetDateISO(7);
+    const note = document.getElementById('form-debt-desc')?.value?.trim() || document.getElementById('debt-note')?.value?.trim() || '';
 
     if (!person || amount <= 0) {
       showToast('Lengkapi nama pihak dan nominal', 'warning');
@@ -2822,7 +2495,7 @@
   }
 
   function settleDebt(debtId) {
-    const debt = state.debts.find((d) => d.id === debtId);
+    const debt = (state.debts || []).find((d) => d.id === debtId);
     if (!debt) return;
     const payingAcc = getUserAccounts()[0];
     debt.paid = debt.amount;
@@ -2844,7 +2517,7 @@
   }
 
   function renderDebtHistoryModal() {
-    const box = document.getElementById('debt-history-list') || document.getElementById('debt-history-list-container');
+    const box = document.getElementById('debt-history-list');
     if (!box) return;
     const hist = state.debtHistory || [];
     if (hist.length === 0) {
@@ -2854,16 +2527,14 @@
     box.innerHTML = hist
       .map(
         (h) => `
-          <div class="p-3 rounded-xl bg-[#FAF8F5] dark:bg-[#161D19] flex justify-between items-center text-xs">
-            <div>
-              <p class="font-bold text-stone-900 dark:text-white">${escapeHTML(h.person)}</p>
-              <p class="text-[10px] text-stone-400">Lunas: ${escapeHTML(h.settledDate || '-')}</p>
-            </div>
-            <span class="font-extrabold text-emerald-600 dark:text-emerald-400">${escapeHTML(
-              formatCurrency(h.amount)
-            )}</span>
+        <div class="p-3 rounded-xl bg-[#FAF8F5] dark:bg-[#161D19] flex justify-between items-center text-xs">
+          <div>
+            <p class="font-bold text-stone-900 dark:text-white">${escapeHTML(h.person)}</p>
+            <p class="text-[10px] text-stone-400">Lunas: ${escapeHTML(h.settledDate || '-')}</p>
           </div>
-        `
+          <span class="font-extrabold text-emerald-600 dark:text-emerald-400">${escapeHTML(formatCurrency(h.amount))}</span>
+        </div>
+      `
       )
       .join('');
   }
@@ -2892,7 +2563,6 @@
   function saveAsset(e) {
     if (e) e.preventDefault();
     const name = document.getElementById('asset-name')?.value?.trim();
-    const symbol = (document.getElementById('asset-symbol')?.value || name || 'ASET').trim().toUpperCase();
     const category = document.getElementById('asset-category')?.value || 'Saham';
     const qty = Number(document.getElementById('asset-qty')?.value) || 0;
     const buyPrice = Number(document.getElementById('asset-price')?.value) || 0;
@@ -2906,10 +2576,8 @@
 
     state.assets.push({
       id: 'ast_' + Date.now(),
-      symbol,
       name,
       category,
-      currency: 'IDR',
       qty,
       buyPrice,
       currentPrice,
@@ -2962,7 +2630,7 @@
   }
 
   /* --------------------------------------------------------------------------
-   * 14. RECEIPT SCANNER & PDF STATEMENT EXPORT
+   * 13. RECEIPT SCANNER & PDF STATEMENT EXPORT
    * -------------------------------------------------------------------------- */
   function handleReceiptUpload(event) {
     const file = event?.target?.files?.[0];
@@ -3042,70 +2710,8 @@
     reader.readAsDataURL(file);
   }
 
-  function renderExportModal() {
-    const trxs = state.transactions || [];
-    const years = new Set();
-    trxs.forEach((t) => {
-      if (t.date) years.add(new Date(toLocalISODate(t.date) + 'T00:00:00').getFullYear());
-    });
-    if (years.size === 0) years.add(new Date().getFullYear());
-    const sortedYears = Array.from(years).sort((a, b) => b - a);
-    if (!sortedYears.includes(exportSelectedYear)) exportSelectedYear = sortedYears[0];
-
-    const yearContainer = document.getElementById('export-year-container');
-    if (yearContainer) {
-      yearContainer.innerHTML = sortedYears
-        .map((year) => {
-          const isActive = year === exportSelectedYear;
-          return `<button type="button" onclick="setExportYear(${year})" class="px-5 py-2 text-sm font-bold rounded-full whitespace-nowrap border transition-all ${
-            isActive
-              ? 'bg-[#0F5132] dark:bg-emerald-500 text-white dark:text-[#070908] border-transparent shadow-md'
-              : 'bg-white dark:bg-[#161D19] text-stone-600 dark:text-stone-300 border-stone-200 dark:border-stone-800'
-          }">${year}</button>`;
-        })
-        .join('');
-    }
-
-    const monthContainer = document.getElementById('export-month-container');
-    if (monthContainer) {
-      const monthNames =
-        getLang() === 'id'
-          ? ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember']
-          : ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
-      const activeMonths = new Set();
-      trxs.forEach((t) => {
-        if (!t.date) return;
-        const d = new Date(toLocalISODate(t.date) + 'T00:00:00');
-        if (d.getFullYear() === exportSelectedYear) activeMonths.add(d.getMonth());
-      });
-      if (activeMonths.size === 0) activeMonths.add(new Date().getMonth());
-
-      const rows = [];
-      for (let m = 11; m >= 0; m--) {
-        if (activeMonths.has(m)) {
-          rows.push(
-            `<button type="button" onclick="generateStatementPDF(${m}, ${exportSelectedYear})" class="w-full bg-[#FAF8F5] dark:bg-[#161D19] p-4 rounded-2xl border border-stone-200/70 dark:border-stone-800 flex justify-between items-center hover:bg-[#EDF5F0] dark:hover:bg-[#1D2722] transition"><span class="font-bold text-xs text-stone-800 dark:text-stone-200">${monthNames[m]} ${exportSelectedYear}</span><svg class="w-4 h-4 text-stone-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg></button>`
-          );
-        }
-      }
-      monthContainer.innerHTML = rows.join('');
-    }
-  }
-
-  function setExportYear(year) {
-    exportSelectedYear = year;
-    renderExportModal();
-  }
-
-  function generateStatementPDF(monthIdx, year) {
-    const periodTrx =
-      typeof monthIdx === 'number' && typeof year === 'number'
-        ? (state.transactions || []).filter((t) => {
-            const d = new Date(toLocalISODate(t.date) + 'T00:00:00');
-            return d.getMonth() === monthIdx && d.getFullYear() === year;
-          })
-        : getPeriodFilteredTransactions();
-
+  function generateStatementPDF() {
+    const periodTrx = getPeriodFilteredTransactions();
     const win = window.open('', '_blank', 'width=840,height=900');
     if (!win) {
       showToast('Izinkan pop-up browser untuk mencetak PDF', 'warning');
@@ -3113,19 +2719,17 @@
     }
 
     const rows = periodTrx
-      .map((t) => {
-        const normType = normalizeTrxType(t);
-        return `
-          <tr>
-            <td style="padding:8px;border-bottom:1px solid #e5e7eb;">${escapeHTML(toLocalISODate(t.date))}</td>
-            <td style="padding:8px;border-bottom:1px solid #e5e7eb;">${escapeHTML(t.category)}</td>
-            <td style="padding:8px;border-bottom:1px solid #e5e7eb;">${escapeHTML(t.note || '-')}</td>
-            <td style="padding:8px;border-bottom:1px solid #e5e7eb;text-align:right;font-weight:700;color:${
-              normType === 'INFLOW' ? '#0F5132' : '#DC2626'
-            };">${normType === 'INFLOW' ? '+' : '-'}${escapeHTML(formatCurrency(t.amount))}</td>
-          </tr>
-        `;
-      })
+      .map(
+        (t) => `
+        <tr>
+          <td style="padding:8px;border-bottom:1px solid #e5e7eb;">${escapeHTML(normalizeDateISO(t.date, t.date))}</td>
+          <td style="padding:8px;border-bottom:1px solid #e5e7eb;">${escapeHTML(t.category)}</td>
+          <td style="padding:8px;border-bottom:1px solid #e5e7eb;">${escapeHTML(t.note || '-')}</td>
+          <td style="padding:8px;border-bottom:1px solid #e5e7eb;text-align:right;font-weight:700;color:${
+            t.type === 'INFLOW' ? '#0F5132' : '#DC2626'
+          };">${t.type === 'INFLOW' ? '+' : '-'}${escapeHTML(formatCurrency(t.amount))}</td>
+        </tr>`
+      )
       .join('');
 
     win.document.write(`
@@ -3134,9 +2738,7 @@
         <body style="font-family:Inter,Arial,sans-serif;padding:32px;color:#111827;">
           <div style="background:#0F5132;color:#fff;padding:20px 24px;border-radius:16px;margin-bottom:24px;">
             <h1 style="margin:0;font-size:20px;">FINTRACK V3.0 — E-STATEMENT</h1>
-            <p style="margin:4px 0 0;font-size:12px;opacity:0.85;">Account Holder: ${escapeHTML(
-              state.activeUser
-            )} • Printed: ${todayISO()}</p>
+            <p style="margin:4px 0 0;font-size:12px;opacity:0.85;">Account Holder: ${escapeHTML(state.activeUser)} • Printed: ${todayISO()}</p>
           </div>
           <table style="width:100%;border-collapse:collapse;font-size:12px;">
             <thead>
@@ -3158,8 +2760,10 @@
   }
 
   /* --------------------------------------------------------------------------
-   * 15. CLOUD SYNC (GOOGLE APPS SCRIPT KODE.GS) & JSON BACKUP
+   * 14. CLOUD SYNC (GOOGLE APPS SCRIPT KODE.GS) & JSON BACKUP
    * -------------------------------------------------------------------------- */
+  const DEFAULT_API_URL = 'https://script.google.com/macros/s/AKfycbz9a9kYr2cwtxxHZBewNNMdvE-43HPX1Vx6H7uoct8yFaluTj-vKzaQp1ehD21fTehNlg/exec';
+
   function getApiUrl() {
     return localStorage.getItem(GAS_URL_KEY) || DEFAULT_API_URL;
   }
@@ -3178,12 +2782,34 @@
   function getProp(obj, ...possibleKeys) {
     if (!obj) return undefined;
     const keys = Object.keys(obj);
-    for (const pk of possibleKeys) {
-      const target = pk.toString().replace(/[_ ]/g, '').toLowerCase();
-      const match = keys.find((k) => k.toString().replace(/[_ ]/g, '').toLowerCase() === target);
+    for (let pk of possibleKeys) {
+      const match = keys.find(
+        (k) =>
+          k.toString().replace(/[_ ]/g, '').toLowerCase() ===
+          pk.toString().replace(/[_ ]/g, '').toLowerCase()
+      );
       if (match && obj[match] !== undefined && obj[match] !== '') return obj[match];
     }
     return undefined;
+  }
+
+  function extractNumber(val) {
+    if (val === undefined || val === null || val === '') return 0;
+    if (typeof val === 'number') return val;
+    let str = val.toString().replace(/Rp/gi, '').trim();
+    // Handle Indonesian thousand-separator dots without comma (e.g. "150.000" -> 150000)
+    if (/^\-?\d{1,3}(\.\d{3})+$/.test(str)) {
+      str = str.replace(/\./g, '');
+    } else if (
+      str.indexOf(',') > -1 &&
+      str.indexOf('.') !== -1 &&
+      str.lastIndexOf(',') > str.lastIndexOf('.')
+    ) {
+      str = str.replace(/\./g, '').replace(',', '.');
+    } else {
+      str = str.replace(/[^0-9.-]/g, '');
+    }
+    return parseFloat(str) || 0;
   }
 
   async function apiPost(payload) {
@@ -3214,7 +2840,6 @@
       return;
     }
 
-    refreshForexRate();
     showToast('Menyinkronkan data dari Google Sheets...', 'info');
 
     const controller = new AbortController();
@@ -3245,8 +2870,7 @@
         }
 
         if (json.status === 'success' && json.data) {
-          rawBackendData = json.data;
-          parseBackendDataIntoState(json.data);
+          parseBackendDataIntoState(json.data, email);
           saveState(true);
           renderCurrentPage();
           showToast('Data Google Sheets berhasil disinkronkan!', 'success');
@@ -3264,7 +2888,7 @@
     }
   }
 
-  function parseBackendDataIntoState(data) {
+  function parseBackendDataIntoState(data, email) {
     // 1. M_Akun -> state.accounts & state.wallets
     if (Array.isArray(data.M_Akun)) {
       const regularAccounts = [];
@@ -3276,25 +2900,16 @@
         const valReal = getProp(acc, 'Saldo_Realtime', 'Saldo Realtime', 'Saldo_Awal', 'Saldo Awal');
         const balance = extractNumber(valReal);
         const noRek = getProp(acc, 'Nomor_Rekening', 'No Rekening', 'Rekening') || '•••• ' + (4000 + i);
-        const id = getProp(acc, 'ID_Akun', 'ID Akun', 'id') || 'acc_' + i;
+        const id = getProp(acc, 'ID_Akun', 'ID Akun', 'id') || ('acc_' + i);
 
         let theme = 'emerald';
         const lower = nama.toLowerCase();
         if (lower.includes('bca')) theme = 'bca';
         else if (lower.includes('mandiri')) theme = 'mandiri';
         else if (lower.includes('bni')) theme = 'bni';
-        else if (
-          lower.includes('gopay') ||
-          lower.includes('ovo') ||
-          lower.includes('dana') ||
-          lower.includes('shopee')
-        ) {
-          theme = 'ewallet';
-        } else if (lower.includes('gold') || lower.includes('emas')) {
-          theme = 'gold';
-        } else {
-          theme = i % 2 === 0 ? 'emerald' : 'obsidian';
-        }
+        else if (lower.includes('gopay') || lower.includes('ovo') || lower.includes('dana') || lower.includes('shopee')) theme = 'ewallet';
+        else if (lower.includes('gold') || lower.includes('emas')) theme = 'gold';
+        else theme = i % 2 === 0 ? 'emerald' : 'obsidian';
 
         if (tipe === 'Wallet Investasi' || lower.includes('rdn') || lower.includes('sekuritas') || lower.includes('wallet')) {
           wallets.push({
@@ -3307,11 +2922,7 @@
           regularAccounts.push({
             id: id,
             name: nama,
-            type: tipe.toUpperCase().includes('WALLET')
-              ? 'E-WALLET'
-              : tipe.toUpperCase().includes('CASH') || tipe.toUpperCase().includes('TUNAI')
-              ? 'CASH'
-              : 'BANK',
+            type: tipe.toUpperCase().includes('WALLET') ? 'E-WALLET' : (tipe.toUpperCase().includes('CASH') || tipe.toUpperCase().includes('TUNAI') ? 'CASH' : 'BANK'),
             number: noRek,
             balance: balance,
             theme: theme,
@@ -3327,29 +2938,50 @@
     // 2. T_Transaksi -> state.transactions
     if (Array.isArray(data.T_Transaksi)) {
       state.transactions = data.T_Transaksi.map((t, i) => {
-        const rawTipe = (getProp(t, 'Tipe', 'tipe', 'Type') || 'OUTFLOW').toString().trim().toUpperCase();
-        const category = (getProp(t, 'Kategori', 'kategori', 'Category') || 'Lainnya').toString().trim();
-        const rawDate = getProp(t, 'Tanggal', 'tanggal', 'Date') || todayISO();
-        const dateStr = toLocalISODate(rawDate);
-        const rawAmt = getProp(t, 'Jumlah', 'jumlah', 'Nominal', 'nominal', 'Amount');
-        const amount = extractNumber(rawAmt);
-        const accountName = getProp(t, 'Nama_Akun', 'Akun', 'akun', 'Account') || '';
-        const matchingAcc = state.accounts.find((a) => a.name === accountName || a.id === accountName);
-        const accountId = matchingAcc ? matchingAcc.id : accountName;
-        const note = getProp(t, 'Keterangan', 'keterangan', 'Description') || category;
+        const rawTipe = String(getProp(t, 'Tipe', 'tipe', 'Jenis', 'jenis') || 'OUTFLOW').trim().toUpperCase();
+        let type = 'OUTFLOW';
+        if (rawTipe === 'NEUTRAL') {
+          type = 'NEUTRAL';
+        } else if (
+          rawTipe === 'INFLOW' ||
+          rawTipe === 'INCOME' ||
+          rawTipe === 'PEMASUKAN' ||
+          rawTipe === 'MASUK' ||
+          rawTipe === 'CREDIT'
+        ) {
+          type = 'INFLOW';
+        } else if (
+          rawTipe === 'TRANSFER' ||
+          rawTipe === 'TF' ||
+          rawTipe.includes('TRANSFER')
+        ) {
+          type = 'TRANSFER';
+        } else {
+          type = 'OUTFLOW';
+        }
 
-        const normType = normalizeTrxType({ type: rawTipe, category });
+        const rawDate = getProp(t, 'Tanggal', 'tanggal', 'Date', 'date');
+        const dateStr = normalizeDateISO(rawDate, todayISO());
+
+        const rawAmt = getProp(t, 'Jumlah', 'jumlah', 'Nominal', 'nominal', 'Amount');
+        const amount = Math.abs(extractNumber(rawAmt));
+        const category = String(getProp(t, 'Kategori', 'kategori', 'Category') || 'Lainnya').trim();
+        const accountName = String(getProp(t, 'Nama_Akun', 'Akun', 'akun', 'Account') || '').trim();
+        const matchingAcc = findAccountByRef(accountName);
+        const accountId = matchingAcc ? matchingAcc.id : accountName;
+        const note = String(getProp(t, 'Keterangan', 'keterangan', 'Note', 'Deskripsi') || category).trim();
+        const refId = String(getProp(t, 'Ref_ID', 'Ref ID', 'refId') || '').trim();
 
         return {
-          id: getProp(t, 'ID_Transaksi', 'ID Trx', 'ID Transaksi', 'id') || 'trx_' + i,
+          id: getProp(t, 'ID_Transaksi', 'ID Transaksi', 'id') || ('trx_' + i),
           date: dateStr,
-          rawDate: String(rawDate),
-          type: normType,
-          rawTipe: rawTipe,
+          type: type,
           category: category,
           amount: amount,
           accountId: accountId,
+          accountName: matchingAcc ? matchingAcc.name : accountName,
           note: note,
+          refId: refId,
           receipt: ''
         };
       });
@@ -3357,22 +2989,27 @@
 
     // 3. M_Recurring -> state.recurring
     if (Array.isArray(data.M_Recurring)) {
+      const prevMap = new Map((state.recurring || []).map((r) => [String(r.id), r]));
       state.recurring = data.M_Recurring.map((r, i) => {
-        const name = getProp(r, 'Nama', 'nama', 'Nama_Langganan') || 'Langganan';
-        const amount = extractNumber(getProp(r, 'Nominal', 'nominal', 'Jumlah'));
+        const id = getProp(r, 'ID_Recurring', 'ID', 'id') || ('rec_' + i);
+        const name = String(getProp(r, 'Nama', 'nama', 'Nama_Langganan') || 'Langganan').trim();
+        const amount = Math.abs(extractNumber(getProp(r, 'Nominal', 'nominal', 'Jumlah')));
         const dueDate = getProp(r, 'Tgl_Tagihan', 'Tanggal', 'tgl_tagihan') || 1;
         const frek = getProp(r, 'Frekuensi', 'frekuensi') || 'Monthly';
-        const accName = getProp(r, 'Akun_Sumber', 'Akun', 'akun', 'Rekening') || '';
+        const accName = String(getProp(r, 'Akun', 'akun', 'Rekening') || '').trim();
+        const matchingAcc = findAccountByRef(accName);
+        const prev = prevMap.get(String(id));
 
         return {
-          id: getProp(r, 'ID_Recurring', 'ID', 'id') || 'rec_' + i,
+          id: id,
           name: name,
           amount: amount,
           cycle: frek,
           dueDate: dueDate,
-          accountId: accName,
-          category: 'Tagihan & Utilitas',
-          active: true
+          accountId: matchingAcc ? matchingAcc.id : accName,
+          category: 'Tagihan',
+          active: true,
+          lastPaidMonth: prev ? prev.lastPaidMonth : undefined
         };
       });
     }
@@ -3383,17 +3020,17 @@
         const rawTipe = (getProp(d, 'Tipe', 'tipe') || 'Hutang').toLowerCase();
         const type = rawTipe.includes('piutang') || rawTipe === 'receivable' ? 'RECEIVABLE' : 'DEBT';
         const person = getProp(d, 'Kontak', 'kontak', 'Nama', 'nama', 'Pihak') || 'Pihak Lain';
-        const awal = extractNumber(getProp(d, 'Nominal_Awal', 'Nominal Awal', 'Jumlah_Awal', 'Nominal', 'nominal'));
-        const sisa = extractNumber(getProp(d, 'Sisa', 'Sisa_Saldo', 'sisa'));
+        const awal = extractNumber(getProp(d, 'Nominal_Awal', 'Nominal Awal', 'Nominal', 'nominal'));
+        const sisa = extractNumber(getProp(d, 'Sisa', 'sisa'));
         const amount = awal || sisa || 0;
-        const paid = awal > sisa ? awal - sisa : 0;
+        const paid = awal > sisa ? (awal - sisa) : 0;
         const dueDate = getProp(d, 'Jatuh_Tempo', 'Jatuh Tempo', 'jatuhTempo') || offsetDateISO(7);
         const note = getProp(d, 'Keterangan', 'keterangan') || '';
         const status = (getProp(d, 'Status', 'status') || '').toUpperCase();
         const settled = status === 'COMPLETED' || (sisa === 0 && awal > 0);
 
         return {
-          id: getProp(d, 'ID_Debt', 'ID Debt', 'ID', 'id') || 'debt_' + i,
+          id: getProp(d, 'ID_Debt', 'ID', 'id') || ('debt_' + i),
           type: type,
           person: person,
           amount: amount,
@@ -3412,53 +3049,34 @@
         const target = extractNumber(getProp(g, 'Target_Nominal', 'Target Nominal', 'Target', 'target'));
         const current = extractNumber(getProp(g, 'Terkumpul', 'terkumpul', 'Nominal'));
         const deadline = getProp(g, 'Tenggat_Waktu', 'Tenggat Waktu', 'Tenggat') || offsetDateISO(90);
-        const status = (getProp(g, 'Status', 'status') || 'ACTIVE').toUpperCase();
 
         return {
-          id: getProp(g, 'ID_Goal', 'ID', 'id') || 'goal_' + i,
+          id: getProp(g, 'ID_Goal', 'ID', 'id') || ('goal_' + i),
           title: name,
           name: name,
           target: target,
           saved: current,
           current: current,
-          deadline: deadline,
-          status: status
+          deadline: deadline
         };
       });
     }
 
-    // 6. M_Portofolio -> state.assets (Reads live price from Harga_Saat_Ini / Harga_Realtime + currency)
+    // 6. M_Portofolio -> state.assets
     if (Array.isArray(data.M_Portofolio)) {
       state.assets = data.M_Portofolio.map((p, i) => {
-        const symbol = String(getProp(p, 'Simbol', 'simbol', 'Nama_Aset') || 'ASET')
-          .trim()
-          .toUpperCase();
-        const rawName = String(getProp(p, 'Nama_Aset', 'Nama Aset', 'Simbol') || symbol).trim();
-        const category = String(getProp(p, 'Jenis_Aset', 'Jenis Aset', 'Jenis') || 'Saham').trim();
-        const currency = String(getProp(p, 'Mata_Uang', 'Mata Uang', 'Currency') || 'IDR')
-          .trim()
-          .toUpperCase();
-        const qtyRaw = String(getProp(p, 'Jumlah', 'Unit', 'lot') || '0').replace(',', '.');
-        const qty = parseFloat(qtyRaw) || 0;
-        const buyPrice = extractPriceNumber(getProp(p, 'Harga_Beli', 'Harga Beli', 'Harga'), currency);
-        const liveRaw = getProp(
-          p,
-          'Harga_Saat_Ini',
-          'Harga Saat Ini',
-          'Harga_Realtime',
-          'Harga Realtime',
-          'Current_Price'
-        );
-        const parsedLive = extractPriceNumber(liveRaw, currency);
-        const currentPrice = parsedLive > 0 ? parsedLive : buyPrice;
-        const walletId = getProp(p, 'Wallet', 'wallet', 'Akun') || state.wallets[0]?.id || 'wal_1';
+        const symbol = getProp(p, 'Simbol', 'simbol', 'Nama_Aset') || 'ASET';
+        const name = getProp(p, 'Nama_Aset', 'Nama Aset', 'Simbol') || symbol;
+        const category = getProp(p, 'Jenis_Aset', 'Jenis Aset', 'Jenis') || 'Saham';
+        const qty = parseFloat((getProp(p, 'Jumlah', 'Unit', 'lot') || '0').toString().replace(',', '.')) || 0;
+        const buyPrice = extractNumber(getProp(p, 'Harga_Beli', 'Harga Beli', 'Harga'));
+        const currentPrice = extractNumber(getProp(p, 'Harga_Realtime', 'Harga Realtime', 'Harga_Beli', 'Harga')) || buyPrice;
+        const walletId = getProp(p, 'Wallet', 'wallet', 'Akun') || (state.wallets[0]?.id || 'wal_1');
 
         return {
-          id: getProp(p, 'ID_Aset', 'ID Aset', 'id') || 'ast_' + i,
-          symbol: symbol,
-          name: rawName,
+          id: getProp(p, 'ID_Aset', 'ID Aset', 'id') || ('ast_' + i),
+          name: `${name} (${symbol})`,
           category: category,
-          currency: currency,
           qty: qty,
           buyPrice: buyPrice,
           currentPrice: currentPrice,
@@ -3498,47 +3116,35 @@
     showToast('File backup JSON diunduh', 'success');
   }
 
-  let ptrStartY = 0,
-    ptrCurrentY = 0,
-    isPtrPulling = false,
-    isPtrRefreshing = false;
-
+  let ptrStartY = 0, ptrCurrentY = 0, isPtrPulling = false, isPtrRefreshing = false;
   function initPTR() {
     const ptrEl = document.getElementById('ptr-indicator');
     if (!ptrEl) return;
     const coin = ptrEl.querySelector('.coin-spinner');
 
-    document.addEventListener(
-      'touchstart',
-      (e) => {
-        if (window.scrollY <= 0 && !isPtrRefreshing) {
-          ptrStartY = e.touches[0].clientY;
-          isPtrPulling = true;
-          ptrEl.style.transition = 'none';
-        }
-      },
-      { passive: true }
-    );
+    document.addEventListener('touchstart', (e) => {
+      if (window.scrollY <= 0 && !isPtrRefreshing) {
+        ptrStartY = e.touches[0].clientY;
+        isPtrPulling = true;
+        ptrEl.style.transition = 'none';
+      }
+    }, { passive: true });
 
-    document.addEventListener(
-      'touchmove',
-      (e) => {
-        if (!isPtrPulling || isPtrRefreshing) return;
-        ptrCurrentY = e.touches[0].clientY;
-        const pullDist = ptrCurrentY - ptrStartY;
-        if (pullDist > 0 && window.scrollY <= 0) {
-          const moveY = Math.min(pullDist * 0.4, 120);
-          ptrEl.style.transform = `translateY(${moveY - 80}px)`;
-          if (coin) {
-            coin.style.animation = 'none';
-            coin.style.transform = `rotateY(${pullDist * 3}deg)`;
-          }
-        } else if (pullDist < 0) {
-          isPtrPulling = false;
+    document.addEventListener('touchmove', (e) => {
+      if (!isPtrPulling || isPtrRefreshing) return;
+      ptrCurrentY = e.touches[0].clientY;
+      const pullDist = ptrCurrentY - ptrStartY;
+      if (pullDist > 0 && window.scrollY <= 0) {
+        const moveY = Math.min(pullDist * 0.4, 120);
+        ptrEl.style.transform = `translateY(${moveY - 80}px)`;
+        if (coin) {
+          coin.style.animation = 'none';
+          coin.style.transform = `rotateY(${pullDist * 3}deg)`;
         }
-      },
-      { passive: true }
-    );
+      } else if (pullDist < 0) {
+        isPtrPulling = false;
+      }
+    }, { passive: true });
 
     document.addEventListener('touchend', async () => {
       if (!isPtrPulling || isPtrRefreshing) return;
@@ -3551,9 +3157,7 @@
         if (coin) coin.style.animation = 'flipCoin 1s infinite linear';
         await fetchAllData();
         ptrEl.style.transform = 'translateY(-80px)';
-        setTimeout(() => {
-          isPtrRefreshing = false;
-        }, 300);
+        setTimeout(() => { isPtrRefreshing = false; }, 300);
       } else {
         ptrEl.style.transform = 'translateY(-80px)';
       }
@@ -3563,7 +3167,7 @@
   }
 
   /* --------------------------------------------------------------------------
-   * 16. SECURITY SANITIZER, MODAL HANDLERS & INITIALIZATION
+   * 15. SECURITY SANITIZER & INITIALIZATION
    * -------------------------------------------------------------------------- */
   function escapeHTML(str) {
     return String(str ?? '')
@@ -3597,15 +3201,6 @@
     validateTrxForm();
   }
 
-  function formatDecimalInput(el) {
-    if (!el) return;
-    let val = el.value.replace(/[^0-9.]/g, '');
-    if ((val.match(/\./g) || []).length > 1) {
-      val = val.substring(0, val.lastIndexOf('.'));
-    }
-    el.value = val;
-  }
-
   function validateTrxForm() {
     const amountEl = document.getElementById('form-trx-amount') || document.getElementById('trx-amount');
     const btn = document.getElementById('form-trx-submit-btn');
@@ -3613,44 +3208,12 @@
     const val = amountEl ? Number(String(amountEl.value).replace(/[^0-9]/g, '')) : 0;
     if (val > 0) {
       btn.disabled = false;
-      btn.classList.remove(
-        'bg-stone-300',
-        'dark:bg-stone-800',
-        'text-stone-400',
-        'dark:text-stone-500',
-        'cursor-not-allowed',
-        'shadow-none'
-      );
-      btn.classList.add(
-        'bg-[#0F5132]',
-        'hover:bg-[#0B3F27]',
-        'dark:bg-emerald-500',
-        'dark:hover:bg-emerald-400',
-        'text-white',
-        'dark:text-[#070908]',
-        'shadow-lg',
-        'shadow-emerald-950/20'
-      );
+      btn.classList.remove('bg-stone-300', 'dark:bg-stone-800', 'text-stone-400', 'dark:text-stone-500', 'cursor-not-allowed', 'shadow-none');
+      btn.classList.add('bg-[#0F5132]', 'hover:bg-[#0B3F27]', 'dark:bg-emerald-500', 'dark:hover:bg-emerald-400', 'text-white', 'dark:text-[#070908]', 'shadow-lg', 'shadow-emerald-950/20');
     } else {
       btn.disabled = true;
-      btn.classList.add(
-        'bg-stone-300',
-        'dark:bg-stone-800',
-        'text-stone-400',
-        'dark:text-stone-500',
-        'cursor-not-allowed',
-        'shadow-none'
-      );
-      btn.classList.remove(
-        'bg-[#0F5132]',
-        'hover:bg-[#0B3F27]',
-        'dark:bg-emerald-500',
-        'dark:hover:bg-emerald-400',
-        'text-white',
-        'dark:text-[#070908]',
-        'shadow-lg',
-        'shadow-emerald-950/20'
-      );
+      btn.classList.add('bg-stone-300', 'dark:bg-stone-800', 'text-stone-400', 'dark:text-stone-500', 'cursor-not-allowed', 'shadow-none');
+      btn.classList.remove('bg-[#0F5132]', 'hover:bg-[#0B3F27]', 'dark:bg-emerald-500', 'dark:hover:bg-emerald-400', 'text-white', 'dark:text-[#070908]', 'shadow-lg', 'shadow-emerald-950/20');
     }
   }
 
@@ -3702,17 +3265,11 @@
             renderCurrentPage();
             showToast(`Selamat datang, ${state.activeUser}!`, 'success');
             await fetchAllData();
-            if (btn) {
-              btn.disabled = false;
-              btn.textContent = origText;
-            }
+            if (btn) { btn.disabled = false; btn.textContent = origText; }
             return;
           } else if (json.message) {
             showToast(json.message, 'warning');
-            if (btn) {
-              btn.disabled = false;
-              btn.textContent = origText;
-            }
+            if (btn) { btn.disabled = false; btn.textContent = origText; }
             return;
           }
         }
@@ -3723,7 +3280,7 @@
 
     state.activeUser = email.split('@')[0] || 'Bayu';
     localStorage.setItem(ACTIVE_USER_KEY, state.activeUser);
-    localStorage.setItem('fintrack_session_email', email.includes('@') ? email : email + '@gmail.com');
+    localStorage.setItem('fintrack_session_email', email.includes('@') ? email : (email + '@gmail.com'));
     const loginPage = document.getElementById('login-page');
     if (loginPage) loginPage.classList.add('hidden-page');
     const appWrapper = document.getElementById('app-wrapper');
@@ -3732,10 +3289,7 @@
     renderCurrentPage();
     showToast(`Selamat datang, ${state.activeUser}!`, 'info');
     fetchAllData();
-    if (btn) {
-      btn.disabled = false;
-      btn.textContent = origText;
-    }
+    if (btn) { btn.disabled = false; btn.textContent = origText; }
   }
 
   function handleLogout() {
@@ -3788,17 +3342,6 @@
     }
   }
 
-  function openWalletDetailModal(name, balance) {
-    const nameEl = document.getElementById('det-wallet-name');
-    if (nameEl) nameEl.textContent = name;
-    const balEl = document.getElementById('det-wallet-bal');
-    if (balEl) {
-      setMaskedValue(balEl, formatCurrency(balance), Number(balance) || 0);
-    }
-    const modal = document.getElementById('modal-wallet-detail');
-    if (modal) openModal('modal-wallet-detail');
-  }
-
   function submitAddWallet(e) {
     if (e && typeof e.preventDefault === 'function') e.preventDefault();
     const name = document.getElementById('form-wallet-name')?.value?.trim() || prompt('Nama Dompet Investasi:');
@@ -3825,69 +3368,16 @@
     }).then(() => fetchAllData());
   }
 
-  function handleBuyAssetAccountChange() {
-    const acc = document.getElementById('form-asset-account')?.value || '';
-    const priceLabel = document.getElementById('lbl-buy-price');
-    const priceInput = document.getElementById('form-asset-harga');
-    if (!priceInput) return;
-
-    if (acc.startsWith('VALAS_')) {
-      const curr = acc.replace('VALAS_', '');
-      if (priceLabel) priceLabel.textContent = getLang() === 'id' ? `Harga Satuan (${curr})` : `Price per Unit (${curr})`;
-      priceInput.oninput = function () {
-        formatDecimalInput(this);
-      };
-      priceInput.placeholder = '0.00';
-    } else {
-      if (priceLabel) priceLabel.textContent = getLang() === 'id' ? 'Harga Satuan (Rp)' : 'Price per Unit (Rp)';
-      priceInput.oninput = function () {
-        formatRupiahInput(this);
-      };
-      priceInput.placeholder = '0';
-    }
-  }
-
   function submitBuyAsset(e) {
     if (e && typeof e.preventDefault === 'function') e.preventDefault();
-    const symbol =
-      (
-        document.getElementById('form-asset-simbol')?.value ||
-        document.getElementById('form-buy-asset-simbol')?.value ||
-        ''
-      )
-        .trim()
-        .toUpperCase() || 'ASET';
-    const name = (
-      document.getElementById('form-asset-nama')?.value ||
-      document.getElementById('form-buy-asset-nama')?.value ||
-      symbol
-    ).trim();
-    const type =
-      document.getElementById('form-asset-jenis')?.value ||
-      document.getElementById('form-buy-asset-tipe')?.value ||
-      'Saham Indonesia';
-    const rawPrice =
-      document.getElementById('form-asset-harga')?.value ||
-      document.getElementById('form-buy-asset-harga')?.value ||
-      '0';
-    const price = extractPriceNumber(rawPrice, 'IDR');
-    const units =
-      parseFloat(
-        String(
-          document.getElementById('form-asset-jumlah')?.value ||
-            document.getElementById('form-buy-asset-lot')?.value ||
-            '1'
-        ).replace(',', '.')
-      ) || 1;
-    const walletId =
-      document.getElementById('form-asset-account')?.value ||
-      document.getElementById('form-buy-asset-wallet')?.value ||
-      (state.wallets && state.wallets[0]?.id) ||
-      'wal_1';
-    const walletObj =
-      (state.wallets || []).find((w) => w.id === walletId || w.name === walletId) ||
-      state.accounts.find((a) => a.id === walletId || a.name === walletId) ||
-      getUserAccounts()[0];
+    const symbol = (document.getElementById('form-asset-simbol')?.value || document.getElementById('form-buy-asset-simbol')?.value || '').trim().toUpperCase() || 'ASET';
+    const name = (document.getElementById('form-asset-nama')?.value || document.getElementById('form-buy-asset-nama')?.value || symbol).trim();
+    const type = document.getElementById('form-asset-jenis')?.value || document.getElementById('form-buy-asset-tipe')?.value || 'Saham Indonesia';
+    const rawPrice = document.getElementById('form-asset-harga')?.value || document.getElementById('form-buy-asset-harga')?.value || '0';
+    const price = Number(String(rawPrice).replace(/[^0-9]/g, '')) || 0;
+    const units = Number(document.getElementById('form-asset-jumlah')?.value || document.getElementById('form-buy-asset-lot')?.value) || 1;
+    const walletId = document.getElementById('form-asset-account')?.value || document.getElementById('form-buy-asset-wallet')?.value || (state.wallets && state.wallets[0]?.id) || 'wal_1';
+    const walletObj = (state.wallets || []).find((w) => w.id === walletId) || getUserAccounts()[0];
 
     if (price <= 0 || units <= 0) {
       showToast('Harga dan unit aset tidak valid', 'warning');
@@ -3897,10 +3387,8 @@
     state.assets = state.assets || [];
     state.assets.push({
       id: 'ast_' + Date.now(),
-      symbol: symbol,
-      name: name,
+      name: `${name} (${symbol})`,
       category: type,
-      currency: 'IDR',
       qty: units,
       buyPrice: price,
       currentPrice: price,
@@ -3925,234 +3413,10 @@
     }).then(() => fetchAllData());
   }
 
-  function submitSellAsset(e) {
-    if (e && typeof e.preventDefault === 'function') e.preventDefault();
-    const idAset = document.getElementById('form-sell-asset-id')?.value || '';
-    const simbol = document.getElementById('form-sell-asset-simbol')?.value || '';
-    const unitDijual =
-      parseFloat(String(document.getElementById('form-sell-asset-jumlah')?.value || '0').replace(',', '.')) || 0;
-    const hargaJual = extractNumber(document.getElementById('form-sell-asset-harga')?.value);
-    const akunTujuan = document.getElementById('form-sell-asset-account')?.value || '';
-
-    if (unitDijual <= 0 || hargaJual <= 0 || !akunTujuan) {
-      showToast('Lengkapi detail penjualan aset', 'warning');
-      return;
-    }
-
-    const targetAcc =
-      state.accounts.find((a) => a.id === akunTujuan || a.name === akunTujuan) ||
-      state.wallets.find((w) => w.id === akunTujuan || w.name === akunTujuan);
-
-    apiPost({
-      action: 'sellAsset',
-      email: getSessionEmail(),
-      idAset: idAset,
-      simbol: simbol,
-      jumlahJual: unitDijual,
-      totalDapat: unitDijual * hargaJual,
-      akunTujuan: targetAcc ? targetAcc.name : akunTujuan
-    }).then(() => fetchAllData());
-
-    closeModal('modal-sell-asset');
-    showToast(`Penjualan ${simbol} diproses`, 'success');
-  }
-
-  function openAssetDetailModal(
-    idAset,
-    simbol,
-    jenisAset,
-    lot,
-    avgHargaIDR,
-    investasiIDR,
-    liveHargaIDR,
-    totalValIDR,
-    nominalReturnIDR,
-    pnlPercent
-  ) {
-    window.lastAssetData = {
-      idAset,
-      simbol,
-      jenisAset,
-      lot,
-      avgHarga: avgHargaIDR,
-      investasi: investasiIDR,
-      liveHarga: liveHargaIDR,
-      totalVal: totalValIDR,
-      nominalReturn: nominalReturnIDR,
-      pnlPercent
-    };
-
-    const modal = document.getElementById('modal-asset-detail');
-    if (!modal) return;
-
-    const simbolEl = document.getElementById('det-aset-simbol');
-    if (simbolEl) simbolEl.textContent = simbol;
-    const logoEl = document.getElementById('det-aset-logo');
-    if (logoEl) logoEl.innerHTML = getAssetAvatarHtml(simbol);
-
-    const btnBeli = document.getElementById('btn-det-beli');
-    if (btnBeli) {
-      btnBeli.onclick = () => {
-        closeModal('modal-asset-detail');
-        openModal('modal-buy-asset');
-        const formSimbol = document.getElementById('form-asset-simbol');
-        if (formSimbol) formSimbol.value = simbol;
-      };
-    }
-
-    const btnJual = document.getElementById('btn-det-jual');
-    if (btnJual) {
-      btnJual.onclick = () => {
-        closeModal('modal-asset-detail');
-        const displaySimbol = document.getElementById('sell-asset-simbol-display');
-        if (displaySimbol) displaySimbol.textContent = simbol;
-        const displayMax = document.getElementById('sell-asset-max-display');
-        if (displayMax) {
-          displayMax.textContent = formatUnitQty(lot);
-          displayMax.setAttribute('data-raw', String(lot));
-        }
-        const inputId = document.getElementById('form-sell-asset-id');
-        if (inputId) inputId.value = idAset;
-        const inputSimbol = document.getElementById('form-sell-asset-simbol');
-        if (inputSimbol) inputSimbol.value = simbol;
-        openModal('modal-sell-asset');
-      };
-    }
-
-    const btnDividen = document.getElementById('btn-det-dividen');
-    if (btnDividen) {
-      if (jenisAset && jenisAset.toUpperCase().includes('SAHAM')) {
-        btnDividen.classList.remove('hidden');
-        btnDividen.onclick = () => {
-          closeModal('modal-asset-detail');
-          prepareReceiveDividend(simbol);
-        };
-      } else {
-        btnDividen.classList.add('hidden');
-      }
-    }
-
-    updateAssetDetailCurrencyView();
-    openModal('modal-asset-detail');
-  }
-
-  function setAssetDetailCurrency(curr) {
-    window.currentActiveCurrency = curr;
-    updateAssetDetailCurrencyView();
-  }
-
-  function updateAssetDetailCurrencyView() {
-    if (!window.lastAssetData) return;
-    const { simbol, lot, avgHarga, investasi, liveHarga, totalVal, nominalReturn, pnlPercent } =
-      window.lastAssetData;
-    const curr = window.currentActiveCurrency || 'IDR';
-    const rate = Number(window.usdExchangeRate) || 16250;
-    const mask = isPrivacyEnabled();
-
-    const fmt = (numIDR) =>
-      curr === 'IDR'
-        ? formatCurrency(numIDR, 'IDR')
-        : '$' + new Intl.NumberFormat('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(numIDR / rate);
-
-    const setTxt = (id, val) => {
-      const el = document.getElementById(id);
-      if (el) el.textContent = val;
-    };
-
-    setTxt('det-aset-live', mask ? '••••••••' : fmt(liveHarga));
-    setTxt('det-aset-lot', `${formatUnitQty(lot)} Unit`);
-    setTxt('det-aset-avg', mask ? '••••••••' : fmt(avgHarga));
-    setTxt('det-aset-invest', mask ? '••••••••' : fmt(investasi));
-    setTxt('det-aset-total', mask ? '••••••••' : fmt(totalVal));
-
-    const pnlSign = nominalReturn > 0 ? '+' : '';
-    const pnlColor =
-      nominalReturn >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-500 dark:text-red-400';
-    const retStr = `${pnlSign}${fmt(Math.abs(nominalReturn))} (${pnlSign}${Number(pnlPercent || 0).toFixed(2)}%)`;
-
-    const retEl = document.getElementById('det-aset-return');
-    if (retEl) {
-      retEl.textContent = retStr;
-      retEl.className = `text-xs font-bold text-right ${pnlColor}`;
-    }
-    const liveChgEl = document.getElementById('det-aset-live-change');
-    if (liveChgEl) {
-      liveChgEl.textContent = retStr;
-      liveChgEl.className = `text-xs font-bold mt-1 ${pnlColor}`;
-    }
-
-    const btnIdr = document.getElementById('currency-btn-idr');
-    const btnUsd = document.getElementById('currency-btn-usd');
-    if (btnIdr && btnUsd) {
-      if (curr === 'IDR') {
-        btnIdr.className = 'px-2.5 py-1 rounded-full bg-[#0F5132] dark:bg-emerald-500 text-white dark:text-[#070908] transition-all';
-        btnUsd.className = 'px-2.5 py-1 rounded-full text-stone-400 transition-all';
-      } else {
-        btnUsd.className = 'px-2.5 py-1 rounded-full bg-[#0F5132] dark:bg-emerald-500 text-white dark:text-[#070908] transition-all';
-        btnIdr.className = 'px-2.5 py-1 rounded-full text-stone-400 transition-all';
-      }
-    }
-
-    const canvas = document.getElementById('portoChart');
-    if (canvas && typeof Chart !== 'undefined') {
-      if (assetDetailLineChartInstance) assetDetailLineChartInstance.destroy();
-      const ctx = canvas.getContext('2d');
-      const points = 16;
-      const series = [];
-      let p = liveHarga;
-      for (let i = 0; i < points; i++) {
-        p = p * (1 + (Math.random() - 0.48) * 0.025);
-        series.unshift(p);
-      }
-      series[points - 1] = liveHarga;
-      assetDetailLineChartInstance = new Chart(ctx, {
-        type: 'line',
-        data: {
-          labels: series.map((_, i) => String(i)),
-          datasets: [
-            {
-              data: series,
-              borderColor: '#10B981',
-              borderWidth: 2,
-              fill: true,
-              backgroundColor: 'rgba(16, 185, 129, 0.14)',
-              tension: 0.4,
-              pointRadius: 0
-            }
-          ]
-        },
-        options: {
-          responsive: true,
-          maintainAspectRatio: false,
-          plugins: { legend: { display: false }, tooltip: { enabled: false } },
-          scales: { x: { display: false }, y: { display: false } }
-        }
-      });
-    }
-  }
-
-  function setChartFilter(filter) {
-    window.currentActiveFilter = filter;
-    document.querySelectorAll('.time-filter-btn').forEach((btn) => {
-      btn.classList.toggle('active', btn.getAttribute('data-filter') === filter);
-    });
-    if (window.lastAssetData) updateAssetDetailCurrencyView();
-  }
-
-  function prepareReceiveDividend(simbol) {
-    const disp = document.getElementById('dividend-asset-simbol-display');
-    if (disp) disp.textContent = simbol;
-    openModal('modal-dividend');
-  }
-
   function submitGoal(e) {
     if (e && typeof e.preventDefault === 'function') e.preventDefault();
-    const name =
-      document.getElementById('form-goal-name')?.value?.trim() ||
-      document.getElementById('form-goal-nama')?.value?.trim() ||
-      document.getElementById('goal-title')?.value?.trim();
-    const rawTarget =
-      document.getElementById('form-goal-amount')?.value || document.getElementById('goal-target')?.value || '0';
+    const name = document.getElementById('form-goal-name')?.value?.trim() || document.getElementById('form-goal-nama')?.value?.trim() || document.getElementById('goal-title')?.value?.trim();
+    const rawTarget = document.getElementById('form-goal-amount')?.value || document.getElementById('goal-target')?.value || '0';
     const target = Number(String(rawTarget).replace(/[^0-9]/g, '')) || 0;
 
     if (!name || target <= 0) {
@@ -4200,7 +3464,7 @@
       showToast('Nominal dividen tidak valid', 'warning');
       return;
     }
-    const acc = state.accounts.find((a) => a.id === accId || a.name === accId);
+    const acc = findAccountByRef(accId);
     if (acc) acc.balance = (Number(acc.balance) || 0) + amount;
     state.transactions.unshift({
       id: 'trx_' + Date.now(),
@@ -4209,6 +3473,7 @@
       category: 'Dividen',
       amount,
       accountId: acc ? acc.id : accId,
+      accountName: acc ? acc.name : accId,
       note: 'Penerimaan Dividen Saham'
     });
     saveState();
@@ -4221,29 +3486,27 @@
       email: getSessionEmail(),
       tanggal: `${todayISO()} 12:00`,
       tipe: 'INFLOW',
-      akun: acc ? acc.name : accId,
-      kategori: 'Dividen',
+      akun: acc ? acc.name : '',
+      kategori: 'Tabungan & Investasi',
       jumlah: amount,
       keterangan: 'Penerimaan Dividen Saham'
     }).then(() => fetchAllData());
   }
 
   function deleteRecurringAction(id) {
-    const recId = id || document.getElementById('det-rec-id')?.value;
-    if (!recId) return;
+    if (!id) return;
     if (confirm('Hapus tagihan langganan ini?')) {
-      deleteRecurring(recId);
+      deleteRecurring(id);
       closeModal('modal-rec-detail');
     }
   }
 
   function deleteWalletAction(id) {
-    const wal = id
-      ? (state.wallets || []).find((w) => w.id === id)
-      : (state.wallets || []).find((w) => w.name === document.getElementById('det-wallet-name')?.textContent);
+    if (!id) return;
+    const wal = (state.wallets || []).find((w) => w.id === id);
     if (!wal) return;
     if (confirm(`Hapus dompet investasi "${wal.name}"?`)) {
-      state.wallets = state.wallets.filter((w) => w.id !== wal.id);
+      state.wallets = state.wallets.filter((w) => w.id !== id);
       saveState();
       closeModal('modal-wallet-detail');
       renderCurrentPage();
@@ -4277,12 +3540,12 @@
       const amt = Number(String(rawAmt).replace(/[^0-9]/g, '')) || 0;
       nominalVal = amt;
       if (isDone) {
-        goal.saved = 0;
         goal.current = 0;
+        goal.saved = 0;
         showToast('Target selesai dicapai!', 'success');
       } else if (amt > 0) {
-        goal.saved = Math.max(0, (Number(goal.saved ?? goal.current) || 0) - amt);
-        goal.current = goal.saved;
+        goal.current = Math.max(0, (goal.current ?? goal.saved ?? 0) - amt);
+        goal.saved = goal.current;
         showToast('Penarikan dana target berhasil', 'info');
       }
       closeModal('modal-withdraw-goal');
@@ -4291,8 +3554,8 @@
       const amt = Number(String(rawAmt).replace(/[^0-9]/g, '')) || 0;
       nominalVal = amt;
       if (amt > 0) {
-        goal.saved = (Number(goal.saved ?? goal.current) || 0) + amt;
-        goal.current = goal.saved;
+        goal.current = (goal.current ?? goal.saved ?? 0) + amt;
+        goal.saved = goal.current;
         showToast('Tabungan target bertambah', 'success');
       }
       closeModal('modal-add-savings');
@@ -4304,7 +3567,7 @@
       apiPost({
         action: 'manageGoalFunds',
         email: getSessionEmail(),
-        namaGoal: goal.title || goal.name,
+        namaGoal: goal.name || goal.title,
         tipeAksi: action,
         nominal: nominalVal,
         akun: payingAcc ? payingAcc.name : '',
@@ -4320,7 +3583,6 @@
 
     initTheme();
     applyTranslations();
-    refreshForexRate();
 
     const appWrapper = document.getElementById('app-wrapper');
     if (appWrapper) appWrapper.classList.remove('hidden-page');
@@ -4346,7 +3608,6 @@
   window.showPage = navigateTo;
   window.switchPage = navigateTo;
   window.formatRupiahInput = formatRupiahInput;
-  window.formatDecimalInput = formatDecimalInput;
   window.validateTrxForm = validateTrxForm;
   window.quickAddAmount = quickAddAmount;
   window.handleLogin = handleLogin;
@@ -4365,7 +3626,6 @@
   window.deleteAccountAction = deleteAccountAction;
   window.openEditAccountFromDetail = openEditAccountFromDetail;
   window.copyAccountInfo = copyAccountInfo;
-  window.openWalletDetailModal = openWalletDetailModal;
   window.openModal = openModal;
   window.closeModal = closeModal;
   window.closeAllModals = closeAllModals;
@@ -4390,13 +3650,6 @@
   window.deleteWalletAction = deleteWalletAction;
   window.saveAsset = saveAsset;
   window.submitBuyAsset = submitBuyAsset;
-  window.submitSellAsset = submitSellAsset;
-  window.handleBuyAssetAccountChange = handleBuyAssetAccountChange;
-  window.openAssetDetailModal = openAssetDetailModal;
-  window.setAssetDetailCurrency = setAssetDetailCurrency;
-  window.updateAssetDetailCurrencyView = updateAssetDetailCurrencyView;
-  window.setChartFilter = setChartFilter;
-  window.prepareReceiveDividend = prepareReceiveDividend;
   window.submitReceiveDividend = submitReceiveDividend;
   window.saveGoal = saveGoal;
   window.submitGoal = submitGoal;
@@ -4414,8 +3667,6 @@
   window.processReceiptImage = handleReceiptUpload;
   window.generateStatementPDF = generateStatementPDF;
   window.exportPDFStatement = generateStatementPDF;
-  window.generatePDF = generateStatementPDF;
-  window.setExportYear = setExportYear;
   window.syncWithCloud = syncWithCloud;
   window.saveGasUrl = saveGasUrl;
   window.exportBackupJSON = exportBackupJSON;
