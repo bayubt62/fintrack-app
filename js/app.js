@@ -1,8 +1,14 @@
 /**
  * ============================================================================
- * FINTRACK ENTERPRISE V3.0 — CORE APPLICATION ENGINE (js/app.js)
+ * FINTRACK V3.0 FUSION — CORE APPLICATION ENGINE (js/app.js)
  * Theme: Warm Cream (#FAF8F5) / Deep Forest Emerald (#0F5132) / Pitch Obsidian (#070908)
- * Compatibility: index.html, pages/*.html, Fintrack_DB & kode.gs V3.0
+ * Features:
+ * - 3D Stacked Sliding Account Cards Deck (Touch Swipe, Click-to-Front, Keyboard & Dots)
+ * - Multi-Page SPA Router (dashboard, calendar, portfolio, history, settings)
+ * - Offline-First State Engine + Google Apps Script (GAS) Cloud Sync
+ * - Multi-User Profile Support (Bayu & Dedek Indra) + Multi-Currency Forex Formatter
+ * - Live Portfolio Valuation (Harga_Saat_Ini + USD/IDR Forex) & Same-Symbol Merging
+ * - Chart.js Wealth Distribution & Category Analytics (Emerald & Obsidian Palette)
  * ============================================================================
  */
 
@@ -12,41 +18,31 @@
   /* --------------------------------------------------------------------------
    * 1. GLOBAL CONFIGURATION & STORAGE KEYS
    * -------------------------------------------------------------------------- */
-  const STORAGE_KEY = 'fintrack_v3_0_2_state';
-  const LEGACY_KEYS = ['fintrack_v3_state', 'fintrack_state', 'fintrack_data'];
+  const STORAGE_KEY = 'fintrack_v3_state';
   const THEME_KEY = 'fintrack_theme';
   const LANG_KEY = 'fintrack_lang';
   const CURRENCY_KEY = 'fintrack_currency';
   const PRIVACY_KEY = 'fintrack_privacy';
   const GAS_URL_KEY = 'fintrack_gas_url';
   const ACTIVE_USER_KEY = 'fintrack_active_user';
-  const SESSION_EMAIL_KEY = 'fintrack_session_email';
 
   const DEFAULT_API_URL =
     'https://script.google.com/macros/s/AKfycbz9a9kYr2cwtxxHZBewNNMdvE-43HPX1Vx6H7uoct8yFaluTj-vKzaQp1ehD21fTehNlg/exec';
 
-  const USER_PROFILES = {
-    Bayu: {
-      label: 'Bayu',
-      fullName: 'Bayu Mahardika',
-      email: 'bayubt62@gmail.com'
-    },
-    'Dedek Indra': {
-      label: 'Dedek Indra',
-      fullName: 'Indra Mahardika',
-      email: 'indrakoko999@gmail.com'
-    }
-  };
-
   const CURRENCY_CONFIG = {
     IDR: { symbol: 'Rp', locale: 'id-ID', rate: 1, decimals: 0 },
-    USD: { symbol: '$', locale: 'en-US', rate: 0.000062, decimals: 2 },
+    USD: { symbol: '$', locale: 'en-US', rate: 0.0000615, decimals: 2 },
     SGD: { symbol: 'S$', locale: 'en-SG', rate: 0.000083, decimals: 2 },
     EUR: { symbol: '€', locale: 'de-DE', rate: 0.000057, decimals: 2 },
     JPY: { symbol: '¥', locale: 'ja-JP', rate: 0.0095, decimals: 0 },
     MYR: { symbol: 'RM', locale: 'ms-MY', rate: 0.00027, decimals: 2 },
     AUD: { symbol: 'A$', locale: 'en-AU', rate: 0.000095, decimals: 2 }
   };
+
+  window.usdExchangeRate = window.usdExchangeRate || 16250;
+  window.currentActiveCurrency = window.currentActiveCurrency || 'IDR';
+  window.currentActiveFilter = window.currentActiveFilter || '1H';
+  window.lastAssetData = window.lastAssetData || null;
 
   const CARD_THEMES = {
     emerald: {
@@ -72,11 +68,6 @@
     bni: {
       bg: 'linear-gradient(135deg, #0F4C5C 0%, #0A323D 55%, #061E24 100%)',
       accent: '#FB923C',
-      badge: 'BANK'
-    },
-    bri: {
-      bg: 'linear-gradient(135deg, #0B3954 0%, #08273A 55%, #051824 100%)',
-      accent: '#60A5FA',
       badge: 'BANK'
     },
     ewallet: {
@@ -109,14 +100,6 @@
    * -------------------------------------------------------------------------- */
   const I18N = {
     id: {
-      'app-desc': 'Manajemen Kekayaan Terpadu',
-      'login-title': 'Masuk ke Akun',
-      'lbl-email': 'Alamat Email',
-      'ph-email': 'contoh@gmail.com',
-      'lbl-pass': 'Kata Sandi',
-      'btn-login': 'Konfirmasi Identitas',
-      'txt-hello': 'Halo,',
-      'btn-logout': 'Keluar',
       'dash-bal': 'Saldo Saat Ini',
       'dash-inc': 'Pemasukan',
       'dash-exp': 'Pengeluaran',
@@ -175,14 +158,6 @@
       'nav-set': 'Pengaturan'
     },
     en: {
-      'app-desc': 'Enterprise Wealth Management',
-      'login-title': 'Log in to Account',
-      'lbl-email': 'Email Address',
-      'ph-email': 'example@gmail.com',
-      'lbl-pass': 'Password',
-      'btn-login': 'Confirm Identity',
-      'txt-hello': 'Hello,',
-      'btn-logout': 'Logout',
       'dash-bal': 'Current Balance',
       'dash-inc': 'Income',
       'dash-exp': 'Expenditure',
@@ -243,7 +218,7 @@
   };
 
   /* --------------------------------------------------------------------------
-   * 3. DATE, NUMBER & APPLICATION STATE HELPERS
+   * 3. DATE & NUMERIC PARSING HELPERS
    * -------------------------------------------------------------------------- */
   const todayISO = () => {
     const d = new Date();
@@ -262,165 +237,336 @@
     return `${y}-${m}-${day}`;
   };
 
-  /**
-   * Parses DD/MM/YYYY (e.g. "21/11/2026 21:04:54") and YYYY-MM-DD (e.g. "2026-11-21 20:06")
-   * accurately into ISO YYYY-MM-DD without swapping day/month.
-   */
-  function parseFlexibleDateToISO(rawVal) {
-    if (!rawVal) return todayISO();
-    if (rawVal instanceof Date && !isNaN(rawVal.getTime())) {
-      return `${rawVal.getFullYear()}-${String(rawVal.getMonth() + 1).padStart(2, '0')}-${String(
-        rawVal.getDate()
-      ).padStart(2, '0')}`;
-    }
-
-    const str = String(rawVal).trim();
-
-    // 1. YYYY-MM-DD or YYYY/MM/DD (with optional time)
-    const isoMatch = str.match(/^(\d{4})[\/\-](\d{1,2})[\/\-](\d{1,2})/);
+  function toLocalISODate(rawDate) {
+    if (!rawDate) return todayISO();
+    const str = String(rawDate).trim();
+    const isoMatch = str.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
     if (isoMatch) {
-      const y = isoMatch[1];
-      const m = String(parseInt(isoMatch[2], 10)).padStart(2, '0');
-      const d = String(parseInt(isoMatch[3], 10)).padStart(2, '0');
-      return `${y}-${m}-${d}`;
+      return `${isoMatch[1]}-${isoMatch[2].padStart(2, '0')}-${isoMatch[3].padStart(2, '0')}`;
     }
-
-    // 2. DD/MM/YYYY or D/M/YYYY (Indonesian locale format in T_Transaksi)
     const dmyMatch = str.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})/);
     if (dmyMatch) {
-      const dayNum = parseInt(dmyMatch[1], 10);
-      const monthNum = parseInt(dmyMatch[2], 10);
-      const yearNum = dmyMatch[3];
-      if (monthNum >= 1 && monthNum <= 12 && dayNum >= 1 && dayNum <= 31) {
-        return `${yearNum}-${String(monthNum).padStart(2, '0')}-${String(dayNum).padStart(2, '0')}`;
-      }
-      if (dayNum >= 1 && dayNum <= 12 && monthNum >= 1 && monthNum <= 31) {
-        return `${yearNum}-${String(dayNum).padStart(2, '0')}-${String(monthNum).padStart(2, '0')}`;
-      }
+      return `${dmyMatch[3]}-${dmyMatch[2].padStart(2, '0')}-${dmyMatch[1].padStart(2, '0')}`;
     }
-
-    const parsed = new Date(str);
-    if (!isNaN(parsed.getTime())) {
-      return `${parsed.getFullYear()}-${String(parsed.getMonth() + 1).padStart(2, '0')}-${String(
-        parsed.getDate()
-      ).padStart(2, '0')}`;
+    const d = new Date(str);
+    if (!isNaN(d.getTime())) {
+      const y = d.getFullYear();
+      const m = String(d.getMonth() + 1).padStart(2, '0');
+      const day = String(d.getDate()).padStart(2, '0');
+      return `${y}-${m}-${day}`;
     }
-
     return todayISO();
   }
 
-  function extractTimeFromRaw(rawVal) {
-    if (!rawVal) return '';
-    const str = String(rawVal).trim();
-    const match = str.match(/(\d{1,2})[:.](\d{2})(?:[:.](\d{2}))?/);
-    if (!match) return '';
-    return `${String(match[1]).padStart(2, '0')}:${match[2]}`;
-  }
-
-  function resolveDueDateISO(rawDue) {
-    if (!rawDue && rawDue !== 0) return '';
-    const str = String(rawDue).trim();
-    if (/^\d{4}[\/\-]\d{1,2}[\/\-]\d{1,2}/.test(str) || /^\d{1,2}[\/\-]\d{1,2}[\/\-]\d{4}/.test(str)) {
-      return parseFlexibleDateToISO(str);
-    }
-    const dayNum = parseInt(str, 10);
-    if (!isNaN(dayNum) && dayNum >= 1 && dayNum <= 31) {
-      const now = new Date();
-      let year = now.getFullYear();
-      let month = now.getMonth();
-      if (dayNum < now.getDate()) {
-        month += 1;
-        if (month > 11) {
-          month = 0;
-          year += 1;
-        }
+  function extractNumber(val) {
+    if (val === undefined || val === null || val === '') return 0;
+    if (typeof val === 'number') return isNaN(val) ? 0 : val;
+    let str = val.toString().replace(/Rp|USD|\$/gi, '').trim();
+    if (str.indexOf(',') > -1 && str.indexOf('.') !== -1 && str.lastIndexOf(',') > str.lastIndexOf('.')) {
+      str = str.replace(/\./g, '').replace(',', '.');
+    } else if (str.indexOf(',') > -1 && str.indexOf('.') === -1) {
+      const parts = str.split(',');
+      str = parts[1] && parts[1].length === 3 ? str.replace(/,/g, '') : str.replace(',', '.');
+    } else if (str.indexOf(',') > -1) {
+      str = str.replace(/,/g, '');
+    } else if (str.indexOf('.') > -1 && str.split('.').length > 2) {
+      str = str.replace(/\./g, '');
+    } else if (str.indexOf('.') > -1) {
+      const parts = str.split('.');
+      if (parts[0] !== '0' && parts[0] !== '-0' && parts[1] && parts[1].length === 3) {
+        str = str.replace(/\./g, '');
       }
-      const maxDay = new Date(year, month + 1, 0).getDate();
-      const clamped = Math.min(dayNum, maxDay);
-      return `${year}-${String(month + 1).padStart(2, '0')}-${String(clamped).padStart(2, '0')}`;
     }
-    return '';
+    const num = parseFloat(str);
+    return isNaN(num) ? 0 : num;
   }
 
-  function normalizeUserLabel(rawUser) {
-    const clean = (rawUser || '').toString().trim();
-    const lower = clean.toLowerCase();
-    if (lower.includes('indra')) return 'Dedek Indra';
-    if (lower.includes('bayu')) return 'Bayu';
-    return clean || 'Bayu';
+  function extractPriceNumber(val, currency = 'IDR') {
+    if (val === undefined || val === null || val === '') return 0;
+    if (typeof val === 'number') return isNaN(val) ? 0 : val;
+    const curr = String(currency || 'IDR').toUpperCase().trim();
+    if (curr !== 'IDR') {
+      let str = val.toString().replace(/Rp|USD|\$/gi, '').trim();
+      if (str.indexOf(',') > -1 && str.indexOf('.') > -1) {
+        if (str.lastIndexOf(',') > str.lastIndexOf('.')) {
+          str = str.replace(/\./g, '').replace(',', '.');
+        } else {
+          str = str.replace(/,/g, '');
+        }
+      } else if (str.indexOf(',') > -1) {
+        str = str.replace(',', '.');
+      }
+      const parsed = parseFloat(str);
+      return isNaN(parsed) ? 0 : parsed;
+    }
+    return extractNumber(val);
   }
 
-  function resolveEmailForUser(userLabel) {
-    const norm = normalizeUserLabel(userLabel);
-    if (USER_PROFILES[norm]) return USER_PROFILES[norm].email;
-    return 'bayubt62@gmail.com';
+  function normalizeTrxType(t) {
+    if (!t) return 'OUTFLOW';
+    const raw = String(t.type || t.Tipe || t.tipe || '')
+      .trim()
+      .toUpperCase();
+    const cat = String(t.category || t.Kategori || t.kategori || '')
+      .trim()
+      .toLowerCase();
+
+    if (raw === 'NEUTRAL' || raw === 'NETRAL') return 'NEUTRAL';
+    if (
+      raw.includes('TF') ||
+      raw.includes('TRANSFER') ||
+      cat === 'transfer masuk' ||
+      cat === 'transfer keluar' ||
+      cat === 'transfer antar akun' ||
+      cat === 'transfer'
+    ) {
+      return 'TRANSFER';
+    }
+    if (
+      raw === 'INFLOW' ||
+      raw === 'INCOME' ||
+      raw === 'PEMASUKAN' ||
+      raw === 'MASUK' ||
+      raw === 'CREDIT' ||
+      raw === 'KREDIT'
+    ) {
+      return 'INFLOW';
+    }
+    return 'OUTFLOW';
   }
 
+  // Fetch live USD -> IDR exchange rate for foreign-currency portfolio assets
+  function refreshForexRate() {
+    if (window._fintrackForexLoading) return;
+    window._fintrackForexLoading = true;
+    fetch('https://open.er-api.com/v6/latest/USD')
+      .then((res) => res.json())
+      .then((data) => {
+        if (data && data.rates && data.rates.IDR) {
+          window.usdExchangeRate = Number(data.rates.IDR) || 16250;
+          CURRENCY_CONFIG.USD.rate = 1 / window.usdExchangeRate;
+          if (activePage === 'portfolio') renderPortfolioPage();
+        }
+      })
+      .catch(() => {
+        // Fallback rate remains active
+      })
+      .finally(() => {
+        window._fintrackForexLoading = false;
+      });
+  }
+
+  /* --------------------------------------------------------------------------
+   * 4. APPLICATION STATE & DEFAULT SEED DATA
+   * -------------------------------------------------------------------------- */
   function getDefaultState() {
-    const savedActive = normalizeUserLabel(localStorage.getItem(ACTIVE_USER_KEY) || 'Bayu');
     return {
-      version: '3.0.2',
-      activeUser: savedActive,
+      version: '3.0.0',
+      activeUser: localStorage.getItem(ACTIVE_USER_KEY) || 'Bayu',
       users: ['Bayu', 'Dedek Indra'],
-      accounts: [],
-      transactions: [],
-      recurring: [],
-      debts: [],
+      accounts: [
+        {
+          id: 'acc_bca',
+          name: 'BCA Tahapan',
+          type: 'BANK',
+          number: '•••• 4821',
+          balance: 14850000,
+          theme: 'emerald',
+          owner: 'Bayu'
+        },
+        {
+          id: 'acc_mandiri',
+          name: 'Mandiri Livin',
+          type: 'BANK',
+          number: '•••• 9034',
+          balance: 8420000,
+          theme: 'obsidian',
+          owner: 'Bayu'
+        },
+        {
+          id: 'acc_gopay',
+          name: 'GoPay & Cash',
+          type: 'E-WALLET',
+          number: '•••• 7712',
+          balance: 1950000,
+          theme: 'ewallet',
+          owner: 'Bayu'
+        }
+      ],
+      transactions: [
+        {
+          id: 'trx_1',
+          date: todayISO(),
+          type: 'INFLOW',
+          category: 'Freelance & Project',
+          amount: 4500000,
+          accountId: 'acc_bca',
+          note: 'Client Visual & UI Delivery',
+          receipt: ''
+        },
+        {
+          id: 'trx_2',
+          date: todayISO(),
+          type: 'OUTFLOW',
+          category: 'Makan & Kopi',
+          amount: 85000,
+          accountId: 'acc_gopay',
+          note: 'Kopi Susu & Makan Siang',
+          receipt: ''
+        },
+        {
+          id: 'trx_3',
+          date: offsetDateISO(-1),
+          type: 'OUTFLOW',
+          category: 'Transport & BBM',
+          amount: 150000,
+          accountId: 'acc_gopay',
+          note: 'Pertamax Full Tank',
+          receipt: ''
+        },
+        {
+          id: 'trx_4',
+          date: offsetDateISO(-2),
+          type: 'INFLOW',
+          category: 'Dividen & Yield',
+          amount: 1250000,
+          accountId: 'acc_mandiri',
+          note: 'Imbal Hasil Portofolio',
+          receipt: ''
+        },
+        {
+          id: 'trx_5',
+          date: offsetDateISO(-3),
+          type: 'OUTFLOW',
+          category: 'Software & Cloud',
+          amount: 249000,
+          accountId: 'acc_bca',
+          note: 'Domain & Cloud Hosting',
+          receipt: ''
+        }
+      ],
+      recurring: [
+        {
+          id: 'rec_1',
+          name: 'iCloud+ & Adobe CC',
+          amount: 169000,
+          cycle: 'Monthly',
+          dueDate: offsetDateISO(2),
+          accountId: 'acc_bca',
+          category: 'Software & Cloud',
+          active: true
+        },
+        {
+          id: 'rec_2',
+          name: 'Gym & Fitness Membership',
+          amount: 350000,
+          cycle: 'Monthly',
+          dueDate: offsetDateISO(5),
+          accountId: 'acc_mandiri',
+          category: 'Kesehatan & Gym',
+          active: true
+        }
+      ],
+      debts: [
+        {
+          id: 'debt_1',
+          type: 'RECEIVABLE',
+          person: 'Raka Studio',
+          amount: 1200000,
+          paid: 0,
+          dueDate: offsetDateISO(3),
+          note: 'Pelunasan Render 3D',
+          settled: false
+        }
+      ],
       debtHistory: [],
-      wallets: [],
-      assets: [],
-      goals: [],
+      wallets: [
+        {
+          id: 'wal_1',
+          name: 'Ajaib Sekuritas & Kripto',
+          platform: 'Ajaib',
+          balance: 6500000
+        },
+        {
+          id: 'wal_2',
+          name: 'Phantom Web3 Vault',
+          platform: 'Solana',
+          balance: 4200000
+        }
+      ],
+      assets: [
+        {
+          id: 'ast_1',
+          symbol: 'ADRO',
+          name: 'Adaro Energy',
+          category: 'Saham IDX',
+          currency: 'IDR',
+          qty: 1500,
+          buyPrice: 3650,
+          currentPrice: 3920,
+          walletId: 'wal_1'
+        },
+        {
+          id: 'ast_2',
+          symbol: 'SOL',
+          name: 'Solana',
+          category: 'Crypto',
+          currency: 'IDR',
+          qty: 2.5,
+          buyPrice: 2100000,
+          currentPrice: 2480000,
+          walletId: 'wal_2'
+        },
+        {
+          id: 'ast_3',
+          symbol: 'GOLD',
+          name: 'Emas Antam Digital',
+          category: 'Emas',
+          currency: 'IDR',
+          qty: 5,
+          buyPrice: 1380000,
+          currentPrice: 1510000,
+          walletId: 'wal_1'
+        }
+      ],
+      goals: [
+        {
+          id: 'goal_1',
+          title: 'Dana Darurat 12 Bulan',
+          target: 50000000,
+          saved: 25220000,
+          deadline: '2026-12-31'
+        },
+        {
+          id: 'goal_2',
+          title: 'Custom Garage & Workstation',
+          target: 35000000,
+          saved: 14800000,
+          deadline: '2027-06-30'
+        }
+      ],
       categories: {
-        INFLOW: [
-          'Gaji & Honor',
-          'Pemberian',
-          'Freelance & Project',
-          'Dividen & Yield',
-          'Tabungan & Investasi',
-          'Transfer Masuk',
-          'Mutasi Masuk',
-          'Lainnya'
-        ],
+        INFLOW: ['Gaji & Honor', 'Freelance & Project', 'Dividen & Yield', 'Bonus', 'Lainnya'],
         OUTFLOW: [
-          'Makanan',
-          'Transportasi',
-          'Tagihan',
-          'Tagihan & Langganan',
+          'Makan & Kopi',
+          'Transport & BBM',
+          'Tagihan & Utilitas',
+          'Software & Cloud',
+          'Kesehatan & Gym',
           'Belanja',
           'Hiburan',
-          'Tabungan & Investasi',
-          'Kewajiban & Sosial',
-          'Biaya Admin',
-          'Transfer Keluar',
-          'Mutasi Keluar',
           'Lainnya'
         ],
-        TRANSFER: ['Transfer Antar Akun', 'Top Up E-Wallet', 'Tarik Tunai']
+        TRANSFER: ['Transfer Antar Akun', 'Top Up E-Wallet', 'Deposit Investasi']
       }
     };
   }
 
-  // Purge legacy dummy storage keys so stale data never reappears
-  LEGACY_KEYS.forEach((k) => {
-    try {
-      localStorage.removeItem(k);
-    } catch (e) {}
-  });
-
   let state = loadState();
+  let rawBackendData = {};
   let activePage = 'dashboard';
   let activeDeckIndex = 0;
   let dueBannerDismissed = false;
-
-  // Runtime Modal Context Trackers
-  let currentDetailAccountId = null;
-  let currentDetailAssetId = null;
-  let currentAssetDetailCurrency = 'IDR';
-  let currentAssetChartFilter = '1M';
-  let currentGoalActionId = null;
-  let debtHistoryTab = 'ACTIVE';
-  let advanceItemsMode = false;
-  let selectedExportYear = new Date().getFullYear();
 
   // Calendar runtime state
   let calDate = new Date();
@@ -436,7 +582,8 @@
   // Chart instances
   let portfolioChartInstance = null;
   let categoryChartInstance = null;
-  let assetDetailChartInstance = null;
+  let assetDetailLineChartInstance = null;
+  let exportSelectedYear = new Date().getFullYear();
 
   function loadState() {
     try {
@@ -448,14 +595,9 @@
       }
       const parsed = JSON.parse(raw);
       const defaults = getDefaultState();
-      if (!parsed || parsed.version !== defaults.version) {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(defaults));
-        return defaults;
-      }
       return {
         ...defaults,
         ...parsed,
-        activeUser: normalizeUserLabel(parsed.activeUser || defaults.activeUser),
         categories: { ...defaults.categories, ...(parsed.categories || {}) }
       };
     } catch (err) {
@@ -464,16 +606,12 @@
     }
   }
 
-  let syncDebounceTimer = null;
+  let cloudSyncTimer = null;
   function scheduleCloudSync() {
-    if (syncDebounceTimer) clearTimeout(syncDebounceTimer);
-    syncDebounceTimer = setTimeout(() => {
-      try {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-      } catch (e) {
-        console.warn('[Fintrack] State persistence notice:', e);
-      }
-    }, 250);
+    if (cloudSyncTimer) clearTimeout(cloudSyncTimer);
+    cloudSyncTimer = setTimeout(() => {
+      // Background persistence hook ready
+    }, 1000);
   }
 
   function saveState(skipCloud) {
@@ -488,7 +626,7 @@
   }
 
   /* --------------------------------------------------------------------------
-   * 4. CURRENCY, PRIVACY, THEME & I18N HELPERS
+   * 5. CURRENCY, PRIVACY, THEME & I18N HELPERS
    * -------------------------------------------------------------------------- */
   function getCurrency() {
     return localStorage.getItem(CURRENCY_KEY) || 'IDR';
@@ -505,6 +643,31 @@
     }).format(Math.abs(converted));
     const sign = numeric < 0 ? '-' : '';
     return `${sign}${cfg.symbol} ${formatted}`;
+  }
+
+  function formatNativeAssetPrice(amount, currency = 'IDR') {
+    const curr = String(currency || 'IDR').toUpperCase().trim();
+    const num = Number(amount) || 0;
+    if (curr === 'IDR') {
+      return formatCurrency(num, 'IDR');
+    }
+    const decimals = num > 0 && num < 0.01 ? 6 : num < 1 ? 4 : 2;
+    const prefix = curr === 'USD' ? '$' : `${curr} `;
+    return (
+      prefix +
+      new Intl.NumberFormat('en-US', {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: decimals
+      }).format(num)
+    );
+  }
+
+  function formatUnitQty(qty) {
+    const num = Number(qty) || 0;
+    return num.toLocaleString('en-US', {
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 6
+    });
   }
 
   function setCurrency(code) {
@@ -569,7 +732,6 @@
     updateThemeUI(isDark);
     if (activePage === 'portfolio') renderPortfolioPage();
     if (activePage === 'history') renderHistoryPage();
-    if (activePage === 'settings') renderSettingsPage();
   }
 
   function updateThemeUI(isDark) {
@@ -604,12 +766,7 @@
 
     document.querySelectorAll('[data-i18n]').forEach((el) => {
       const key = el.getAttribute('data-i18n');
-      if (!dict[key]) return;
-      if (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA') {
-        el.setAttribute('placeholder', dict[key]);
-      } else {
-        el.textContent = dict[key];
-      }
+      if (dict[key]) el.textContent = dict[key];
     });
 
     document.querySelectorAll('[data-i18n-ph]').forEach((el) => {
@@ -621,6 +778,9 @@
       const txt = el.getAttribute(`data-${lang}`);
       if (txt) el.textContent = txt;
     });
+
+    const langBadge = document.getElementById('lang-label');
+    if (langBadge) langBadge.textContent = lang.toUpperCase();
 
     const btnId = document.getElementById('lang-btn-id');
     const btnEn = document.getElementById('lang-btn-en');
@@ -637,37 +797,22 @@
     }
   }
 
+  function getAssetAvatarHtml(symbol) {
+    const s = String(symbol || 'AS').toUpperCase().trim();
+    const base = s.replace(/USD$|IDR$/i, '').toLowerCase();
+    const coinUrl = `https://assets.coincap.io/assets/icons/${base}@2x.png`;
+    const fallbackUrl = `https://ui-avatars.com/api/?name=${encodeURIComponent(
+      s.substring(0, 4)
+    )}&background=0F5132&color=fff&rounded=true&bold=true`;
+    return `<img src="${coinUrl}" onerror="this.onerror=null;this.src='${fallbackUrl}';" alt="${escapeHTML(
+      s
+    )}" class="w-10 h-10 object-contain rounded-full bg-[#FAF8F5] dark:bg-[#161D19] border border-stone-200/70 dark:border-stone-800 p-1 shrink-0">`;
+  }
+
   /* --------------------------------------------------------------------------
-   * 5. TOAST NOTIFICATION SYSTEM
+   * 6. TOAST NOTIFICATION SYSTEM
    * -------------------------------------------------------------------------- */
   function showToast(message, type = 'info') {
-    const singleToast = document.getElementById('fintrack-toast');
-    const singleText = document.getElementById('fintrack-toast-text');
-    const singleIcon = document.getElementById('fintrack-toast-icon');
-
-    if (singleToast && singleText) {
-      singleText.textContent = message;
-      if (singleIcon) {
-        const dotColor =
-          type === 'error'
-            ? 'bg-red-400'
-            : type === 'warning'
-            ? 'bg-amber-400'
-            : type === 'success'
-            ? 'bg-emerald-400'
-            : 'bg-sky-400';
-        singleIcon.className = `w-2 h-2 rounded-full shrink-0 ${dotColor}`;
-      }
-      singleToast.classList.remove('opacity-0', '-translate-y-4');
-      singleToast.classList.add('opacity-100', 'translate-y-0');
-      clearTimeout(singleToast._hideTimer);
-      singleToast._hideTimer = setTimeout(() => {
-        singleToast.classList.remove('opacity-100', 'translate-y-0');
-        singleToast.classList.add('opacity-0', '-translate-y-4');
-      }, 2600);
-      return;
-    }
-
     let container = document.getElementById('fintrack-toast-container');
     if (!container) {
       container = document.createElement('div');
@@ -702,12 +847,12 @@
   }
 
   /* --------------------------------------------------------------------------
-   * 6. SPA ROUTER & NAVIGATION
+   * 7. SPA ROUTER & NAVIGATION
    * -------------------------------------------------------------------------- */
   function getPageContainer() {
     return (
-      document.getElementById('main-content') ||
       document.getElementById('app-content') ||
+      document.getElementById('main-content') ||
       document.getElementById('page-container') ||
       document.querySelector('main')
     );
@@ -718,12 +863,13 @@
     const target = validPages.includes(page) ? page : 'dashboard';
     activePage = target;
 
-    document.querySelectorAll('[data-page], .nav-btn').forEach((btn) => {
+    document.querySelectorAll('[data-page], .nav-btn, .nav-item').forEach((btn) => {
       const btnPage = btn.getAttribute('data-page') || (btn.id ? btn.id.replace('nav-', '') : null);
       if (!btnPage) return;
       const isActive = btnPage === target;
       btn.classList.toggle('active', isActive);
       btn.classList.toggle('active-nav', isActive);
+      btn.classList.toggle('nav-active', isActive);
       if (isActive) {
         btn.classList.remove('text-stone-400', 'dark:text-stone-400');
       } else {
@@ -742,36 +888,23 @@
       return;
     }
 
-    if (target === 'settings') {
-      container.innerHTML = buildFallbackSettingsHTML();
-      applyTranslations();
-      renderCurrentPage();
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-      return;
-    }
-
     try {
       const res = await fetch(`pages/${target}.html?v=3.0`);
       if (res.ok) {
         const html = await res.text();
         container.innerHTML = html;
-      } else {
-        container.innerHTML = buildFallbackPageHTML(target);
+      } else if (target === 'settings') {
+        container.innerHTML = buildFallbackSettingsHTML();
       }
     } catch (err) {
-      container.innerHTML = buildFallbackPageHTML(target);
+      if (target === 'settings') {
+        container.innerHTML = buildFallbackSettingsHTML();
+      }
     }
 
     applyTranslations();
     renderCurrentPage();
     window.scrollTo({ top: 0, behavior: 'smooth' });
-  }
-
-  function buildFallbackPageHTML(target) {
-    if (target === 'settings') return buildFallbackSettingsHTML();
-    return `<div class="p-6 text-center text-xs text-stone-500">Halaman ${escapeHTML(
-      target
-    )} tidak ditemukan. Pastikan folder <code>pages/${escapeHTML(target)}.html</code> tersedia.</div>`;
   }
 
   function renderCurrentPage() {
@@ -784,112 +917,41 @@
     applyPrivacyMask();
   }
 
-  function evaluateFinancialLevel() {
-    const cashTotal = getUserAccounts().reduce((s, a) => s + (Number(a.balance) || 0), 0);
-    const walletCash = (state.wallets || []).reduce((s, w) => s + (Number(w.balance) || 0), 0);
-    const assetValue = (state.assets || []).reduce(
-      (s, a) => s + (Number(a.qty) || 0) * (Number(a.currentPrice) || Number(a.buyPrice) || 0),
-      0
-    );
-    const totalAssets = cashTotal + walletCash + assetValue;
-
-    const activeDebtTotal = (state.debts || [])
-      .filter((d) => !d.settled && d.type === 'DEBT')
-      .reduce((s, d) => s + Math.max(0, (Number(d.amount) || 0) - (Number(d.paid) || 0)), 0);
-
-    const now = new Date();
-    const ymPrefix = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-    const monthExp = (state.transactions || [])
-      .filter((t) => t.type === 'OUTFLOW' && t.date && t.date.startsWith(ymPrefix))
-      .reduce((s, t) => s + (Number(t.amount) || 0), 0);
-
-    const monthlyBaseline = Math.max(monthExp, 1500000);
-    const emergencyTarget = monthlyBaseline * 6;
-    const fireTarget = monthlyBaseline * 12 * 25;
-
-    if (activeDebtTotal > 0 && totalAssets < activeDebtTotal) return 1;
-    if (cashTotal < emergencyTarget && totalAssets < 50000000) return 2;
-    if (totalAssets < 50000000) return 3;
-    if (totalAssets < 250000000) return 4;
-    if (totalAssets < fireTarget) return 5;
-    return 6;
-  }
-
   function updateHeaderUserUI() {
     const userLabel = document.getElementById('active-user-name') || document.getElementById('user-display');
     if (userLabel) userLabel.textContent = `${state.activeUser || 'Bayu'}!`;
-
-    const langBtn = document.getElementById('lang-btn-id')?.parentElement;
-    const headerRight = langBtn?.parentElement;
-    if (headerRight && !document.getElementById('btn-header-settings')) {
-      const themeBtn = document.createElement('button');
-      themeBtn.id = 'btn-header-theme';
-      themeBtn.type = 'button';
-      themeBtn.setAttribute('aria-label', 'Toggle Dark Mode');
-      themeBtn.onclick = toggleTheme;
-      themeBtn.className =
-        'w-8 h-8 rounded-full bg-[#EFECE6] dark:bg-[#141A17] border border-stone-200/80 dark:border-stone-800 flex items-center justify-center text-stone-700 dark:text-emerald-300 hover:scale-105 active:scale-95 transition';
-      themeBtn.innerHTML =
-        '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"></path></svg>';
-
-      const setBtn = document.createElement('button');
-      setBtn.id = 'btn-header-settings';
-      setBtn.type = 'button';
-      setBtn.setAttribute('aria-label', 'Settings & Sync');
-      setBtn.onclick = () => navigateTo(activePage === 'settings' ? 'dashboard' : 'settings');
-      setBtn.className =
-        'w-8 h-8 rounded-full bg-[#EFECE6] dark:bg-[#141A17] border border-stone-200/80 dark:border-stone-800 flex items-center justify-center text-stone-700 dark:text-stone-200 hover:scale-105 active:scale-95 transition';
-      setBtn.innerHTML =
-        '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>';
-
-      headerRight.appendChild(themeBtn);
-      headerRight.appendChild(setBtn);
-    }
-
-    const level = evaluateFinancialLevel();
-    const levelNames = {
-      1: 'Lv.1 Eliminasi Liabilitas',
-      2: 'Lv.2 Proteksi Likuiditas',
-      3: 'Lv.3 Akumulasi Kapital',
-      4: 'Lv.4 Alokasi Portofolio',
-      5: 'Lv.5 Maksimalisasi Ekuitas',
-      6: 'Lv.6 Kemerdekaan Finansial'
-    };
+    const userAvatar = document.getElementById('active-user-initial');
+    if (userAvatar) userAvatar.textContent = (state.activeUser || 'B').charAt(0).toUpperCase();
 
     const badge = document.getElementById('user-level-badge');
-    const badgeIcon = document.getElementById('badge-icon');
     const badgeText = document.getElementById('badge-text');
     if (badge && badgeText) {
-      badge.classList.remove('opacity-0', 'bg-stone-500');
-      badge.classList.add('bg-[#0F5132]', 'dark:bg-emerald-600');
-      if (badgeIcon) badgeIcon.textContent = level >= 4 ? '🏆' : '🌱';
-      badgeText.textContent = levelNames[level] || levelNames[3];
-    }
-
-    for (let i = 1; i <= 6; i++) {
-      const card = document.getElementById(`list-level-${i}`);
-      if (!card) continue;
-      if (i === level) {
-        card.classList.remove('opacity-50');
-        card.classList.add('opacity-100', 'ring-2', 'ring-[#0F5132]', 'dark:ring-emerald-400');
-      } else {
-        card.classList.add('opacity-50');
-        card.classList.remove('opacity-100', 'ring-2', 'ring-[#0F5132]', 'dark:ring-emerald-400');
-      }
+      badge.classList.remove('opacity-0');
+      badge.classList.remove('bg-stone-500');
+      badge.classList.add('bg-emerald-600', 'dark:bg-emerald-500');
+      badgeText.textContent = 'Fase Akumulasi Aset';
     }
   }
 
   /* --------------------------------------------------------------------------
-   * 7. DASHBOARD RENDERER & 3D STACKED SLIDING ACCOUNT CARDS
+   * 8. DASHBOARD RENDERER & 3D STACKED SLIDING ACCOUNT CARDS
    * -------------------------------------------------------------------------- */
   function getUserAccounts() {
     if (!state.accounts || state.accounts.length === 0) return [];
-    const activeEmail = getSessionEmail().toLowerCase().trim();
+    const active = (state.activeUser || '').toLowerCase().trim();
+    const sessionEmail = (getSessionEmail() || '').toLowerCase().trim();
     const filtered = state.accounts.filter((a) => {
-      if (!a.ownerEmail) return true;
-      return a.ownerEmail.toLowerCase().trim() === activeEmail;
+      if (!a.owner) return true;
+      const own = a.owner.toLowerCase().trim();
+      return (
+        own === active ||
+        own === sessionEmail ||
+        own === active.replace(/@.*$/, '') ||
+        sessionEmail.startsWith(own) ||
+        own === 'all'
+      );
     });
-    return filtered;
+    return filtered.length > 0 ? filtered : state.accounts;
   }
 
   function renderDashboardPage() {
@@ -901,10 +963,12 @@
     let monthIn = 0;
     let monthOut = 0;
 
-    state.transactions.forEach((t) => {
-      if (t.date && t.date.startsWith(ymPrefix)) {
-        if (t.type === 'INFLOW') monthIn += Number(t.amount) || 0;
-        if (t.type === 'OUTFLOW') monthOut += Number(t.amount) || 0;
+    (state.transactions || []).forEach((t) => {
+      const dateStr = toLocalISODate(t.date);
+      if (dateStr && dateStr.startsWith(ymPrefix)) {
+        const normType = normalizeTrxType(t);
+        if (normType === 'INFLOW') monthIn += Number(t.amount) || 0;
+        else if (normType === 'OUTFLOW') monthOut += Number(t.amount) || 0;
       }
     });
 
@@ -940,10 +1004,10 @@
     const alerts = [];
 
     (state.recurring || []).forEach((r) => {
-      if (r.active === false) return;
-      const iso = resolveDueDateISO(r.dueDate);
-      if (!iso) return;
-      const due = new Date(iso + 'T00:00:00');
+      if (!r.active || !r.dueDate) return;
+      const dueStr = String(r.dueDate);
+      if (!dueStr.includes('-')) return;
+      const due = new Date(dueStr + 'T00:00:00');
       if (isNaN(due.getTime())) return;
       const diffDays = Math.ceil((due - today) / 86400000);
       if (diffDays <= 5) {
@@ -956,9 +1020,9 @@
 
     (state.debts || []).forEach((d) => {
       if (d.settled || !d.dueDate) return;
-      const iso = resolveDueDateISO(d.dueDate);
-      if (!iso) return;
-      const due = new Date(iso + 'T00:00:00');
+      const dueStr = String(d.dueDate);
+      if (!dueStr.includes('-')) return;
+      const due = new Date(dueStr + 'T00:00:00');
       if (isNaN(due.getTime())) return;
       const diffDays = Math.ceil((due - today) / 86400000);
       if (diffDays <= 5) {
@@ -1009,9 +1073,7 @@
       stage.style.height = '130px';
       stage.innerHTML = `
         <div class="w-full h-full rounded-[24px] border border-dashed border-white/20 flex flex-col items-center justify-center text-center p-4">
-          <p class="text-xs font-bold text-stone-300 mb-2">Belum ada akun terdaftar untuk ${escapeHTML(
-            state.activeUser
-          )}</p>
+          <p class="text-xs font-bold text-stone-300 mb-2">Belum ada akun terdaftar</p>
           <button type="button" onclick="openAccountModal()" class="text-[11px] font-bold px-3.5 py-1.5 rounded-full bg-emerald-500 text-[#070908]">+ Tambah Akun Pertama</button>
         </div>`;
       if (dotsEl) dotsEl.innerHTML = '';
@@ -1044,7 +1106,7 @@
         return `
           <div
             data-deck-index="${idx}"
-            onclick="${isFront ? `openAccountDetail('${acc.id}')` : `selectAccountCard(${idx})`}"
+            onclick="${isFront ? '' : `selectAccountCard(${idx})`}"
             style="
               position: absolute;
               left: 0;
@@ -1079,9 +1141,7 @@
               </div>
 
               <div class="flex items-center gap-1.5">
-                <button type="button" onclick="event.stopPropagation(); openAccountModal('${
-                  acc.id
-                }')" class="w-7 h-7 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-white/80 hover:text-white transition" title="Edit Akun">
+                <button type="button" onclick="event.stopPropagation(); openAccountModal('${acc.id}')" class="w-7 h-7 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-white/80 hover:text-white transition" title="Edit Akun">
                   <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path></svg>
                 </button>
               </div>
@@ -1175,60 +1235,6 @@
     renderAccountsDeck();
   }
 
-  function openAccountDetail(accountId) {
-    const acc = state.accounts.find((a) => a.id === accountId);
-    if (!acc) return;
-    currentDetailAccountId = acc.id;
-
-    const iconBox = document.getElementById('det-acc-icon-container');
-    if (iconBox) {
-      const logoFile = resolveBankLogo(acc.name);
-      iconBox.innerHTML = logoFile
-        ? `<img src="Logo_Bank/${logoFile}" alt="${escapeHTML(
-            acc.name
-          )}" class="h-12 object-contain" onerror="this.style.display='none'">`
-        : `<div class="w-12 h-12 rounded-2xl bg-[#0F5132]/10 dark:bg-emerald-500/15 text-[#0F5132] dark:text-emerald-300 flex items-center justify-center font-black text-base">${escapeHTML(
-            acc.name.slice(0, 2).toUpperCase()
-          )}</div>`;
-    }
-
-    const nameEl = document.getElementById('det-acc-name');
-    const holderEl = document.getElementById('det-acc-holder');
-    const numEl = document.getElementById('det-acc-number');
-    const balEl = document.getElementById('det-acc-balance');
-
-    if (nameEl) nameEl.textContent = acc.name;
-    if (holderEl) holderEl.textContent = acc.holder || state.activeUser || '-';
-    if (numEl) numEl.textContent = acc.number || '-';
-    setMaskedValue(balEl, formatCurrency(acc.balance), acc.balance);
-
-    openModal('modal-account-detail');
-  }
-
-  function resolveBankLogo(name) {
-    const lower = (name || '').toLowerCase();
-    if (lower.includes('bni')) return 'BNI_Logo.png';
-    if (lower.includes('bri')) return 'BRI_Logo.png';
-    if (lower.includes('mandiri')) return 'MANDIRI_Logo.png';
-    if (lower.includes('gopay')) return 'Gopay_Logo.png';
-    if (lower.includes('ovo')) return 'OVO_Logo.png';
-    if (lower.includes('dana')) return 'Dana_Logo.png';
-    if (lower.includes('shopee')) return 'ShopeePay_Logo.png';
-    if (lower.includes('link')) return 'Linkaja_Logo.png';
-    if (lower.includes('tunai') || lower.includes('cash')) return 'Cash_Logo.png';
-    return '';
-  }
-
-  function findAccountByIdOrName(idOrName) {
-    if (!idOrName) return null;
-    const clean = String(idOrName).trim().toLowerCase();
-    return (
-      state.accounts.find(
-        (a) => a.id.toLowerCase() === clean || a.name.trim().toLowerCase() === clean
-      ) || null
-    );
-  }
-
   function renderRecurringList() {
     const listEl = document.getElementById('recurring-list');
     if (!listEl) return;
@@ -1240,16 +1246,15 @@
 
     listEl.innerHTML = state.recurring
       .map((item) => {
-        const acc = findAccountByIdOrName(item.accountId);
-        const dueLabel = resolveDueDateISO(item.dueDate) || `Tgl ${item.dueDate || '-'}`;
+        const acc = state.accounts.find((a) => a.id === item.accountId || a.name === item.accountId);
         return `
-          <div onclick="openRecurringDetail('${item.id}')" class="cursor-pointer p-3.5 rounded-2xl bg-white/5 hover:bg-white/10 border border-white/10 flex items-center justify-between gap-3 transition">
+          <div class="p-3.5 rounded-2xl bg-white/5 hover:bg-white/8 border border-white/10 flex items-center justify-between gap-3 transition">
             <div class="min-w-0">
               <div class="flex items-center gap-2">
                 <span class="w-2 h-2 rounded-full bg-emerald-400 shrink-0"></span>
                 <p class="text-xs font-extrabold text-white truncate">${escapeHTML(item.name)}</p>
               </div>
-              <p class="text-[10px] text-stone-400 mt-1">${escapeHTML(dueLabel)} • ${escapeHTML(
+              <p class="text-[10px] text-stone-400 mt-1">Tgl ${escapeHTML(String(item.dueDate || '-'))} • ${escapeHTML(
           acc ? acc.name : item.accountId || 'Akun Utama'
         )}</p>
             </div>
@@ -1257,10 +1262,10 @@
               <span class="text-xs font-extrabold text-emerald-300 privacy-mask" data-raw-text="${escapeHTML(
                 formatCurrency(item.amount)
               )}">${isPrivacyEnabled() ? '••••••••' : escapeHTML(formatCurrency(item.amount))}</span>
-              <button type="button" onclick="event.stopPropagation(); payRecurringNow('${
+              <button type="button" onclick="payRecurringNow('${
                 item.id
               }')" class="text-[10px] font-bold px-2.5 py-1 rounded-full bg-emerald-500/20 hover:bg-emerald-500/35 text-emerald-300 border border-emerald-400/25 transition">Bayar</button>
-              <button type="button" onclick="event.stopPropagation(); deleteRecurring('${
+              <button type="button" onclick="deleteRecurring('${
                 item.id
               }')" class="text-stone-400 hover:text-red-400 p-1 transition" title="Hapus">
                 <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
@@ -1270,28 +1275,6 @@
         `;
       })
       .join('');
-  }
-
-  function openRecurringDetail(recId) {
-    const rec = (state.recurring || []).find((r) => r.id === recId);
-    if (!rec) return;
-    const acc = findAccountByIdOrName(rec.accountId);
-
-    const idEl = document.getElementById('det-rec-id');
-    const amtEl = document.getElementById('det-rec-amount');
-    const nameEl = document.getElementById('det-rec-name');
-    const freqEl = document.getElementById('det-rec-freq');
-    const dateEl = document.getElementById('det-rec-date');
-    const accEl = document.getElementById('det-rec-account');
-
-    if (idEl) idEl.value = rec.id;
-    setMaskedValue(amtEl, formatCurrency(rec.amount), rec.amount);
-    if (nameEl) nameEl.textContent = rec.name;
-    if (freqEl) freqEl.textContent = rec.cycle || 'Bulanan';
-    if (dateEl) dateEl.textContent = `Tanggal ${rec.dueDate || '-'}`;
-    if (accEl) accEl.textContent = acc ? acc.name : rec.accountId || 'Rekening Utama';
-
-    openModal('modal-rec-detail');
   }
 
   function renderDebtsList() {
@@ -1331,9 +1314,9 @@
                 }">${isDebt ? 'Hutang' : 'Piutang'}</span>
                 <p class="text-xs font-extrabold text-white truncate">${escapeHTML(d.person)}</p>
               </div>
-              <p class="text-[10px] text-stone-400 mt-1 truncate">Awal: ${escapeHTML(
-                formatCurrency(d.amount)
-              )} • Sisa: ${escapeHTML(formatCurrency(rem))}</p>
+              <p class="text-[10px] text-stone-400 mt-1 truncate">${escapeHTML(d.note || '-')} • JT: ${escapeHTML(
+          d.dueDate || '-'
+        )}</p>
             </div>
             <div class="flex items-center gap-2 shrink-0">
               <span class="text-xs font-extrabold ${
@@ -1341,9 +1324,9 @@
               } privacy-mask" data-raw-text="${escapeHTML(formatCurrency(rem))}">${
           isPrivacyEnabled() ? '••••••••' : escapeHTML(formatCurrency(rem))
         }</span>
-              <button type="button" onclick="openPayDebtModal('${
+              <button type="button" onclick="settleDebt('${
                 d.id
-              }')" class="text-[10px] font-bold px-2.5 py-1 rounded-full bg-white/10 hover:bg-emerald-500 hover:text-[#070908] text-white transition">Bayar</button>
+              }')" class="text-[10px] font-bold px-2.5 py-1 rounded-full bg-white/10 hover:bg-emerald-500 hover:text-[#070908] text-white transition">Lunas</button>
             </div>
           </div>
         `;
@@ -1352,7 +1335,7 @@
   }
 
   /* --------------------------------------------------------------------------
-   * 8. CALENDAR PAGE RENDERER
+   * 9. CALENDAR PAGE RENDERER
    * -------------------------------------------------------------------------- */
   function renderCalendarPage() {
     const grid = document.getElementById('calendar-grid');
@@ -1369,11 +1352,13 @@
     const todayStr = todayISO();
 
     const dailyMap = {};
-    state.transactions.forEach((t) => {
+    (state.transactions || []).forEach((t) => {
       if (!t.date) return;
-      if (!dailyMap[t.date]) dailyMap[t.date] = { in: 0, out: 0 };
-      if (t.type === 'INFLOW') dailyMap[t.date].in += Number(t.amount) || 0;
-      if (t.type === 'OUTFLOW') dailyMap[t.date].out += Number(t.amount) || 0;
+      const iso = toLocalISODate(t.date);
+      if (!dailyMap[iso]) dailyMap[iso] = { in: 0, out: 0 };
+      const normType = normalizeTrxType(t);
+      if (normType === 'INFLOW') dailyMap[iso].in += Number(t.amount) || 0;
+      else if (normType === 'OUTFLOW') dailyMap[iso].out += Number(t.amount) || 0;
     });
 
     let cells = '';
@@ -1403,16 +1388,12 @@
           <div class="flex items-center gap-1 mt-1 h-1.5">
             ${
               info && info.in > 0
-                ? `<span class="w-1.5 h-1.5 rounded-full ${
-                    isSelected ? 'bg-white dark:bg-[#070908]' : 'bg-emerald-500'
-                  }"></span>`
+                ? `<span class="w-1.5 h-1.5 rounded-full ${isSelected ? 'bg-white dark:bg-[#070908]' : 'bg-emerald-500'}"></span>`
                 : ''
             }
             ${
               info && info.out > 0
-                ? `<span class="w-1.5 h-1.5 rounded-full ${
-                    isSelected ? 'bg-amber-300 dark:bg-red-700' : 'bg-red-500'
-                  }"></span>`
+                ? `<span class="w-1.5 h-1.5 rounded-full ${isSelected ? 'bg-amber-300 dark:bg-red-700' : 'bg-red-500'}"></span>`
                 : ''
             }
           </div>
@@ -1444,7 +1425,7 @@
         iso === todayISO() ? (getLang() === 'id' ? 'Transaksi Hari Ini' : "Today's Transactions") : iso;
     }
 
-    const items = state.transactions.filter((t) => t.date === iso);
+    const items = (state.transactions || []).filter((t) => toLocalISODate(t.date) === iso);
     if (items.length === 0) {
       listEl.innerHTML = `<p class="text-xs text-stone-400 text-center py-8 bg-white/5 rounded-2xl border border-white/5">Tidak ada transaksi pada tanggal ini</p>`;
       return;
@@ -1454,21 +1435,15 @@
   }
 
   function renderDarkSheetTransactionRow(t) {
-    const acc = findAccountByIdOrName(t.accountId);
-    const isIn = t.type === 'INFLOW';
-    const isTf = t.type === 'TRANSFER';
-    const isNeutral = t.type === 'NEUTRAL';
-    const colorClass = isIn
-      ? 'text-emerald-400'
-      : isTf
-      ? 'text-sky-400'
-      : isNeutral
-      ? 'text-amber-300'
-      : 'text-red-400';
-    const sign = isIn ? '+' : isTf || isNeutral ? '' : '-';
+    const acc = state.accounts.find((a) => a.id === t.accountId || a.name === t.accountId);
+    const normType = normalizeTrxType(t);
+    const isIn = normType === 'INFLOW';
+    const isTf = normType === 'TRANSFER';
+    const colorClass = isIn ? 'text-emerald-400' : isTf ? 'text-sky-400' : 'text-red-400';
+    const sign = isIn ? '+' : isTf ? '' : '-';
 
     return `
-      <div onclick="openTransactionDetail('${t.id}')" class="cursor-pointer p-3.5 rounded-2xl bg-white/5 hover:bg-white/10 border border-white/10 flex items-center justify-between gap-3 transition">
+      <div class="p-3.5 rounded-2xl bg-white/5 hover:bg-white/10 border border-white/10 flex items-center justify-between gap-3 transition">
         <div class="min-w-0">
           <p class="text-xs font-extrabold text-white truncate">${escapeHTML(t.note || t.category)}</p>
           <p class="text-[10px] text-stone-400 mt-0.5">${escapeHTML(t.category)} • ${escapeHTML(
@@ -1479,7 +1454,7 @@
           <span class="text-xs font-extrabold ${colorClass} privacy-mask" data-raw-text="${sign}${escapeHTML(
       formatCurrency(t.amount)
     )}">${isPrivacyEnabled() ? '••••••••' : `${sign}${escapeHTML(formatCurrency(t.amount))}`}</span>
-          <button type="button" onclick="event.stopPropagation(); deleteTransaction('${
+          <button type="button" onclick="deleteTransaction('${
             t.id
           }')" class="text-stone-500 hover:text-red-400 p-1 transition" title="Hapus">
             <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
@@ -1490,84 +1465,235 @@
   }
 
   /* --------------------------------------------------------------------------
-   * 9. PORTFOLIO PAGE RENDERER
+   * 10. PORTFOLIO PAGE RENDERER (LIVE VALUATION + SAME-SYMBOL MERGING)
    * -------------------------------------------------------------------------- */
+  function getAssetFxRateToIDR(currency) {
+    const curr = String(currency || 'IDR').toUpperCase().trim();
+    if (curr === 'IDR') return 1;
+    if (curr === 'USD') return Number(window.usdExchangeRate) || 16250;
+    const cfg = CURRENCY_CONFIG[curr];
+    return cfg && cfg.rate > 0 ? 1 / cfg.rate : Number(window.usdExchangeRate) || 16250;
+  }
+
+  function aggregatePortfolioAssets(assetsList) {
+    const grouped = {};
+
+    (assetsList || []).forEach((raw) => {
+      const rawName = String(raw.name || '').trim();
+      const parenMatch = rawName.match(/^(.+?)\s*\(([A-Za-z0-9._-]+)\)$/);
+      const symbol = String(raw.symbol || (parenMatch ? parenMatch[2] : rawName) || 'ASET')
+        .trim()
+        .toUpperCase();
+      const cleanName = String(parenMatch ? parenMatch[1] : rawName || symbol).trim();
+      const category = String(raw.category || 'Saham').trim();
+      const currency = String(raw.currency || 'IDR').trim().toUpperCase();
+      const qty = Number(raw.qty) || 0;
+      const buyPrice = Number(raw.buyPrice) || 0;
+      const currentPrice = Number(raw.currentPrice) > 0 ? Number(raw.currentPrice) : buyPrice;
+
+      if (qty <= 0) return;
+
+      const groupKey = `${symbol}__${currency}`;
+      if (!grouped[groupKey]) {
+        grouped[groupKey] = {
+          id: raw.id,
+          symbol,
+          name: cleanName,
+          category,
+          currency,
+          totalQty: 0,
+          totalInvestedNative: 0,
+          livePriceNative: currentPrice,
+          walletId: raw.walletId || '',
+          lotCount: 0
+        };
+      }
+
+      grouped[groupKey].totalQty += qty;
+      grouped[groupKey].totalInvestedNative += qty * buyPrice;
+      if (currentPrice > 0) grouped[groupKey].livePriceNative = currentPrice;
+      if (cleanName && cleanName.toUpperCase() !== symbol) {
+        grouped[groupKey].name = cleanName;
+      }
+      grouped[groupKey].lotCount += 1;
+    });
+
+    return Object.values(grouped).map((item) => {
+      const avgBuyPriceNative = item.totalQty > 0 ? item.totalInvestedNative / item.totalQty : 0;
+      const livePriceNative = item.livePriceNative > 0 ? item.livePriceNative : avgBuyPriceNative;
+      const totalLiveValueNative = item.totalQty * livePriceNative;
+      const pnlNative = totalLiveValueNative - item.totalInvestedNative;
+      const pnlPct = item.totalInvestedNative > 0 ? (pnlNative / item.totalInvestedNative) * 100 : 0;
+      const fxRate = getAssetFxRateToIDR(item.currency);
+      const totalLiveValueIDR = totalLiveValueNative * fxRate;
+      const totalInvestedIDR = item.totalInvestedNative * fxRate;
+      const pnlIDR = totalLiveValueIDR - totalInvestedIDR;
+
+      return {
+        ...item,
+        avgBuyPriceNative,
+        livePriceNative,
+        totalLiveValueNative,
+        pnlNative,
+        pnlPct,
+        fxRate,
+        totalLiveValueIDR,
+        totalInvestedIDR,
+        pnlIDR
+      };
+    });
+  }
+
   function renderPortfolioPage() {
-    const cashTotal = getUserAccounts().reduce((s, a) => s + (Number(a.balance) || 0), 0);
     const walletCash = (state.wallets || []).reduce((s, w) => s + (Number(w.balance) || 0), 0);
-    const assetValue = (state.assets || []).reduce(
-      (s, a) => s + (Number(a.qty) || 0) * (Number(a.currentPrice) || Number(a.buyPrice) || 0),
-      0
-    );
-    const netWorth = cashTotal + walletCash + assetValue;
+    const mergedAssets = aggregatePortfolioAssets(state.assets || []);
+    const regularAssets = mergedAssets.filter((a) => a.category !== 'Valuta Asing');
+    const valasAssets = mergedAssets.filter((a) => a.category === 'Valuta Asing');
+
+    const assetsLiveTotalIDR = mergedAssets.reduce((s, a) => s + (Number(a.totalLiveValueIDR) || 0), 0);
+    const goalsSavedTotal = (state.goals || [])
+      .filter((g) => g.status !== 'COMPLETED')
+      .reduce((s, g) => s + (Number(g.saved ?? g.current) || 0), 0);
+
+    // Live Total Net Asset = Live Market Value of All Portfolio Assets + Investment Wallets + Target Savings
+    const netWorth = assetsLiveTotalIDR + walletCash + goalsSavedTotal;
 
     setMaskedValue(document.getElementById('porto-center-val'), formatCurrency(netWorth), netWorth);
 
+    // Render Investment Wallets (+ Valuta Asing Wallets)
     const walletListEl = document.getElementById('wallet-list');
     if (walletListEl) {
-      if (!state.wallets || state.wallets.length === 0) {
-        walletListEl.innerHTML = `<p class="text-xs text-stone-400 text-center py-3">Belum ada dompet investasi</p>`;
-      } else {
-        walletListEl.innerHTML = state.wallets
-          .map(
-            (w) => `
-              <div onclick="openWalletDetail('${w.id}')" class="cursor-pointer p-3.5 rounded-2xl bg-[#FAF8F5] dark:bg-[#161D19] hover:bg-[#EDF5F0] dark:hover:bg-[#1B241F] border border-stone-200/70 dark:border-stone-800/80 flex items-center justify-between gap-3 transition">
-                <div>
-                  <p class="text-xs font-extrabold text-stone-900 dark:text-white">${escapeHTML(w.name)}</p>
-                  <p class="text-[10px] font-semibold text-stone-400">${escapeHTML(w.platform || 'Investment')}</p>
-                </div>
-                <div class="flex items-center gap-2">
-                  <span class="text-xs font-extrabold text-[#0F5132] dark:text-emerald-300 privacy-mask" data-raw-text="${escapeHTML(
-                    formatCurrency(w.balance)
-                  )}">${isPrivacyEnabled() ? '••••••••' : escapeHTML(formatCurrency(w.balance))}</span>
-                  <button type="button" onclick="event.stopPropagation(); deleteWallet('${
-                    w.id
-                  }')" class="text-stone-400 hover:text-red-500 p-1 transition">
-                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
-                  </button>
-                </div>
+      const walletCards = (state.wallets || []).map(
+        (w) => `
+          <div onclick="openWalletDetailModal('${escapeHTML(w.name)}', ${Number(w.balance) || 0})" class="cursor-pointer p-3.5 rounded-2xl bg-[#FAF8F5] dark:bg-[#161D19] hover:bg-[#EDF5F0]/70 dark:hover:bg-[#1B241F] border border-stone-200/70 dark:border-stone-800/80 flex items-center justify-between gap-3 transition">
+            <div class="flex items-center gap-3 min-w-0">
+              <div class="w-9 h-9 rounded-xl bg-[#0F5132]/10 dark:bg-emerald-500/15 text-[#0F5132] dark:text-emerald-300 font-extrabold text-xs flex items-center justify-center shrink-0">
+                ${escapeHTML((w.name || 'WL').substring(0, 2).toUpperCase())}
               </div>
-            `
-          )
-          .join('');
-      }
+              <div class="min-w-0">
+                <p class="text-xs font-extrabold text-stone-900 dark:text-white truncate">${escapeHTML(w.name)}</p>
+                <p class="text-[10px] font-semibold text-stone-400">${escapeHTML(w.platform || 'Investment')}</p>
+              </div>
+            </div>
+            <div class="flex items-center gap-2 shrink-0">
+              <span class="text-xs font-extrabold text-[#0F5132] dark:text-emerald-300 privacy-mask" data-raw-text="${escapeHTML(
+                formatCurrency(w.balance)
+              )}">${isPrivacyEnabled() ? '••••••••' : escapeHTML(formatCurrency(w.balance))}</span>
+              <button type="button" onclick="event.stopPropagation(); deleteWallet('${
+                w.id
+              }')" class="text-stone-400 hover:text-red-500 p-1 transition" title="Hapus Dompet">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+              </button>
+            </div>
+          </div>
+        `
+      );
+
+      valasAssets.forEach((v) => {
+        const isPos = v.pnlIDR >= 0;
+        walletCards.push(`
+          <div onclick="openAssetDetailModal('${v.id}', '${escapeHTML(v.symbol)}', '${escapeHTML(v.category)}', ${
+          v.totalQty
+        }, ${v.avgBuyPriceNative * v.fxRate}, ${v.totalInvestedIDR}, ${v.livePriceNative * v.fxRate}, ${
+          v.totalLiveValueIDR
+        }, ${v.pnlIDR}, ${v.pnlPct})" class="cursor-pointer p-3.5 rounded-2xl bg-[#FAF8F5] dark:bg-[#161D19] border border-stone-200/70 dark:border-stone-800/80 flex items-center justify-between gap-3 transition">
+            <div class="flex items-center gap-3 min-w-0">
+              ${getAssetAvatarHtml(v.symbol)}
+              <div class="min-w-0">
+                <p class="text-xs font-extrabold text-stone-900 dark:text-white truncate">${escapeHTML(v.symbol)} Wallet</p>
+                <p class="text-[10px] font-semibold text-stone-400">${formatUnitQty(v.totalQty)} unit • Live: ${escapeHTML(
+          formatCurrency(v.livePriceNative * v.fxRate)
+        )}</p>
+              </div>
+            </div>
+            <div class="text-right shrink-0">
+              <p class="text-xs font-extrabold text-[#0F5132] dark:text-emerald-300 privacy-mask" data-raw-text="${escapeHTML(
+                formatCurrency(v.totalLiveValueIDR)
+              )}">${isPrivacyEnabled() ? '••••••••' : escapeHTML(formatCurrency(v.totalLiveValueIDR))}</p>
+              <p class="text-[10px] font-bold ${isPos ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-500'}">${
+          isPos ? '+' : ''
+        }${v.pnlPct.toFixed(1)}%</p>
+            </div>
+          </div>
+        `);
+      });
+
+      walletListEl.innerHTML =
+        walletCards.length === 0
+          ? `<p class="text-xs text-stone-400 text-center py-3">Belum ada dompet investasi</p>`
+          : walletCards.join('');
     }
 
+    // Render Merged Asset Ownership List
     const assetListEl = document.getElementById('asset-list');
     if (assetListEl) {
-      if (!state.assets || state.assets.length === 0) {
+      if (regularAssets.length === 0) {
         assetListEl.innerHTML = `<p class="text-xs text-stone-400 text-center py-4 bg-white dark:bg-[#111613] rounded-2xl border border-stone-200/70 dark:border-stone-800">Belum ada aset terdaftar</p>`;
       } else {
-        assetListEl.innerHTML = state.assets
+        const sortedAssets = [...regularAssets].sort((a, b) => b.totalLiveValueIDR - a.totalLiveValueIDR);
+        assetListEl.innerHTML = sortedAssets
           .map((a) => {
-            const val = (Number(a.qty) || 0) * (Number(a.currentPrice) || Number(a.buyPrice) || 0);
-            const cost = (Number(a.qty) || 0) * (Number(a.buyPrice) || 0);
-            const pnl = val - cost;
-            const pnlPct = cost > 0 ? ((pnl / cost) * 100).toFixed(1) : '0.0';
-            const isPos = pnl >= 0;
+            const isPos = a.pnlNative >= 0;
+            const hasDistinctName = a.name && a.name.toUpperCase() !== a.symbol.toUpperCase();
+            const headingLabel = hasDistinctName ? `${a.name} (${a.symbol})` : a.symbol;
+            const nativeTotalStr = formatNativeAssetPrice(a.totalLiveValueNative, a.currency);
+            const idrSubStr = a.currency !== 'IDR' ? `≈ ${formatCurrency(a.totalLiveValueIDR)}` : '';
+            const avgStr = formatNativeAssetPrice(a.avgBuyPriceNative, a.currency);
+            const liveStr = formatNativeAssetPrice(a.livePriceNative, a.currency);
 
             return `
-              <div onclick="openAssetDetail('${a.id}')" class="cursor-pointer p-4 rounded-[22px] bg-white dark:bg-[#111613] hover:border-[#0F5132]/40 dark:hover:border-emerald-500/40 border border-stone-200/70 dark:border-stone-800/80 shadow-sm flex items-center justify-between gap-3 transition">
-                <div class="min-w-0">
-                  <div class="flex items-center gap-2">
-                    <span class="text-[9px] font-extrabold uppercase px-2 py-0.5 rounded-full bg-[#EDF5F0] dark:bg-emerald-500/15 text-[#0F5132] dark:text-emerald-300">${escapeHTML(
-                      a.category || 'Asset'
-                    )}</span>
-                    <p class="text-xs font-extrabold text-stone-900 dark:text-white truncate">${escapeHTML(
-                      a.name || a.symbol
+              <div onclick="openAssetDetailModal('${a.id}', '${escapeHTML(a.symbol)}', '${escapeHTML(
+              a.category
+            )}', ${a.totalQty}, ${a.avgBuyPriceNative * a.fxRate}, ${a.totalInvestedIDR}, ${
+              a.livePriceNative * a.fxRate
+            }, ${a.totalLiveValueIDR}, ${a.pnlIDR}, ${
+              a.pnlPct
+            })" class="cursor-pointer p-4 rounded-[22px] bg-white dark:bg-[#111613] hover:border-[#0F5132]/40 dark:hover:border-emerald-500/40 border border-stone-200/70 dark:border-stone-800/80 shadow-sm flex items-center justify-between gap-3 transition active:scale-[0.99]">
+                <div class="flex items-center gap-3 min-w-0">
+                  ${getAssetAvatarHtml(a.symbol)}
+                  <div class="min-w-0">
+                    <div class="flex items-center gap-1.5 flex-wrap">
+                      <span class="text-[9px] font-extrabold uppercase px-2 py-0.5 rounded-full bg-[#EDF5F0] dark:bg-emerald-500/15 text-[#0F5132] dark:text-emerald-300">${escapeHTML(
+                        a.category || 'Asset'
+                      )}</span>
+                      ${
+                        a.currency !== 'IDR'
+                          ? `<span class="text-[9px] font-extrabold uppercase px-1.5 py-0.5 rounded-full bg-stone-100 dark:bg-stone-800 text-stone-500 dark:text-stone-400">${escapeHTML(
+                              a.currency
+                            )}</span>`
+                          : ''
+                      }
+                      ${
+                        a.lotCount > 1
+                          ? `<span class="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-amber-500/15 text-amber-700 dark:text-amber-300">${a.lotCount}x posisi</span>`
+                          : ''
+                      }
+                    </div>
+                    <p class="text-xs font-extrabold text-stone-900 dark:text-white truncate mt-1">${escapeHTML(
+                      headingLabel
+                    )}</p>
+                    <p class="text-[10px] text-stone-500 dark:text-stone-400 mt-0.5 truncate">${formatUnitQty(
+                      a.totalQty
+                    )} unit • Avg ${escapeHTML(avgStr)}</p>
+                    <p class="text-[10px] font-semibold text-[#0F5132] dark:text-emerald-400 mt-0.5 truncate">Live: ${escapeHTML(
+                      liveStr
                     )}</p>
                   </div>
-                  <p class="text-[11px] text-stone-500 dark:text-stone-400 mt-1">${a.qty} unit • Avg ${escapeHTML(
-              formatCurrency(a.buyPrice)
-            )}</p>
                 </div>
                 <div class="text-right shrink-0">
                   <p class="text-xs font-extrabold text-stone-900 dark:text-white privacy-mask" data-raw-text="${escapeHTML(
-                    formatCurrency(val)
-                  )}">${isPrivacyEnabled() ? '••••••••' : escapeHTML(formatCurrency(val))}</p>
+                    nativeTotalStr
+                  )}">${isPrivacyEnabled() ? '••••••••' : escapeHTML(nativeTotalStr)}</p>
+                  ${
+                    idrSubStr
+                      ? `<p class="text-[10px] font-semibold text-stone-400 dark:text-stone-500 privacy-mask mt-0.5" data-raw-text="${escapeHTML(
+                          idrSubStr
+                        )}">${isPrivacyEnabled() ? '••••••••' : escapeHTML(idrSubStr)}</p>`
+                      : ''
+                  }
                   <p class="text-[10px] font-bold ${
                     isPos ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-500'
-                  } mt-0.5">${isPos ? '+' : ''}${pnlPct}%</p>
+                  } mt-0.5">${isPos ? '+' : ''}${a.pnlPct.toFixed(2)}%</p>
                 </div>
               </div>
             `;
@@ -1576,37 +1702,35 @@
       }
     }
 
+    // Render Target Savings Goals
     const goalsEl = document.getElementById('porto-goals-list');
     if (goalsEl) {
-      if (!state.goals || state.goals.length === 0) {
+      const activeGoals = (state.goals || []).filter((g) => g.status !== 'COMPLETED');
+      if (activeGoals.length === 0) {
         goalsEl.innerHTML = `<p class="text-xs text-stone-400 text-center py-4 bg-white/5 rounded-2xl border border-white/5">Belum ada target tabungan</p>`;
       } else {
-        goalsEl.innerHTML = state.goals
+        goalsEl.innerHTML = activeGoals
           .map((g) => {
-            const goalTitle = g.title || g.name || 'Target';
-            const savedAmt = Number(g.saved !== undefined ? g.saved : g.current) || 0;
-            const targetAmt = Math.max(1, Number(g.target) || 1);
-            const pct = Math.min(100, Math.round((savedAmt / targetAmt) * 100));
-
+            const title = g.title || g.name || 'Target';
+            const savedVal = Number(g.saved ?? g.current) || 0;
+            const targetVal = Math.max(1, Number(g.target) || 1);
+            const pct = Math.min(100, Math.round((savedVal / targetVal) * 100));
             return `
               <div class="p-4 rounded-2xl bg-white/5 border border-white/10 space-y-2.5">
                 <div class="flex items-center justify-between gap-2">
-                  <div class="min-w-0">
-                    <p class="text-xs font-extrabold text-white truncate">${escapeHTML(goalTitle)}</p>
+                  <div>
+                    <p class="text-xs font-extrabold text-white">${escapeHTML(title)}</p>
                     <p class="text-[10px] text-stone-400 mt-0.5 privacy-mask" data-raw-text="${escapeHTML(
-                      formatCurrency(savedAmt)
-                    )} / ${escapeHTML(formatCurrency(targetAmt))}">${
-              isPrivacyEnabled() ? '••••••••' : `${escapeHTML(formatCurrency(savedAmt))} / ${escapeHTML(formatCurrency(targetAmt))}`
+                      formatCurrency(savedVal)
+                    )} / ${escapeHTML(formatCurrency(targetVal))}">${
+              isPrivacyEnabled() ? '••••••••' : `${escapeHTML(formatCurrency(savedVal))} / ${escapeHTML(formatCurrency(targetVal))}`
             }</p>
                   </div>
-                  <div class="flex items-center gap-1.5 shrink-0">
-                    <span class="text-xs font-black text-emerald-400 mr-1">${pct}%</span>
-                    <button type="button" onclick="openAddSavingsModal('${
+                  <div class="flex items-center gap-2">
+                    <span class="text-xs font-black text-emerald-400">${pct}%</span>
+                    <button type="button" onclick="topupGoal('${
                       g.id
                     }')" class="text-[10px] font-bold px-2.5 py-1 rounded-full bg-emerald-500/20 hover:bg-emerald-500/35 text-emerald-300 border border-emerald-400/25">+ Nabung</button>
-                    <button type="button" onclick="openWithdrawGoalModal('${
-                      g.id
-                    }')" class="text-[10px] font-bold px-2.5 py-1 rounded-full bg-white/10 hover:bg-white/20 text-stone-200 border border-white/10">Tarik</button>
                   </div>
                 </div>
                 <div class="w-full h-2 rounded-full bg-white/10 overflow-hidden">
@@ -1619,10 +1743,10 @@
       }
     }
 
-    renderPortfolioDoughnut(cashTotal, walletCash, assetValue);
+    renderPortfolioDoughnut(mergedAssets, walletCash, goalsSavedTotal);
   }
 
-  function renderPortfolioDoughnut(cashTotal, walletCash, assetValue) {
+  function renderPortfolioDoughnut(mergedAssets, walletCash, goalsSavedTotal) {
     const canvas = document.getElementById('portfolioChart');
     if (!canvas || typeof Chart === 'undefined') return;
 
@@ -1631,8 +1755,25 @@
     }
 
     const isDark = document.documentElement.classList.contains('dark');
-    const labels = ['Kas & Bank', 'Dompet Investasi', 'Aset Portofolio'];
-    const data = [cashTotal, walletCash, assetValue];
+    const labels = [];
+    const data = [];
+
+    if (goalsSavedTotal > 0) {
+      labels.push('Tabungan Target');
+      data.push(goalsSavedTotal);
+    }
+    if (walletCash > 0) {
+      labels.push('Dompet Investasi');
+      data.push(walletCash);
+    }
+    (mergedAssets || [])
+      .filter((a) => a.totalLiveValueIDR > 0)
+      .sort((a, b) => b.totalLiveValueIDR - a.totalLiveValueIDR)
+      .forEach((a) => {
+        labels.push(a.symbol);
+        data.push(a.totalLiveValueIDR);
+      });
+
     const hasData = data.some((v) => v > 0);
 
     portfolioChartInstance = new Chart(canvas, {
@@ -1642,7 +1783,9 @@
         datasets: [
           {
             data: hasData ? data : [1],
-            backgroundColor: hasData ? ['#0F5132', '#10B981', '#D97706'] : [isDark ? '#1E2722' : '#E7E5E4'],
+            backgroundColor: hasData
+              ? labels.map((_, i) => CHART_PALETTE[i % CHART_PALETTE.length])
+              : [isDark ? '#1E2722' : '#E7E5E4'],
             borderColor: isDark ? '#111613' : '#FFFFFF',
             borderWidth: 3,
             hoverOffset: 6
@@ -1667,7 +1810,7 @@
   }
 
   /* --------------------------------------------------------------------------
-   * 10. HISTORY PAGE RENDERER, FILTERS & CATEGORY DOUGHNUT
+   * 11. HISTORY PAGE RENDERER, FILTERS & CATEGORY DOUGHNUT
    * -------------------------------------------------------------------------- */
   function setHistoryFilter(period) {
     historyPeriod = period;
@@ -1694,13 +1837,20 @@
     renderHistoryPage();
   }
 
-  function setHistoryType(type) {
-    historyType = type;
+  function updateHistoryTogglePills() {
     ['INFLOW', 'OUTFLOW', 'TRANSFER'].forEach((t) => {
       const btn = document.getElementById(`toggle-${t.toLowerCase()}`);
       if (!btn) return;
-      btn.classList.toggle('toggle-active', t === type);
+      const isActive = t === historyType;
+      btn.className = isActive
+        ? 'flex-1 py-2 rounded-full text-xs font-bold bg-[#0F5132] dark:bg-emerald-500 text-white dark:text-[#070908] shadow-sm transition-all toggle-active toggle-btn'
+        : 'flex-1 py-2 rounded-full text-xs font-bold text-stone-500 dark:text-stone-400 hover:text-stone-800 dark:hover:text-stone-200 transition-all toggle-btn';
     });
+  }
+
+  function setHistoryType(type) {
+    historyType = String(type || 'OUTFLOW').toUpperCase();
+    updateHistoryTogglePills();
     renderHistoryPage();
   }
 
@@ -1750,13 +1900,16 @@
     const startCustom = document.getElementById('date-start')?.value || '';
     const endCustom = document.getElementById('date-end')?.value || '';
 
-    return state.transactions.filter((t) => {
+    return (state.transactions || []).filter((t) => {
       if (!t.date) return false;
-      if (historyPeriod === 'month') return t.date.startsWith(ymPrefix);
-      if (historyPeriod === '7days') return t.date >= sevenDaysAgo;
+      const normType = normalizeTrxType(t);
+      if (normType === 'NEUTRAL') return false;
+      const dateStr = toLocalISODate(t.date);
+      if (historyPeriod === 'month') return dateStr.startsWith(ymPrefix);
+      if (historyPeriod === '7days') return dateStr >= sevenDaysAgo;
       if (historyPeriod === 'custom') {
-        if (startCustom && t.date < startCustom) return false;
-        if (endCustom && t.date > endCustom) return false;
+        if (startCustom && dateStr < startCustom) return false;
+        if (endCustom && dateStr > endCustom) return false;
         return true;
       }
       return true;
@@ -1771,19 +1924,16 @@
       const current = accEl.value || 'ALL';
       const opts = [`<option value="ALL">${getLang() === 'id' ? 'Semua Akun' : 'All Accounts'}</option>`];
       getUserAccounts().forEach((a) => {
-        opts.push(`<option value="${a.id}">${escapeHTML(a.name)}</option>`);
-      });
-      (state.wallets || []).forEach((w) => {
-        opts.push(`<option value="${w.id}">${escapeHTML(w.name)}</option>`);
+        opts.push(`<option value="${escapeHTML(a.id)}">${escapeHTML(a.name)}</option>`);
       });
       accEl.innerHTML = opts.join('');
-      accEl.value = current;
+      accEl.value = Array.from(accEl.options).some((o) => o.value === current) ? current : 'ALL';
     }
 
     if (catEl) {
       const current = catEl.value || 'ALL';
       const cats = new Set();
-      state.transactions.forEach((t) => {
+      (state.transactions || []).forEach((t) => {
         if (t.category) cats.add(t.category);
       });
       const opts = [`<option value="ALL">${getLang() === 'id' ? 'Semua Kategori' : 'All Categories'}</option>`];
@@ -1791,11 +1941,12 @@
         opts.push(`<option value="${escapeHTML(c)}">${escapeHTML(c)}</option>`);
       });
       catEl.innerHTML = opts.join('');
-      catEl.value = current;
+      catEl.value = Array.from(catEl.options).some((o) => o.value === current) ? current : 'ALL';
     }
   }
 
   function renderHistoryPage() {
+    updateHistoryTogglePills();
     populateHistoryDropdowns();
 
     const periodTrx = getPeriodFilteredTransactions();
@@ -1803,8 +1954,10 @@
     let totalOut = 0;
 
     periodTrx.forEach((t) => {
-      if (t.type === 'INFLOW') totalIn += Number(t.amount) || 0;
-      if (t.type === 'OUTFLOW') totalOut += Number(t.amount) || 0;
+      const normType = normalizeTrxType(t);
+      const amt = Number(t.amount) || extractNumber(t.Jumlah) || 0;
+      if (normType === 'INFLOW') totalIn += amt;
+      else if (normType === 'OUTFLOW') totalOut += amt;
     });
 
     const diff = totalIn - totalOut;
@@ -1816,42 +1969,58 @@
       diff
     );
 
+    // Category breakdown & Doughnut Chart for active historyType (INFLOW / OUTFLOW / TRANSFER)
     const byCat = {};
+    const countByCat = {};
     let typeTotal = 0;
+
     periodTrx
-      .filter((t) => t.type === historyType)
+      .filter((t) => {
+        const normType = normalizeTrxType(t);
+        if (historyType === 'TRANSFER') {
+          if (normType !== 'TRANSFER') return false;
+          const catLow = String(t.category || '').toLowerCase();
+          // Avoid double-counting paired Transfer Keluar + Transfer Masuk in doughnut total
+          if (catLow === 'transfer keluar') return false;
+          return true;
+        }
+        return normType === historyType;
+      })
       .forEach((t) => {
-        const key = t.category || 'Lainnya';
-        byCat[key] = (byCat[key] || 0) + (Number(t.amount) || 0);
-        typeTotal += Number(t.amount) || 0;
+        const amt = Number(t.amount) || extractNumber(t.Jumlah) || 0;
+        const accObj = state.accounts.find((a) => a.id === t.accountId || a.name === t.accountId);
+        const key =
+          historyType === 'TRANSFER'
+            ? accObj
+              ? accObj.name
+              : t.accountId || t.category || 'Transfer'
+            : t.category || 'Lainnya';
+        byCat[key] = (byCat[key] || 0) + amt;
+        countByCat[key] = (countByCat[key] || 0) + 1;
+        typeTotal += amt;
       });
 
     setMaskedValue(document.getElementById('chart-center-val'), formatCurrency(typeTotal), typeTotal);
     renderCategoryDoughnut(byCat);
-    renderCategoryBreakdownList(byCat, typeTotal);
+    renderCategoryBreakdownList(byCat, countByCat, typeTotal);
 
+    // Apply search + account + category filters for bottom transaction list
     const filteredList = periodTrx
       .filter((t) => {
         if (historyAccountFilter !== 'ALL') {
-          const accObj = findAccountByIdOrName(t.accountId);
-          const filterAcc = findAccountByIdOrName(historyAccountFilter);
-          const matchById = t.accountId === historyAccountFilter;
-          const matchByName =
-            accObj && filterAcc && accObj.name.toLowerCase() === filterAcc.name.toLowerCase();
-          if (!matchById && !matchByName) return false;
+          const matchingAcc = state.accounts.find((a) => a.id === historyAccountFilter);
+          const matchesId = t.accountId === historyAccountFilter;
+          const matchesName = matchingAcc && t.accountId === matchingAcc.name;
+          if (!matchesId && !matchesName) return false;
         }
         if (historyCategoryFilter !== 'ALL' && t.category !== historyCategoryFilter) return false;
         if (historySearchQuery) {
-          const hay = `${t.note || ''} ${t.category || ''} ${t.amount || ''} ${t.accountName || ''}`.toLowerCase();
+          const hay = `${t.note || ''} ${t.category || ''} ${t.amount || ''}`.toLowerCase();
           if (!hay.includes(historySearchQuery)) return false;
         }
         return true;
       })
-      .sort((a, b) => {
-        const keyA = `${a.date || ''} ${a.time || ''}`;
-        const keyB = `${b.date || ''} ${b.time || ''}`;
-        return keyB.localeCompare(keyA);
-      });
+      .sort((a, b) => toLocalISODate(b.date).localeCompare(toLocalISODate(a.date)));
 
     const badge = document.getElementById('hist-count-badge');
     if (badge) badge.textContent = String(filteredList.length);
@@ -1866,51 +2035,48 @@
 
     listEl.innerHTML = filteredList
       .map((t, idx) => {
-        const acc = findAccountByIdOrName(t.accountId);
-        const isIn = t.type === 'INFLOW';
-        const isTf = t.type === 'TRANSFER';
-        const isNeutral = t.type === 'NEUTRAL';
+        const acc = state.accounts.find((a) => a.id === t.accountId || a.name === t.accountId);
+        const normType = normalizeTrxType(t);
+        const rawDir = String(t.rawTipe || t.type || '').toUpperCase();
+        const catLow = String(t.category || '').toLowerCase();
+        const isIn = normType === 'INFLOW';
+        const isTf = normType === 'TRANSFER';
+        const isOutDir = !isIn && (!isTf || catLow.includes('keluar') || rawDir === 'OUTFLOW');
+
         const badgeBg = isIn
           ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300'
           : isTf
           ? 'bg-sky-500/15 text-sky-700 dark:text-sky-300'
-          : isNeutral
-          ? 'bg-amber-500/15 text-amber-700 dark:text-amber-300'
           : 'bg-red-500/15 text-red-600 dark:text-red-400';
         const amountColor = isIn
           ? 'text-[#0F5132] dark:text-emerald-400'
           : isTf
           ? 'text-sky-600 dark:text-sky-400'
-          : isNeutral
-          ? 'text-amber-600 dark:text-amber-400'
           : 'text-red-600 dark:text-red-400';
-        const sign = isIn ? '+' : isTf || isNeutral ? '' : '-';
+        const sign = isIn ? '+' : isTf ? (catLow.includes('masuk') ? '+' : '-') : isOutDir ? '-' : '';
+        const dateLabel = toLocalISODate(t.date);
 
         return `
-          <div onclick="openTransactionDetail('${t.id}')" class="cursor-pointer p-4 flex items-center justify-between gap-3 ${
-          idx > 0 ? 'border-t border-stone-100 dark:border-stone-800/70' : ''
-        } hover:bg-[#FAF8F5] dark:hover:bg-[#161D19] transition">
+          <div class="p-4 flex items-center justify-between gap-3 ${
+            idx > 0 ? 'border-t border-stone-100 dark:border-stone-800/70' : ''
+          } hover:bg-[#FAF8F5] dark:hover:bg-[#161D19] transition">
             <div class="min-w-0">
               <div class="flex items-center gap-2">
                 <span class="text-[9px] font-extrabold uppercase px-2 py-0.5 rounded-full ${badgeBg}">${escapeHTML(
           t.category
         )}</span>
-                <span class="text-[10px] font-semibold text-stone-400">${escapeHTML(t.date)}${
-          t.time ? ` • ${escapeHTML(t.time)}` : ''
-        }</span>
+                <span class="text-[10px] font-semibold text-stone-400">${escapeHTML(dateLabel)}</span>
               </div>
               <p class="text-xs font-extrabold text-stone-900 dark:text-white truncate mt-1">${escapeHTML(
                 t.note || t.category
               )}</p>
-              <p class="text-[10px] text-stone-400 mt-0.5">${escapeHTML(
-                acc ? acc.name : t.accountName || t.accountId || '-'
-              )}</p>
+              <p class="text-[10px] text-stone-400 mt-0.5">${escapeHTML(acc ? acc.name : t.accountId || '-')}</p>
             </div>
             <div class="flex items-center gap-2 shrink-0">
               <span class="text-xs font-extrabold ${amountColor} privacy-mask" data-raw-text="${sign}${escapeHTML(
           formatCurrency(t.amount)
         )}">${isPrivacyEnabled() ? '••••••••' : `${sign}${escapeHTML(formatCurrency(t.amount))}`}</span>
-              <button type="button" onclick="event.stopPropagation(); deleteTransaction('${
+              <button type="button" onclick="deleteTransaction('${
                 t.id
               }')" class="text-stone-400 hover:text-red-500 p-1 transition" title="Hapus">
                 <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
@@ -1932,7 +2098,7 @@
 
     const isDark = document.documentElement.classList.contains('dark');
     const entries = Object.entries(byCat).sort((a, b) => b[1] - a[1]);
-    const hasData = entries.length > 0;
+    const hasData = entries.length > 0 && entries.some((e) => e[1] > 0);
 
     categoryChartInstance = new Chart(canvas, {
       type: 'doughnut',
@@ -1945,7 +2111,8 @@
               ? entries.map((_, i) => CHART_PALETTE[i % CHART_PALETTE.length])
               : [isDark ? '#1E2722' : '#E7E5E4'],
             borderColor: isDark ? '#111613' : '#FFFFFF',
-            borderWidth: 3
+            borderWidth: 3,
+            hoverOffset: 5
           }
         ]
       },
@@ -1966,7 +2133,7 @@
     });
   }
 
-  function renderCategoryBreakdownList(byCat, total) {
+  function renderCategoryBreakdownList(byCat, countByCat, total) {
     const listEl = document.getElementById('history-category-list');
     if (!listEl) return;
 
@@ -1979,13 +2146,16 @@
     listEl.innerHTML = entries
       .map(([cat, amt], idx) => {
         const pct = total > 0 ? Math.round((amt / total) * 100) : 0;
+        const count = countByCat[cat] || 1;
         const color = CHART_PALETTE[idx % CHART_PALETTE.length];
         return `
-          <div class="flex items-center justify-between py-2 px-3 rounded-xl bg-[#FAF8F5] dark:bg-[#161D19]">
+          <div class="flex items-center justify-between py-2.5 px-3 rounded-xl bg-[#FAF8F5] dark:bg-[#161D19]">
             <div class="flex items-center gap-2.5 min-w-0">
               <span class="w-2.5 h-2.5 rounded-full shrink-0" style="background:${color}"></span>
-              <span class="text-xs font-bold text-stone-800 dark:text-stone-200 truncate">${escapeHTML(cat)}</span>
-              <span class="text-[10px] font-bold text-stone-400">${pct}%</span>
+              <div class="min-w-0">
+                <p class="text-xs font-bold text-stone-800 dark:text-stone-200 truncate">${escapeHTML(cat)}</p>
+                <p class="text-[10px] text-stone-400">${count} transaksi • ${pct}%</p>
+              </div>
             </div>
             <span class="text-xs font-extrabold text-stone-900 dark:text-white privacy-mask shrink-0" data-raw-text="${escapeHTML(
               formatCurrency(amt)
@@ -1997,17 +2167,14 @@
   }
 
   /* --------------------------------------------------------------------------
-   * 11. SETTINGS PAGE FALLBACK & RENDERER
+   * 12. SETTINGS PAGE FALLBACK & RENDERER
    * -------------------------------------------------------------------------- */
   function buildFallbackSettingsHTML() {
     return `
       <div class="space-y-6 pb-24">
-        <div class="flex items-center justify-between">
-          <div>
-            <h2 class="text-xl font-extrabold tracking-tight text-stone-900 dark:text-white">Pengaturan & Sinkronisasi</h2>
-            <p class="text-[11px] font-medium text-stone-500 dark:text-stone-400 mt-0.5">Profil pengguna, mata uang, cloud sync & backup</p>
-          </div>
-          <button type="button" onclick="navigateTo('dashboard')" class="px-3.5 py-2 rounded-full bg-white dark:bg-[#111613] border border-stone-200/70 dark:border-stone-800 text-xs font-bold text-[#0F5132] dark:text-emerald-400">Kembali</button>
+        <div>
+          <h2 class="text-xl font-extrabold tracking-tight text-stone-900 dark:text-white">Pengaturan & Sinkronisasi</h2>
+          <p class="text-[11px] font-medium text-stone-500 dark:text-stone-400 mt-0.5">Profil pengguna, mata uang, cloud sync & backup</p>
         </div>
 
         <div class="bg-white dark:bg-[#111613] p-5 rounded-[28px] border border-stone-200/70 dark:border-stone-800/80 space-y-4">
@@ -2038,7 +2205,6 @@
               </select>
             </div>
           </div>
-          <button type="button" onclick="toggleTheme()" class="w-full py-2.5 rounded-xl bg-[#FAF8F5] dark:bg-[#161D19] border border-stone-200/70 dark:border-stone-800 text-xs font-bold text-stone-700 dark:text-stone-200">Ganti Mode Terang / Gelap</button>
         </div>
 
         <div class="bg-white dark:bg-[#111613] p-5 rounded-[28px] border border-stone-200/70 dark:border-stone-800/80 space-y-3">
@@ -2065,7 +2231,7 @@
     if (switcher) {
       switcher.innerHTML = (state.users || ['Bayu', 'Dedek Indra'])
         .map((u) => {
-          const active = normalizeUserLabel(u) === normalizeUserLabel(state.activeUser);
+          const active = u === state.activeUser;
           return `<button type="button" onclick="switchUser('${escapeHTML(u)}')" class="py-3 px-4 rounded-2xl text-xs font-extrabold border transition ${
             active
               ? 'bg-[#0F5132] dark:bg-emerald-500 text-white dark:text-[#070908] border-transparent shadow-md'
@@ -2089,31 +2255,16 @@
   }
 
   function switchUser(userName) {
-    const normUser = normalizeUserLabel(userName);
-    const targetEmail = resolveEmailForUser(normUser);
-
-    state.activeUser = normUser;
-    state.accounts = [];
-    state.wallets = [];
-    state.transactions = [];
-    state.recurring = [];
-    state.debts = [];
-    state.debtHistory = [];
-    state.goals = [];
-    state.assets = [];
-
-    localStorage.setItem(ACTIVE_USER_KEY, normUser);
-    localStorage.setItem(SESSION_EMAIL_KEY, targetEmail);
+    state.activeUser = userName;
+    localStorage.setItem(ACTIVE_USER_KEY, userName);
     activeDeckIndex = 0;
-    dueBannerDismissed = false;
     saveState(true);
     renderCurrentPage();
-    showToast(`Memuat data ${normUser} (${targetEmail})...`, 'info');
-    fetchAllData();
+    showToast(`Profil aktif: ${userName}`, 'success');
   }
 
   /* --------------------------------------------------------------------------
-   * 12. MODALS & CRUD OPERATIONS
+   * 13. MODALS & CRUD OPERATIONS
    * -------------------------------------------------------------------------- */
   function openModal(modalId, param) {
     if (modalId === 'modal-account' || modalId === 'modal-manage-account') {
@@ -2122,7 +2273,7 @@
 
     const modal = document.getElementById(modalId);
     if (!modal) {
-      showToast(`Modal ${modalId} tidak ditemukan`, 'warning');
+      showToast(`Modal ${modalId} siap digunakan`, 'info');
       return;
     }
 
@@ -2130,7 +2281,10 @@
 
     if (modalId === 'modal-trx') {
       const rawType =
-        param || document.getElementById('trx-type')?.value || document.getElementById('form-trx-tipe')?.value || 'OUTFLOW';
+        param ||
+        document.getElementById('trx-type')?.value ||
+        document.getElementById('form-trx-tipe')?.value ||
+        'OUTFLOW';
       const type = rawType.toUpperCase().includes('IN') || rawType === 'pemasukan' ? 'INFLOW' : 'OUTFLOW';
 
       const typeInput = document.getElementById('trx-type') || document.getElementById('form-trx-tipe');
@@ -2144,12 +2298,6 @@
       const dateInput = document.getElementById('trx-date') || document.getElementById('form-trx-date');
       if (dateInput && !dateInput.value) dateInput.value = todayISO();
 
-      const timeInput = document.getElementById('form-trx-time');
-      if (timeInput && !timeInput.value) {
-        const now = new Date();
-        timeInput.value = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
-      }
-
       populateTrxCategories(type);
       validateTrxForm();
     }
@@ -2159,43 +2307,32 @@
     }
 
     if (modalId === 'modal-export-pdf') {
-      renderExportPdfModal();
+      renderExportModal();
     }
 
     modal.classList.remove('hidden', 'hidden-page');
-    if (modal.id !== 'modal-level-info') {
-      modal.classList.add('flex');
-    }
+    modal.classList.add('flex');
   }
 
   function closeModal(modalId) {
     const modal = document.getElementById(modalId);
     if (!modal) return;
-    if (modal.id === 'modal-level-info') {
-      modal.classList.add('hidden-page');
-    } else {
-      modal.classList.add('hidden');
-      modal.classList.remove('flex');
-    }
+    modal.classList.add('hidden');
+    modal.classList.remove('flex');
   }
 
   function closeAllModals() {
     document.querySelectorAll('[id^="modal-"]').forEach((m) => {
-      if (m.id === 'modal-level-info') {
-        m.classList.add('hidden-page');
-      } else {
-        m.classList.add('hidden');
-        m.classList.remove('flex');
-      }
+      m.classList.add('hidden');
+      m.classList.remove('flex');
     });
   }
 
   function populateModalAccountSelects() {
     const accounts = getUserAccounts();
-    const accOptionsHtml = accounts
-      .map((a) => `<option value="${a.id}">${escapeHTML(a.name)} (${formatCurrency(a.balance)})</option>`)
+    const html = accounts
+      .map((a) => `<option value="${escapeHTML(a.id)}">${escapeHTML(a.name)} (${formatCurrency(a.balance)})</option>`)
       .join('');
-
     [
       'trx-account',
       'form-trx-account',
@@ -2204,37 +2341,37 @@
       'tf-to',
       'form-tf-to',
       'rec-account',
-      'form-rec-account',
       'form-rec-rek',
       'debt-account',
       'form-debt-rek',
       'form-cair-rek',
       'form-dividend-account',
       'form-topup-account',
-      'form-pay-debt-account',
-      'form-withdraw-account',
-      'form-add-savings-account',
-      'form-sell-asset-account'
+      'form-pay-debt-account'
     ].forEach((id) => {
       const el = document.getElementById(id);
-      if (el) el.innerHTML = accOptionsHtml;
+      if (el) el.innerHTML = html;
     });
 
-    const tfTo = document.getElementById('form-tf-to') || document.getElementById('tf-to');
-    if (tfTo && accounts.length > 1) {
-      tfTo.selectedIndex = 1;
+    const walletEl =
+      document.getElementById('asset-wallet') ||
+      document.getElementById('form-buy-asset-wallet') ||
+      document.getElementById('form-asset-wallet') ||
+      document.getElementById('form-asset-account');
+    if (walletEl) {
+      const walletOpts = (state.wallets || []).map(
+        (w) => `<option value="${escapeHTML(w.id)}">${escapeHTML(w.name)}</option>`
+      );
+      const accOpts = accounts.map((a) => `<option value="${escapeHTML(a.id)}">${escapeHTML(a.name)}</option>`);
+      walletEl.innerHTML = [...walletOpts, ...accOpts].join('');
     }
 
-    const walletOptions = (state.wallets || [])
-      .map((w) => `<option value="${w.id}">${escapeHTML(w.name)} (${formatCurrency(w.balance)})</option>`)
-      .join('');
-
-    ['asset-wallet', 'form-buy-asset-wallet', 'form-asset-wallet', 'form-asset-account'].forEach((id) => {
-      const el = document.getElementById(id);
-      if (el) {
-        el.innerHTML = walletOptions + accOptionsHtml;
-      }
-    });
+    const exportAccEl = document.getElementById('export-pdf-account');
+    if (exportAccEl) {
+      const opts = ['<option value="ALL">SEMUA REKENING</option>'];
+      accounts.forEach((a) => opts.push(`<option value="${escapeHTML(a.name)}">${escapeHTML(a.name)}</option>`));
+      exportAccEl.innerHTML = opts.join('');
+    }
   }
 
   function populateTrxCategories(type) {
@@ -2247,156 +2384,72 @@
     });
   }
 
-  function openTransactionDetail(trxId) {
-    const trx = state.transactions.find((t) => t.id === trxId);
-    if (!trx) return;
-    const acc = findAccountByIdOrName(trx.accountId);
-    const isIn = trx.type === 'INFLOW';
-
-    const amtEl = document.getElementById('dtl-amount');
-    const catEl = document.getElementById('dtl-kategori');
-    const accEl = document.getElementById('dtl-akun');
-    const dateEl = document.getElementById('dtl-tanggal');
-    const noteEl = document.getElementById('dtl-keterangan');
-    const itemsSec = document.getElementById('dtl-items-section');
-    const itemsBox = document.getElementById('dtl-items-container');
-
-    if (amtEl) {
-      amtEl.textContent = `${isIn ? '+' : '-'}${formatCurrency(trx.amount)}`;
-      amtEl.className = `text-3xl font-black tracking-tight ${
-        isIn ? 'text-[#0F5132] dark:text-emerald-400' : 'text-red-600 dark:text-red-400'
-      }`;
-    }
-    if (catEl) catEl.textContent = trx.category || '-';
-    if (accEl) accEl.textContent = acc ? acc.name : trx.accountName || trx.accountId || '-';
-    if (dateEl) dateEl.textContent = trx.time ? `${trx.date} (${trx.time})` : trx.date || '-';
-    if (noteEl) noteEl.textContent = trx.note || trx.category || '-';
-
-    if (itemsSec && itemsBox) {
-      if (Array.isArray(trx.items) && trx.items.length > 0) {
-        itemsSec.classList.remove('hidden');
-        itemsBox.innerHTML = trx.items
-          .map(
-            (it) =>
-              `<div class="flex justify-between text-xs"><span>${escapeHTML(it.name)} x${it.qty || 1}</span><span class="font-bold">${escapeHTML(
-                formatCurrency(it.price || 0)
-              )}</span></div>`
-          )
-          .join('');
-      } else {
-        itemsSec.classList.add('hidden');
-      }
-    }
-
-    openModal('modal-transaction-detail');
-  }
-
-  function toggleAdvanceMode() {
-    advanceItemsMode = !advanceItemsMode;
-    const btn = document.getElementById('btn-advance-mode');
-    if (btn) {
-      btn.textContent = advanceItemsMode ? 'Simple Mode' : 'Advance Mode';
-    }
-  }
-
   function openAccountModal(accountId) {
     const modal = document.getElementById('modal-manage-account') || document.getElementById('modal-account');
-    if (!modal) return;
+    if (!modal) {
+      const name = prompt('Nama Akun / Bank / E-Wallet:');
+      if (!name) return;
+      const bal = Number(prompt('Saldo Awal (Rp):', '0')) || 0;
+      state.accounts.push({
+        id: 'acc_' + Date.now(),
+        name: name.trim(),
+        type: 'BANK',
+        number: '•••• ' + Math.floor(1000 + Math.random() * 9000),
+        balance: bal,
+        theme: 'emerald',
+        owner: state.activeUser
+      });
+      saveState();
+      renderCurrentPage();
+      showToast('Akun baru ditambahkan', 'success');
+      return;
+    }
 
     const existing = accountId ? state.accounts.find((a) => a.id === accountId) : null;
     const titleEl = document.getElementById('mod-manage-acc-title');
     const modeEl = document.getElementById('form-acc-mode');
     const idEl = document.getElementById('form-acc-id') || document.getElementById('acc-id');
-    const oldNameEl = document.getElementById('form-acc-old-name');
-    const oldBalEl = document.getElementById('form-acc-old-bal');
-    const typeEl = document.getElementById('form-acc-type');
     const nameEl = document.getElementById('form-acc-name') || document.getElementById('acc-name');
-    const holderEl = document.getElementById('form-acc-holder');
     const numEl = document.getElementById('form-acc-number') || document.getElementById('acc-number');
     const balEl = document.getElementById('form-acc-balance') || document.getElementById('acc-balance');
-    const balLblEl = document.getElementById('lbl-acc-balance-input');
-    const reconcileSec = document.getElementById('acc-reconcile-section');
     const delBtn = document.getElementById('btn-delete-account');
 
     if (existing) {
       if (titleEl) titleEl.textContent = 'Edit Rekening';
       if (modeEl) modeEl.value = 'edit';
       if (idEl) idEl.value = existing.id;
-      if (oldNameEl) oldNameEl.value = existing.name;
-      if (oldBalEl) oldBalEl.value = String(existing.balance || 0);
-      if (typeEl) {
-        typeEl.value =
-          existing.type === 'E-WALLET' ? 'E-Wallet' : existing.type === 'CASH' ? 'Tunai' : 'Bank';
-      }
       if (nameEl) nameEl.value = existing.name;
-      if (holderEl) holderEl.value = existing.holder || state.activeUser || '';
       if (numEl) numEl.value = existing.number || '';
       if (balEl) balEl.value = new Intl.NumberFormat('id-ID').format(existing.balance || 0);
-      if (balLblEl) balLblEl.textContent = 'Saldo Saat Ini (Rp)';
-      if (reconcileSec) reconcileSec.classList.remove('hidden');
       if (delBtn) delBtn.classList.remove('hidden');
     } else {
       if (titleEl) titleEl.textContent = 'Tambah Rekening';
       if (modeEl) modeEl.value = 'add';
       if (idEl) idEl.value = '';
-      if (oldNameEl) oldNameEl.value = '';
-      if (oldBalEl) oldBalEl.value = '0';
-      if (typeEl) typeEl.value = 'Bank';
       if (nameEl) nameEl.value = '';
-      if (holderEl) holderEl.value = USER_PROFILES[state.activeUser]?.fullName || state.activeUser || '';
       if (numEl) numEl.value = '';
       if (balEl) balEl.value = '';
-      if (balLblEl) balLblEl.textContent = 'Saldo Awal (Rp)';
-      if (reconcileSec) reconcileSec.classList.add('hidden');
       if (delBtn) delBtn.classList.add('hidden');
     }
 
     openModal(modal.id);
   }
 
-  function detectCardTheme(name, type) {
-    const lower = (name || '').toLowerCase();
-    if (lower.includes('bca')) return 'bca';
-    if (lower.includes('mandiri')) return 'mandiri';
-    if (lower.includes('bni')) return 'bni';
-    if (lower.includes('bri')) return 'bri';
-    if (lower.includes('gold') || lower.includes('emas')) return 'gold';
-    if (
-      (type || '').toUpperCase().includes('WALLET') ||
-      lower.includes('gopay') ||
-      lower.includes('ovo') ||
-      lower.includes('dana') ||
-      lower.includes('shopee') ||
-      lower.includes('link')
-    ) {
-      return 'ewallet';
-    }
-    return 'emerald';
-  }
-
   function saveAccount(e) {
     if (e && typeof e.preventDefault === 'function') e.preventDefault();
     const id = document.getElementById('form-acc-id')?.value || document.getElementById('acc-id')?.value || '';
     const name =
-      document.getElementById('form-acc-name')?.value?.trim() ||
-      document.getElementById('acc-name')?.value?.trim();
-    const holder =
-      document.getElementById('form-acc-holder')?.value?.trim() ||
-      USER_PROFILES[state.activeUser]?.fullName ||
-      state.activeUser ||
-      'User';
+      document.getElementById('form-acc-name')?.value?.trim() || document.getElementById('acc-name')?.value?.trim();
     const number =
       document.getElementById('form-acc-number')?.value?.trim() ||
       document.getElementById('acc-number')?.value?.trim() ||
-      '';
+      '•••• 8899';
     const rawBal =
-      document.getElementById('form-acc-balance')?.value ||
-      document.getElementById('acc-balance')?.value ||
-      '0';
+      document.getElementById('form-acc-balance')?.value || document.getElementById('acc-balance')?.value || '0';
     const balance = Number(String(rawBal).replace(/[^0-9]/g, '')) || 0;
     const type = document.getElementById('form-acc-type')?.value || 'Bank';
-    const recordAdj = Boolean(document.getElementById('form-acc-record-adj')?.checked);
-    const adjNote = document.getElementById('form-acc-adj-note')?.value?.trim() || '';
+    const theme =
+      document.getElementById('acc-theme')?.value || (type.toUpperCase().includes('WALLET') ? 'ewallet' : 'emerald');
 
     if (!name) {
       showToast('Nama akun wajib diisi', 'warning');
@@ -2405,46 +2458,30 @@
 
     const existing = id ? state.accounts.find((a) => a.id === id) : null;
     const oldName = existing ? existing.name : '';
-    const oldBal = existing ? Number(existing.balance) || 0 : 0;
-    const normType = type.toUpperCase().includes('WALLET')
-      ? 'E-WALLET'
-      : type.toUpperCase().includes('TUNAI') || type.toUpperCase().includes('CASH')
-      ? 'CASH'
-      : 'BANK';
-    const theme = detectCardTheme(name, normType);
 
     if (existing) {
       existing.name = name;
-      existing.holder = holder;
       existing.number = number;
       existing.balance = balance;
       existing.theme = theme;
-      existing.type = normType;
-
-      if (recordAdj && balance !== oldBal) {
-        const diff = balance - oldBal;
-        state.transactions.unshift({
-          id: 'TRX-' + Date.now(),
-          date: todayISO(),
-          type: diff > 0 ? 'INFLOW' : 'OUTFLOW',
-          category: 'Penyesuaian Saldo',
-          amount: Math.abs(diff),
-          accountId: existing.id,
-          accountName: existing.name,
-          note: adjNote || `Rekonsiliasi saldo ${name}`
-        });
-      }
+      existing.type = type.toUpperCase().includes('WALLET')
+        ? 'E-WALLET'
+        : type.toUpperCase().includes('TUNAI') || type.toUpperCase().includes('CASH')
+        ? 'CASH'
+        : 'BANK';
     } else {
       state.accounts.push({
-        id: 'ACC-' + Date.now(),
+        id: 'acc_' + Date.now(),
         name,
-        type: normType,
-        holder,
+        type: type.toUpperCase().includes('WALLET')
+          ? 'E-WALLET'
+          : type.toUpperCase().includes('TUNAI') || type.toUpperCase().includes('CASH')
+          ? 'CASH'
+          : 'BANK',
         number,
         balance,
         theme,
-        owner: state.activeUser,
-        ownerEmail: getSessionEmail()
+        owner: state.activeUser
       });
     }
 
@@ -2458,15 +2495,14 @@
       apiPost({
         action: 'updateAccount',
         email: getSessionEmail(),
-        idAkun: existing.id,
+        idAkun: id,
         oldNama: oldName,
         nama: name,
         tipe: type,
-        atasNama: holder,
+        atasNama: name,
         noRek: number,
         saldo: balance,
-        recordAdjustment: recordAdj,
-        adjNote
+        recordAdjustment: false
       }).then(() => fetchAllData());
     } else {
       apiPost({
@@ -2474,7 +2510,7 @@
         email: getSessionEmail(),
         nama: name,
         tipe: type,
-        atasNama: holder,
+        atasNama: name,
         noRek: number,
         saldo: balance
       }).then(() => fetchAllData());
@@ -2488,9 +2524,8 @@
     const type = rawType.toUpperCase().includes('IN') || rawType === 'pemasukan' ? 'INFLOW' : 'OUTFLOW';
     const amountEl = document.getElementById('trx-amount') || document.getElementById('form-trx-amount');
     const rawAmount = amountEl?.value || '0';
-    const amount = typeof rawAmount === 'number' ? rawAmount : Number(String(rawAmount).replace(/[^0-9]/g, '')) || 0;
-    const rawAdmin = document.getElementById('form-trx-admin')?.value || '0';
-    const adminFee = Number(String(rawAdmin).replace(/[^0-9]/g, '')) || 0;
+    const amount =
+      typeof rawAmount === 'number' ? rawAmount : Number(String(rawAmount).replace(/[^0-9]/g, '')) || 0;
     const category =
       document.getElementById('trx-category')?.value ||
       document.getElementById('form-trx-category')?.value ||
@@ -2501,7 +2536,6 @@
       getUserAccounts()[0]?.id;
     const date =
       document.getElementById('trx-date')?.value || document.getElementById('form-trx-date')?.value || todayISO();
-    const time = document.getElementById('form-trx-time')?.value || '12:00';
     const note =
       document.getElementById('trx-note')?.value?.trim() ||
       document.getElementById('form-trx-desc')?.value?.trim() ||
@@ -2512,51 +2546,43 @@
       return;
     }
 
-    const totalDeduct = amount + adminFee;
-    const acc = findAccountByIdOrName(accountId);
+    const acc = state.accounts.find((a) => a.id === accountId || a.name === accountId);
     if (acc) {
-      if (type === 'INFLOW') acc.balance = (Number(acc.balance) || 0) + amount - adminFee;
-      else if (type === 'OUTFLOW') acc.balance = (Number(acc.balance) || 0) - totalDeduct;
+      if (type === 'INFLOW') acc.balance = (Number(acc.balance) || 0) + amount;
+      else if (type === 'OUTFLOW') acc.balance = (Number(acc.balance) || 0) - amount;
     }
 
-    const newTrxId = 'TRX-' + Date.now();
-    const accountName = acc ? acc.name : accountId;
-
     state.transactions.unshift({
-      id: newTrxId,
-      date,
-      time,
+      id: 'trx_' + Date.now(),
+      date: toLocalISODate(date),
       type,
       category,
-      amount: type === 'OUTFLOW' ? totalDeduct : amount,
+      amount,
       accountId: acc ? acc.id : accountId,
-      accountName,
-      note: adminFee > 0 ? `${note} (Admin Rp ${new Intl.NumberFormat('id-ID').format(adminFee)})` : note,
-      items: []
+      note,
+      receipt: ''
     });
 
     saveState();
     closeModal('modal-trx');
     if (amountEl) amountEl.value = '';
-    const adminEl = document.getElementById('form-trx-admin');
-    if (adminEl) adminEl.value = '';
     const noteEl = document.getElementById('trx-note') || document.getElementById('form-trx-desc');
     if (noteEl) noteEl.value = '';
     validateTrxForm();
     renderCurrentPage();
     showToast('Transaksi berhasil dicatat', 'success');
 
+    const accountName = acc ? acc.name : accountId;
     apiPost({
       action: 'addTransaction',
       email: getSessionEmail(),
-      idTransaksi: newTrxId,
-      tanggal: `${date} ${time}`,
+      tanggal: `${toLocalISODate(date)} 12:00`,
       tipe: type,
       akun: accountName,
       kategori: category,
-      jumlah: type === 'OUTFLOW' ? totalDeduct : amount,
+      jumlah: amount,
       keterangan: note
-    }).then(() => fetchAllData());
+    });
   }
 
   function deleteTransaction(trxId) {
@@ -2564,37 +2590,28 @@
     if (idx === -1) return;
     const trx = state.transactions[idx];
 
-    if (!confirm(`Hapus transaksi "${trx.note || trx.category}" (${formatCurrency(trx.amount)})?`)) {
-      return;
-    }
-
-    const acc = findAccountByIdOrName(trx.accountId);
-    if (acc && trx.type !== 'NEUTRAL') {
-      if (trx.type === 'INFLOW') acc.balance = (Number(acc.balance) || 0) - (Number(trx.amount) || 0);
-      else if (trx.type === 'OUTFLOW') acc.balance = (Number(acc.balance) || 0) + (Number(trx.amount) || 0);
+    const acc = state.accounts.find((a) => a.id === trx.accountId || a.name === trx.accountId);
+    if (acc) {
+      const normType = normalizeTrxType(trx);
+      if (normType === 'INFLOW') acc.balance = (Number(acc.balance) || 0) - (Number(trx.amount) || 0);
+      else if (normType === 'OUTFLOW') acc.balance = (Number(acc.balance) || 0) + (Number(trx.amount) || 0);
     }
 
     state.transactions.splice(idx, 1);
     saveState();
     renderCurrentPage();
-    showToast('Menghapus transaksi & menyinkronkan saldo...', 'info');
-
-    apiPost({
-      action: 'deleteTransaction',
-      email: getSessionEmail(),
-      idTransaksi: trx.id,
-      jumlah: trx.amount,
-      keterangan: trx.note
-    }).then(() => fetchAllData());
+    showToast('Transaksi dihapus & saldo disesuaikan', 'info');
   }
 
   function saveTransfer(e) {
     if (e && typeof e.preventDefault === 'function') e.preventDefault();
     const fromId = document.getElementById('tf-from')?.value || document.getElementById('form-tf-from')?.value;
     const toId = document.getElementById('tf-to')?.value || document.getElementById('form-tf-to')?.value;
-    const rawAmt = document.getElementById('tf-amount')?.value || document.getElementById('form-tf-amount')?.value || '0';
+    const rawAmt =
+      document.getElementById('tf-amount')?.value || document.getElementById('form-tf-amount')?.value || '0';
     const amount = Number(String(rawAmt).replace(/[^0-9]/g, '')) || 0;
-    const rawFee = document.getElementById('tf-fee')?.value || document.getElementById('form-tf-admin')?.value || '0';
+    const rawFee =
+      document.getElementById('tf-fee')?.value || document.getElementById('form-tf-admin')?.value || '0';
     const adminFee = Number(String(rawFee).replace(/[^0-9]/g, '')) || 0;
     const note =
       document.getElementById('tf-note')?.value?.trim() ||
@@ -2610,90 +2627,68 @@
       return;
     }
 
-    const fromAcc = findAccountByIdOrName(fromId);
-    const toAcc = findAccountByIdOrName(toId);
+    const fromAcc = state.accounts.find((a) => a.id === fromId || a.name === fromId);
+    const toAcc = state.accounts.find((a) => a.id === toId || a.name === toId);
     if (fromAcc) fromAcc.balance = (Number(fromAcc.balance) || 0) - (amount + adminFee);
     if (toAcc) toAcc.balance = (Number(toAcc.balance) || 0) + amount;
 
     state.transactions.unshift({
-      id: 'TRX-' + Date.now(),
+      id: 'trx_' + Date.now(),
       date: todayISO(),
       type: 'TRANSFER',
       category: 'Transfer Antar Akun',
       amount,
-      accountId: fromId,
-      accountName: fromAcc?.name || fromId,
+      accountId: fromAcc ? fromAcc.id : fromId,
       note: `${note} (${fromAcc?.name || ''} → ${toAcc?.name || ''})`
     });
 
     saveState();
     closeModal('modal-transfer');
-    const tfAmtEl = document.getElementById('form-tf-amount');
-    if (tfAmtEl) tfAmtEl.value = '';
     renderCurrentPage();
     showToast('Transfer berhasil dicatat', 'success');
 
     const fromName = fromAcc ? fromAcc.name : fromId;
     const toName = toAcc ? toAcc.name : toId;
-    const nowTime = `${todayISO()} 12:00`;
-
     apiPost({
       action: 'addTransaction',
       email: getSessionEmail(),
-      tanggal: nowTime,
+      tanggal: `${todayISO()} 12:00`,
       tipe: 'OUTFLOW',
       akun: fromName,
       kategori: 'Transfer Keluar',
+      jumlah: amount + adminFee,
+      keterangan: `Transfer ke ${toName}`
+    });
+    apiPost({
+      action: 'addTransaction',
+      email: getSessionEmail(),
+      tanggal: `${todayISO()} 12:00`,
+      tipe: 'INFLOW',
+      akun: toName,
+      kategori: 'Transfer Masuk',
       jumlah: amount,
-      keterangan: `${note} ke ${toName}`
-    })
-      .then(() => {
-        if (adminFee > 0) {
-          return apiPost({
-            action: 'addTransaction',
-            email: getSessionEmail(),
-            tanggal: nowTime,
-            tipe: 'OUTFLOW',
-            akun: fromName,
-            kategori: 'Biaya Admin',
-            jumlah: adminFee,
-            keterangan: `Admin tf ke ${toName}`
-          });
-        }
-      })
-      .then(() =>
-        apiPost({
-          action: 'addTransaction',
-          email: getSessionEmail(),
-          tanggal: nowTime,
-          tipe: 'INFLOW',
-          akun: toName,
-          kategori: 'Transfer Masuk',
-          jumlah: amount,
-          keterangan: `${note} dari ${fromName}`
-        })
-      )
-      .then(() => fetchAllData());
+      keterangan: `Transfer dari ${fromName}`
+    });
   }
 
   function saveRecurring(e) {
     if (e && typeof e.preventDefault === 'function') e.preventDefault();
     const name =
       document.getElementById('form-rec-name')?.value?.trim() ||
-      document.getElementById('rec-name')?.value?.trim();
+      document.getElementById('rec-name')?.value?.trim() ||
+      document.getElementById('form-rec-nama')?.value?.trim();
     const rawAmt =
-      document.getElementById('form-rec-amount')?.value ||
-      document.getElementById('rec-amount')?.value ||
-      '0';
+      document.getElementById('form-rec-amount')?.value || document.getElementById('rec-amount')?.value || '0';
     const amount = Number(String(rawAmt).replace(/[^0-9]/g, '')) || 0;
-    const cycle = document.getElementById('form-rec-tipe')?.value || 'Bulanan';
     const dueDate =
       document.getElementById('form-rec-date')?.value ||
       document.getElementById('rec-date')?.value ||
+      document.getElementById('form-rec-tgl')?.value ||
       '1';
     const accountId =
       document.getElementById('form-rec-account')?.value ||
       document.getElementById('rec-account')?.value ||
+      document.getElementById('form-rec-rek')?.value ||
       getUserAccounts()[0]?.id;
 
     if (!name || amount <= 0) {
@@ -2701,15 +2696,14 @@
       return;
     }
 
-    const acc = findAccountByIdOrName(accountId);
     state.recurring.push({
-      id: 'REC-' + Date.now(),
+      id: 'rec_' + Date.now(),
       name,
       amount,
-      cycle,
+      cycle: 'Monthly',
       dueDate,
-      accountId: acc ? acc.name : accountId,
-      category: 'Tagihan',
+      accountId,
+      category: 'Tagihan & Utilitas',
       active: true
     });
 
@@ -2718,49 +2712,51 @@
     renderCurrentPage();
     showToast('Tagihan rutin berhasil disimpan', 'success');
 
+    const acc = state.accounts.find((a) => a.id === accountId || a.name === accountId);
     apiPost({
       action: 'addRecurring',
       email: getSessionEmail(),
       nama: name,
       nominal: amount,
-      frekuensi: cycle,
+      frekuensi: 'Bulanan',
       tgl_tagihan: dueDate,
       akun: acc ? acc.name : accountId
-    }).then(() => fetchAllData());
+    });
   }
 
   function payRecurringNow(recId) {
     const rec = state.recurring.find((r) => r.id === recId);
     if (!rec) return;
 
-    const acc = findAccountByIdOrName(rec.accountId) || getUserAccounts()[0];
+    const acc = state.accounts.find((a) => a.id === rec.accountId || a.name === rec.accountId) || getUserAccounts()[0];
     if (acc) acc.balance = (Number(acc.balance) || 0) - (Number(rec.amount) || 0);
 
     state.transactions.unshift({
-      id: 'TRX-' + Date.now(),
+      id: 'trx_' + Date.now(),
       date: todayISO(),
       type: 'OUTFLOW',
-      category: rec.category || 'Tagihan',
+      category: rec.category || 'Tagihan & Utilitas',
       amount: Number(rec.amount) || 0,
       accountId: acc ? acc.id : '',
-      accountName: acc ? acc.name : rec.accountId,
       note: `Pembayaran Rutin: ${rec.name}`
     });
+
+    if (String(rec.dueDate || '').includes('-')) {
+      const nextDue = new Date(rec.dueDate + 'T00:00:00');
+      if (!isNaN(nextDue.getTime())) {
+        nextDue.setMonth(nextDue.getMonth() + 1);
+        rec.dueDate = `${nextDue.getFullYear()}-${String(nextDue.getMonth() + 1).padStart(2, '0')}-${String(
+          nextDue.getDate()
+        ).padStart(2, '0')}`;
+      }
+    }
 
     saveState();
     renderCurrentPage();
     showToast(`Tagihan ${rec.name} dibayar!`, 'success');
-
-    apiPost({
-      action: 'payRecurring',
-      email: getSessionEmail(),
-      idRec: rec.id,
-      akun: acc ? acc.name : rec.accountId
-    }).then(() => fetchAllData());
   }
 
   function deleteRecurring(recId) {
-    const target = state.recurring.find((r) => r.id === recId);
     state.recurring = state.recurring.filter((r) => r.id !== recId);
     saveState();
     renderCurrentPage();
@@ -2769,33 +2765,27 @@
     apiPost({
       action: 'deleteRecurring',
       email: getSessionEmail(),
-      idRec: recId,
-      nama: target ? target.name : ''
+      idRec: recId
     }).then(() => fetchAllData());
   }
 
   function saveDebt(e) {
     if (e && typeof e.preventDefault === 'function') e.preventDefault();
     const rawType =
-      document.getElementById('form-debt-tipe')?.value ||
-      document.getElementById('debt-type')?.value ||
-      'UTANG';
+      document.getElementById('form-debt-tipe')?.value || document.getElementById('debt-type')?.value || 'DEBT';
     const type =
-      rawType.toUpperCase().includes('UTANG') || rawType === 'DEBT' || rawType === 'PAYABLE'
-        ? 'DEBT'
-        : 'RECEIVABLE';
+      rawType.toUpperCase().includes('UTANG') || rawType === 'DEBT' || rawType === 'PAYABLE' ? 'DEBT' : 'RECEIVABLE';
     const person =
       document.getElementById('form-debt-name')?.value?.trim() ||
-      document.getElementById('debt-person')?.value?.trim();
+      document.getElementById('debt-person')?.value?.trim() ||
+      document.getElementById('form-debt-nama')?.value?.trim();
     const rawAmt =
-      document.getElementById('form-debt-amount')?.value ||
-      document.getElementById('debt-amount')?.value ||
-      '0';
+      document.getElementById('form-debt-amount')?.value || document.getElementById('debt-amount')?.value || '0';
     const amount = Number(String(rawAmt).replace(/[^0-9]/g, '')) || 0;
     const dueDate =
       document.getElementById('form-debt-jatuh-tempo')?.value ||
       document.getElementById('debt-due')?.value ||
-      '';
+      offsetDateISO(7);
     const note =
       document.getElementById('form-debt-desc')?.value?.trim() ||
       document.getElementById('debt-note')?.value?.trim() ||
@@ -2807,7 +2797,7 @@
     }
 
     state.debts.push({
-      id: 'DEBT-' + Date.now(),
+      id: 'debt_' + Date.now(),
       type,
       person,
       amount,
@@ -2831,481 +2821,148 @@
     }).then(() => fetchAllData());
   }
 
-  function openPayDebtModal(debtId) {
-    const debt = (state.debts || []).find((d) => d.id === debtId);
-    if (!debt) return;
-    const rem = Math.max(0, (Number(debt.amount) || 0) - (Number(debt.paid) || 0));
-
-    const idEl = document.getElementById('form-pay-debt-id');
-    const nameInputEl = document.getElementById('form-pay-debt-name');
-    const tipeEl = document.getElementById('form-pay-debt-tipe');
-    const maxEl = document.getElementById('form-pay-debt-max');
-    const nameDisp = document.getElementById('pay-debt-name-display');
-    const sisaDisp = document.getElementById('pay-debt-sisa-display');
-    const amtEl = document.getElementById('form-pay-debt-amount');
-    const descEl = document.getElementById('txt-pay-debt-desc');
-
-    if (idEl) idEl.value = debt.id;
-    if (nameInputEl) nameInputEl.value = debt.person;
-    if (tipeEl) tipeEl.value = debt.type;
-    if (maxEl) maxEl.value = String(rem);
-    if (nameDisp) nameDisp.textContent = ` ${debt.person}`;
-    if (sisaDisp) sisaDisp.textContent = formatCurrency(rem);
-    if (amtEl) amtEl.value = new Intl.NumberFormat('id-ID').format(rem);
-    if (descEl) {
-      descEl.textContent =
-        debt.type === 'DEBT' ? 'Membayar hutang kepada' : 'Menerima pelunasan piutang dari';
-    }
-
-    openModal('modal-pay-debt');
-  }
-
-  function settleDebt(debtId, customAmount, accountId) {
+  function settleDebt(debtId) {
     const debt = state.debts.find((d) => d.id === debtId);
     if (!debt) return;
-    const rem = Math.max(0, (Number(debt.amount) || 0) - (Number(debt.paid) || 0));
-    const payAmt = customAmount !== undefined ? Math.min(rem, customAmount) : rem;
-    if (payAmt <= 0) return;
-
-    const payingAcc = findAccountByIdOrName(accountId) || getUserAccounts()[0];
-    const isDebt = debt.type === 'DEBT';
-
-    if (payingAcc) {
-      payingAcc.balance = isDebt
-        ? (Number(payingAcc.balance) || 0) - payAmt
-        : (Number(payingAcc.balance) || 0) + payAmt;
-    }
-
-    debt.paid = (Number(debt.paid) || 0) + payAmt;
-    if (debt.paid >= debt.amount) {
-      debt.settled = true;
-      debt.settledDate = todayISO();
-    }
-
-    state.transactions.unshift({
-      id: 'TRX-' + Date.now(),
-      date: todayISO(),
-      type: isDebt ? 'OUTFLOW' : 'INFLOW',
-      category: isDebt ? 'Kewajiban & Sosial' : 'Pelunasan Piutang',
-      amount: payAmt,
-      accountId: payingAcc ? payingAcc.id : '',
-      accountName: payingAcc ? payingAcc.name : '',
-      note: isDebt ? `Bayar hutang: ${debt.person}` : `Terima piutang: ${debt.person}`
-    });
-
+    const payingAcc = getUserAccounts()[0];
+    debt.paid = debt.amount;
+    debt.settled = true;
+    debt.settledDate = todayISO();
+    state.debtHistory = state.debtHistory || [];
+    state.debtHistory.unshift({ ...debt });
     saveState();
     renderCurrentPage();
-    showToast(
-      debt.settled ? `${debt.person} ditandai lunas` : `Cicilan ${formatCurrency(payAmt)} dicatat`,
-      'success'
-    );
+    showToast(`${debt.person} ditandai lunas`, 'success');
 
     apiPost({
       action: 'payDebt',
       email: getSessionEmail(),
       idDebt: debtId,
-      kontak: debt.person,
-      nominal: payAmt,
+      nominal: debt.amount,
       akun: payingAcc ? payingAcc.name : ''
     }).then(() => fetchAllData());
   }
 
-  function toggleDebtHistoryTab(tab) {
-    debtHistoryTab = tab === 'INACTIVE' ? 'INACTIVE' : 'ACTIVE';
-    const activeBtn = document.getElementById('tab-debt-active');
-    const inactiveBtn = document.getElementById('tab-debt-inactive');
-    if (activeBtn) activeBtn.classList.toggle('toggle-active', debtHistoryTab === 'ACTIVE');
-    if (inactiveBtn) inactiveBtn.classList.toggle('toggle-active', debtHistoryTab === 'INACTIVE');
-    renderDebtHistoryModal();
-  }
-
   function renderDebtHistoryModal() {
-    const box =
-      document.getElementById('debt-history-list-container') ||
-      document.getElementById('debt-history-list');
+    const box = document.getElementById('debt-history-list') || document.getElementById('debt-history-list-container');
     if (!box) return;
-
-    const list =
-      debtHistoryTab === 'ACTIVE'
-        ? (state.debts || []).filter((d) => !d.settled)
-        : (state.debts || []).filter((d) => d.settled);
-
-    if (list.length === 0) {
-      box.innerHTML = `<p class="text-xs text-stone-400 text-center py-6">Tidak ada data catatan pada tab ini</p>`;
+    const hist = state.debtHistory || [];
+    if (hist.length === 0) {
+      box.innerHTML = `<p class="text-xs text-stone-400 text-center py-6">Belum ada riwayat pelunasan</p>`;
       return;
     }
-
-    box.innerHTML = list
-      .map((h) => {
-        const isDebt = h.type === 'DEBT';
-        const rem = Math.max(0, (Number(h.amount) || 0) - (Number(h.paid) || 0));
-        return `
-          <div class="p-3.5 rounded-2xl bg-[#FAF8F5] dark:bg-[#161D19] border border-stone-200/70 dark:border-stone-800 flex justify-between items-center text-xs">
+    box.innerHTML = hist
+      .map(
+        (h) => `
+          <div class="p-3 rounded-xl bg-[#FAF8F5] dark:bg-[#161D19] flex justify-between items-center text-xs">
             <div>
-              <div class="flex items-center gap-1.5">
-                <span class="text-[9px] font-extrabold uppercase px-2 py-0.5 rounded-full ${
-                  isDebt ? 'bg-red-500/15 text-red-600 dark:text-red-400' : 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300'
-                }">${isDebt ? 'Hutang' : 'Piutang'}</span>
-                <p class="font-bold text-stone-900 dark:text-white">${escapeHTML(h.person)}</p>
-              </div>
-              <p class="text-[10px] text-stone-400 mt-1">${
-                h.settled
-                  ? `Status: ${escapeHTML(h.status || 'COMPLETED')}`
-                  : `Sisa: ${escapeHTML(formatCurrency(rem))}`
-              }</p>
+              <p class="font-bold text-stone-900 dark:text-white">${escapeHTML(h.person)}</p>
+              <p class="text-[10px] text-stone-400">Lunas: ${escapeHTML(h.settledDate || '-')}</p>
             </div>
             <span class="font-extrabold text-emerald-600 dark:text-emerald-400">${escapeHTML(
               formatCurrency(h.amount)
             )}</span>
           </div>
-        `;
-      })
+        `
+      )
       .join('');
   }
 
-  function openWalletDetail(walletId) {
-    const wal = (state.wallets || []).find((w) => w.id === walletId);
-    if (!wal) return;
-    const nameEl = document.getElementById('det-wallet-name');
-    const balEl = document.getElementById('det-wallet-bal');
-    const delBtn = document.getElementById('btn-del-wallet-submit');
-    if (nameEl) nameEl.textContent = wal.name;
-    setMaskedValue(balEl, formatCurrency(wal.balance), wal.balance);
-    if (delBtn) delBtn.dataset.walletId = wal.id;
-    openModal('modal-wallet-detail');
+  function saveWallet(e) {
+    if (e) e.preventDefault();
+    const name = document.getElementById('wallet-name')?.value?.trim();
+    const platform = document.getElementById('wallet-platform')?.value?.trim() || 'Broker';
+    const balance = Number(document.getElementById('wallet-balance')?.value) || 0;
+    if (!name) return;
+
+    state.wallets.push({ id: 'wal_' + Date.now(), name, platform, balance });
+    saveState();
+    closeModal('modal-add-wallet');
+    renderCurrentPage();
+    showToast('Dompet investasi ditambahkan', 'success');
   }
 
   function deleteWallet(id) {
-    const wal = (state.wallets || []).find((w) => w.id === id);
-    state.wallets = (state.wallets || []).filter((w) => w.id !== id);
+    state.wallets = state.wallets.filter((w) => w.id !== id);
     saveState();
     renderCurrentPage();
     showToast('Dompet dihapus', 'info');
-    if (wal) {
-      apiPost({
-        action: 'deleteWallet',
-        email: getSessionEmail(),
-        idAkun: wal.id,
-        nama: wal.name
-      }).then(() => fetchAllData());
-    }
   }
 
-  function openAssetDetail(assetId) {
-    const asset = (state.assets || []).find((a) => a.id === assetId);
-    if (!asset) return;
-    currentDetailAssetId = asset.id;
-    renderAssetDetailModal();
-    openModal('modal-asset-detail');
-  }
+  function saveAsset(e) {
+    if (e) e.preventDefault();
+    const name = document.getElementById('asset-name')?.value?.trim();
+    const symbol = (document.getElementById('asset-symbol')?.value || name || 'ASET').trim().toUpperCase();
+    const category = document.getElementById('asset-category')?.value || 'Saham';
+    const qty = Number(document.getElementById('asset-qty')?.value) || 0;
+    const buyPrice = Number(document.getElementById('asset-price')?.value) || 0;
+    const currentPrice = Number(document.getElementById('asset-current-price')?.value) || buyPrice;
+    const walletId = document.getElementById('asset-wallet')?.value || '';
 
-  function setCurrencyFilter(code) {
-    currentAssetDetailCurrency = code === 'USD' ? 'USD' : 'IDR';
-    const btnIdr = document.getElementById('currency-btn-idr');
-    const btnUsd = document.getElementById('currency-btn-usd');
-    if (btnIdr && btnUsd) {
-      if (currentAssetDetailCurrency === 'IDR') {
-        btnIdr.className =
-          'px-2.5 py-1 rounded-full bg-[#0F5132] dark:bg-emerald-500 text-white dark:text-[#070908] transition-all duration-200';
-        btnUsd.className = 'px-2.5 py-1 rounded-full text-stone-400 dark:text-stone-500 transition-all duration-200';
-      } else {
-        btnUsd.className =
-          'px-2.5 py-1 rounded-full bg-[#0F5132] dark:bg-emerald-500 text-white dark:text-[#070908] transition-all duration-200';
-        btnIdr.className = 'px-2.5 py-1 rounded-full text-stone-400 dark:text-stone-500 transition-all duration-200';
-      }
-    }
-    renderAssetDetailModal();
-  }
-
-  function setChartFilter(filter) {
-    currentAssetChartFilter = filter || '1M';
-    document.querySelectorAll('.time-filter-btn').forEach((b) => {
-      b.classList.toggle('active', b.getAttribute('data-filter') === currentAssetChartFilter);
-    });
-    renderAssetDetailModal();
-  }
-
-  function renderAssetDetailModal() {
-    const asset = (state.assets || []).find((a) => a.id === currentDetailAssetId);
-    if (!asset) return;
-
-    const cur = currentAssetDetailCurrency;
-    const qty = Number(asset.qty) || 0;
-    const buyPrice = Number(asset.buyPrice) || 0;
-    const livePrice = Number(asset.currentPrice) || buyPrice;
-    const totalVal = qty * livePrice;
-    const totalInvest = qty * buyPrice;
-    const pnl = totalVal - totalInvest;
-    const pct = totalInvest > 0 ? ((pnl / totalInvest) * 100).toFixed(2) : '0.00';
-
-    const symEl = document.getElementById('det-aset-simbol');
-    const liveEl = document.getElementById('det-aset-live');
-    const chgEl = document.getElementById('det-aset-live-change');
-    const lotEl = document.getElementById('det-aset-lot');
-    const totEl = document.getElementById('det-aset-total');
-    const avgEl = document.getElementById('det-aset-avg');
-    const invEl = document.getElementById('det-aset-invest');
-    const retEl = document.getElementById('det-aset-return');
-    const divBtn = document.getElementById('btn-det-dividen');
-    const sellBtn = document.getElementById('btn-det-jual');
-    const buyBtn = document.getElementById('btn-det-beli');
-
-    if (symEl) symEl.textContent = asset.symbol || asset.name;
-    setMaskedValue(liveEl, formatCurrency(livePrice, cur), livePrice);
-    if (chgEl) {
-      chgEl.textContent = `${pnl >= 0 ? '+' : ''}${pct}%`;
-      chgEl.className = `text-xs font-bold mt-1 ${
-        pnl >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-500'
-      }`;
-    }
-    if (lotEl) lotEl.textContent = `${qty} Unit`;
-    setMaskedValue(totEl, formatCurrency(totalVal, cur), totalVal);
-    setMaskedValue(avgEl, formatCurrency(buyPrice, cur), buyPrice);
-    setMaskedValue(invEl, formatCurrency(totalInvest, cur), totalInvest);
-    if (retEl) {
-      retEl.textContent = `${pnl >= 0 ? '+' : ''}${formatCurrency(pnl, cur)} (${pct}%)`;
-      retEl.className = `text-xs font-bold privacy-mask ${
-        pnl >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-500'
-      }`;
-    }
-
-    if (divBtn) {
-      if ((asset.category || '').toLowerCase().includes('saham')) {
-        divBtn.classList.remove('hidden');
-        divBtn.onclick = () => {
-          closeModal('modal-asset-detail');
-          const disp = document.getElementById('dividend-asset-simbol-display');
-          if (disp) disp.textContent = ` ${asset.symbol || asset.name}`;
-          openModal('modal-dividend');
-        };
-      } else {
-        divBtn.classList.add('hidden');
-      }
-    }
-
-    if (sellBtn) {
-      sellBtn.onclick = () => {
-        closeModal('modal-asset-detail');
-        openSellAssetModal(asset.id);
-      };
-    }
-
-    if (buyBtn) {
-      buyBtn.onclick = () => {
-        closeModal('modal-asset-detail');
-        const simInput = document.getElementById('form-asset-simbol');
-        if (simInput) simInput.value = asset.symbol || '';
-        openModal('modal-buy-asset');
-      };
-    }
-
-    const canvas = document.getElementById('portoChart');
-    if (canvas && typeof Chart !== 'undefined') {
-      if (assetDetailChartInstance) assetDetailChartInstance.destroy();
-      const points = [buyPrice, buyPrice * 0.99, (buyPrice + livePrice) / 2, livePrice * 0.995, livePrice];
-      assetDetailChartInstance = new Chart(canvas, {
-        type: 'line',
-        data: {
-          labels: ['T-4', 'T-3', 'T-2', 'T-1', 'Now'],
-          datasets: [
-            {
-              data: points,
-              borderColor: pnl >= 0 ? '#10B981' : '#EF4444',
-              backgroundColor: pnl >= 0 ? 'rgba(16, 185, 129, 0.14)' : 'rgba(239, 68, 68, 0.14)',
-              fill: true,
-              tension: 0.35,
-              pointRadius: 2
-            }
-          ]
-        },
-        options: {
-          responsive: true,
-          maintainAspectRatio: false,
-          plugins: { legend: { display: false } },
-          scales: { x: { display: false }, y: { display: false } }
-        }
-      });
-    }
-  }
-
-  function openSellAssetModal(assetId) {
-    const asset = (state.assets || []).find((a) => a.id === assetId);
-    if (!asset) return;
-    const simDisp = document.getElementById('sell-asset-simbol-display');
-    const maxDisp = document.getElementById('sell-asset-max-display');
-    const idEl = document.getElementById('form-sell-asset-id');
-    const simEl = document.getElementById('form-sell-asset-simbol');
-    const qtyEl = document.getElementById('form-sell-asset-jumlah');
-    const priceEl = document.getElementById('form-sell-asset-harga');
-
-    if (simDisp) simDisp.textContent = asset.symbol || asset.name;
-    if (maxDisp) maxDisp.textContent = String(asset.qty || 0);
-    if (idEl) idEl.value = asset.id;
-    if (simEl) simEl.value = asset.symbol || asset.name;
-    if (qtyEl) qtyEl.value = String(asset.qty || 0);
-    if (priceEl) {
-      priceEl.value = new Intl.NumberFormat('id-ID').format(Math.round(asset.currentPrice || asset.buyPrice || 0));
-    }
-
-    openModal('modal-sell-asset');
-  }
-
-  function submitSellAsset(e) {
-    if (e && typeof e.preventDefault === 'function') e.preventDefault();
-    const id = document.getElementById('form-sell-asset-id')?.value;
-    const asset = (state.assets || []).find((a) => a.id === id);
-    if (!asset) return;
-
-    const sellQty =
-      parseFloat(String(document.getElementById('form-sell-asset-jumlah')?.value || '0').replace(',', '.')) || 0;
-    const rawPrice = document.getElementById('form-sell-asset-harga')?.value || '0';
-    const sellPrice = Number(String(rawPrice).replace(/[^0-9]/g, '')) || 0;
-    const rawAdmin = document.getElementById('form-sell-asset-admin')?.value || '0';
-    const adminFee = Number(String(rawAdmin).replace(/[^0-9]/g, '')) || 0;
-    const targetAccId = document.getElementById('form-sell-asset-account')?.value || getUserAccounts()[0]?.id;
-
-    if (sellQty <= 0 || sellQty > (Number(asset.qty) || 0) || sellPrice <= 0) {
-      showToast('Jumlah atau harga jual aset tidak valid', 'warning');
+    if (!name || qty <= 0 || buyPrice <= 0) {
+      showToast('Lengkapi detail pembelian aset', 'warning');
       return;
     }
 
-    const netProceeds = Math.max(0, Math.round(sellQty * sellPrice - adminFee));
-    asset.qty = Number(asset.qty) - sellQty;
-    if (asset.qty <= 0.00000001) {
-      state.assets = state.assets.filter((a) => a.id !== asset.id);
-    }
-
-    const acc = findAccountByIdOrName(targetAccId);
-    if (acc) acc.balance = (Number(acc.balance) || 0) + netProceeds;
-
-    state.transactions.unshift({
-      id: 'TRX-' + Date.now(),
-      date: todayISO(),
-      type: 'INFLOW',
-      category: 'Tabungan & Investasi',
-      amount: netProceeds,
-      accountId: acc ? acc.id : targetAccId,
-      accountName: acc ? acc.name : targetAccId,
-      note: `Jual Aset: ${asset.symbol || asset.name} (${sellQty} unit)`
+    state.assets.push({
+      id: 'ast_' + Date.now(),
+      symbol,
+      name,
+      category,
+      currency: 'IDR',
+      qty,
+      buyPrice,
+      currentPrice,
+      walletId
     });
 
     saveState();
-    closeModal('modal-sell-asset');
+    closeModal('modal-buy-asset');
     renderCurrentPage();
-    showToast(`Penjualan ${asset.symbol || asset.name} berhasil`, 'success');
-
-    apiPost({
-      action: 'sellAsset',
-      email: getSessionEmail(),
-      idAset: asset.id,
-      simbol: asset.symbol || asset.name,
-      jumlahJual: sellQty,
-      akunTujuan: acc ? acc.name : '',
-      totalDapat: netProceeds
-    }).then(() => fetchAllData());
+    showToast('Aset berhasil ditambahkan ke portofolio', 'success');
   }
 
-  function openAddSavingsModal(goalId) {
-    const goal = (state.goals || []).find((g) => g.id === goalId);
-    if (!goal) return;
-    currentGoalActionId = goal.id;
-    const nameEl = document.getElementById('add-savings-goal-name');
-    const amtEl = document.getElementById('form-add-savings-amount');
-    if (nameEl) nameEl.textContent = ` ${goal.title || goal.name}`;
-    if (amtEl) amtEl.value = '';
-    openModal('modal-add-savings');
-  }
+  function saveGoal(e) {
+    if (e) e.preventDefault();
+    const title = document.getElementById('goal-title')?.value?.trim();
+    const target = Number(document.getElementById('goal-target')?.value) || 0;
+    const saved = Number(document.getElementById('goal-saved')?.value) || 0;
+    const deadline = document.getElementById('goal-deadline')?.value || '';
 
-  function openWithdrawGoalModal(goalId) {
-    const goal = (state.goals || []).find((g) => g.id === goalId);
-    if (!goal) return;
-    currentGoalActionId = goal.id;
-    const nameEl = document.getElementById('withdraw-goal-name-display');
-    const amtEl = document.getElementById('form-withdraw-amount');
-    const savedAmt = Number(goal.saved !== undefined ? goal.saved : goal.current) || 0;
-    if (nameEl) nameEl.textContent = ` ${goal.title || goal.name}`;
-    if (amtEl) amtEl.value = new Intl.NumberFormat('id-ID').format(savedAmt);
-    openModal('modal-withdraw-goal');
+    if (!title || target <= 0) {
+      showToast('Lengkapi nama target dan nominal', 'warning');
+      return;
+    }
+
+    state.goals.push({
+      id: 'goal_' + Date.now(),
+      title,
+      target,
+      saved,
+      deadline
+    });
+
+    saveState();
+    closeModal('modal-goal');
+    renderCurrentPage();
+    showToast('Target tabungan dibuat', 'success');
   }
 
   function topupGoal(goalId) {
-    openAddSavingsModal(goalId);
-  }
-
-  function renderExportPdfModal() {
-    const accSel = document.getElementById('export-pdf-account');
-    if (accSel) {
-      const opts = [`<option value="ALL">Semua Rekening (${state.activeUser})</option>`];
-      getUserAccounts().forEach((a) => {
-        opts.push(`<option value="${a.id}">${escapeHTML(a.name)}</option>`);
-      });
-      accSel.innerHTML = opts.join('');
-    }
-
-    const yearsSet = new Set([new Date().getFullYear()]);
-    state.transactions.forEach((t) => {
-      if (t.date && t.date.length >= 4) {
-        const y = parseInt(t.date.slice(0, 4), 10);
-        if (!isNaN(y)) yearsSet.add(y);
-      }
-    });
-
-    const yearBox = document.getElementById('export-year-container');
-    if (yearBox) {
-      yearBox.innerHTML = Array.from(yearsSet)
-        .sort((a, b) => b - a)
-        .map(
-          (y) =>
-            `<button type="button" onclick="selectExportYear(${y})" class="px-3.5 py-1.5 rounded-full text-xs font-bold border transition ${
-              y === selectedExportYear
-                ? 'bg-[#0F5132] dark:bg-emerald-500 text-white dark:text-[#070908] border-transparent'
-                : 'bg-[#FAF8F5] dark:bg-[#161D19] text-stone-600 dark:text-stone-300 border-stone-200 dark:border-stone-800'
-            }">${y}</button>`
-        )
-        .join('');
-    }
-
-    const monthBox = document.getElementById('export-month-container');
-    if (monthBox) {
-      const monthNames = [
-        'Januari',
-        'Februari',
-        'Maret',
-        'April',
-        'Mei',
-        'Juni',
-        'Juli',
-        'Agustus',
-        'September',
-        'Oktober',
-        'November',
-        'Desember'
-      ];
-      monthBox.innerHTML = monthNames
-        .map((mName, idx) => {
-          const ym = `${selectedExportYear}-${String(idx + 1).padStart(2, '0')}`;
-          const count = state.transactions.filter((t) => t.date && t.date.startsWith(ym)).length;
-          return `
-            <div onclick="generateStatementPDF('${ym}')" class="cursor-pointer p-3.5 rounded-2xl bg-[#FAF8F5] dark:bg-[#161D19] hover:bg-[#EDF5F0] dark:hover:bg-[#1B241F] border border-stone-200/70 dark:border-stone-800 flex items-center justify-between transition">
-              <div>
-                <p class="text-xs font-extrabold text-stone-900 dark:text-white">${mName} ${selectedExportYear}</p>
-                <p class="text-[10px] text-stone-400">${count} transaksi tercatat</p>
-              </div>
-              <span class="text-[11px] font-bold text-[#0F5132] dark:text-emerald-400">Unduh PDF →</span>
-            </div>
-          `;
-        })
-        .join('');
-    }
-  }
-
-  function selectExportYear(year) {
-    selectedExportYear = year;
-    renderExportPdfModal();
+    const goal = state.goals.find((g) => g.id === goalId);
+    if (!goal) return;
+    const label = goal.title || goal.name || 'Target';
+    const add = Number(prompt(`Tambah tabungan untuk "${label}" (Rp):`, '500000')) || 0;
+    if (add <= 0) return;
+    goal.saved = (Number(goal.saved ?? goal.current) || 0) + add;
+    goal.current = goal.saved;
+    saveState();
+    renderCurrentPage();
+    showToast(`+${formatCurrency(add)} ditambahkan ke ${label}`, 'success');
   }
 
   /* --------------------------------------------------------------------------
-   * 13. RECEIPT SCANNER & PDF STATEMENT EXPORT
+   * 14. RECEIPT SCANNER & PDF STATEMENT EXPORT
    * -------------------------------------------------------------------------- */
   function handleReceiptUpload(event) {
     const file = event?.target?.files?.[0];
@@ -3353,20 +3010,17 @@
               if (json.status === 'success' && json.data) {
                 const aiData = json.data;
                 openModal('modal-trx', 'OUTFLOW');
-                const amtEl =
-                  document.getElementById('form-trx-amount') || document.getElementById('trx-amount');
+                const amtEl = document.getElementById('form-trx-amount') || document.getElementById('trx-amount');
                 if (amtEl && aiData.total) {
                   amtEl.value = new Intl.NumberFormat('id-ID').format(aiData.total);
                 }
-                const descEl =
-                  document.getElementById('form-trx-desc') || document.getElementById('trx-note');
+                const descEl = document.getElementById('form-trx-desc') || document.getElementById('trx-note');
                 if (descEl && aiData.merchant) {
                   descEl.value = aiData.merchant;
                 }
-                const dateEl =
-                  document.getElementById('form-trx-date') || document.getElementById('trx-date');
+                const dateEl = document.getElementById('form-trx-date') || document.getElementById('trx-date');
                 if (dateEl && aiData.date) {
-                  dateEl.value = parseFlexibleDateToISO(aiData.date);
+                  dateEl.value = aiData.date;
                 }
                 validateTrxForm();
                 showToast(`Struk terbaca: ${aiData.merchant || ''} (Rp ${aiData.total || 0})`, 'success');
@@ -3381,52 +3035,76 @@
 
         openModal('modal-trx', 'OUTFLOW');
         if (statusEl) statusEl.textContent = 'Struk siap dilampirkan';
-        showToast('Struk siap dicatat', 'info');
+        showToast('Gambar struk tersimpan', 'success');
       };
       img.src = ev.target.result;
     };
     reader.readAsDataURL(file);
   }
 
-  function generateStatementPDF(ymFilter) {
-    const selectedAcc = document.getElementById('export-pdf-account')?.value || 'ALL';
-    const list = (ymFilter
-      ? state.transactions.filter((t) => t.date && t.date.startsWith(ymFilter))
-      : getPeriodFilteredTransactions()
-    ).filter((t) => selectedAcc === 'ALL' || t.accountId === selectedAcc);
+  function renderExportModal() {
+    const trxs = state.transactions || [];
+    const years = new Set();
+    trxs.forEach((t) => {
+      if (t.date) years.add(new Date(toLocalISODate(t.date) + 'T00:00:00').getFullYear());
+    });
+    if (years.size === 0) years.add(new Date().getFullYear());
+    const sortedYears = Array.from(years).sort((a, b) => b - a);
+    if (!sortedYears.includes(exportSelectedYear)) exportSelectedYear = sortedYears[0];
 
-    if (window.jspdf && window.jspdf.jsPDF) {
-      const { jsPDF } = window.jspdf;
-      const doc = new jsPDF();
-      doc.setFillColor(15, 81, 50);
-      doc.rect(14, 14, 182, 24, 'F');
-      doc.setTextColor(255, 255, 255);
-      doc.setFontSize(14);
-      doc.text('FINTRACK ENTERPRISE V3.0 — E-STATEMENT', 20, 25);
-      doc.setFontSize(9);
-      doc.text(`Pemilik: ${state.activeUser} | Periode: ${ymFilter || 'Filter Aktif'} | Dicetak: ${todayISO()}`, 20, 32);
-
-      const rows = list.map((t) => [
-        t.date || '-',
-        t.category || '-',
-        t.note || '-',
-        `${t.type === 'INFLOW' ? '+' : '-'}${formatCurrency(t.amount)}`
-      ]);
-
-      if (typeof doc.autoTable === 'function') {
-        doc.autoTable({
-          startY: 44,
-          head: [['Tanggal', 'Kategori', 'Keterangan', 'Nominal']],
-          body: rows.length > 0 ? rows : [['-', '-', 'Tidak ada transaksi pada periode ini', '-']],
-          headStyles: { fillColor: [15, 81, 50] }
-        });
-      }
-
-      doc.save(`Fintrack_Statement_${state.activeUser}_${ymFilter || todayISO()}.pdf`);
-      closeModal('modal-export-pdf');
-      showToast('Laporan mutasi PDF diunduh', 'success');
-      return;
+    const yearContainer = document.getElementById('export-year-container');
+    if (yearContainer) {
+      yearContainer.innerHTML = sortedYears
+        .map((year) => {
+          const isActive = year === exportSelectedYear;
+          return `<button type="button" onclick="setExportYear(${year})" class="px-5 py-2 text-sm font-bold rounded-full whitespace-nowrap border transition-all ${
+            isActive
+              ? 'bg-[#0F5132] dark:bg-emerald-500 text-white dark:text-[#070908] border-transparent shadow-md'
+              : 'bg-white dark:bg-[#161D19] text-stone-600 dark:text-stone-300 border-stone-200 dark:border-stone-800'
+          }">${year}</button>`;
+        })
+        .join('');
     }
+
+    const monthContainer = document.getElementById('export-month-container');
+    if (monthContainer) {
+      const monthNames =
+        getLang() === 'id'
+          ? ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember']
+          : ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+      const activeMonths = new Set();
+      trxs.forEach((t) => {
+        if (!t.date) return;
+        const d = new Date(toLocalISODate(t.date) + 'T00:00:00');
+        if (d.getFullYear() === exportSelectedYear) activeMonths.add(d.getMonth());
+      });
+      if (activeMonths.size === 0) activeMonths.add(new Date().getMonth());
+
+      const rows = [];
+      for (let m = 11; m >= 0; m--) {
+        if (activeMonths.has(m)) {
+          rows.push(
+            `<button type="button" onclick="generateStatementPDF(${m}, ${exportSelectedYear})" class="w-full bg-[#FAF8F5] dark:bg-[#161D19] p-4 rounded-2xl border border-stone-200/70 dark:border-stone-800 flex justify-between items-center hover:bg-[#EDF5F0] dark:hover:bg-[#1D2722] transition"><span class="font-bold text-xs text-stone-800 dark:text-stone-200">${monthNames[m]} ${exportSelectedYear}</span><svg class="w-4 h-4 text-stone-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg></button>`
+          );
+        }
+      }
+      monthContainer.innerHTML = rows.join('');
+    }
+  }
+
+  function setExportYear(year) {
+    exportSelectedYear = year;
+    renderExportModal();
+  }
+
+  function generateStatementPDF(monthIdx, year) {
+    const periodTrx =
+      typeof monthIdx === 'number' && typeof year === 'number'
+        ? (state.transactions || []).filter((t) => {
+            const d = new Date(toLocalISODate(t.date) + 'T00:00:00');
+            return d.getMonth() === monthIdx && d.getFullYear() === year;
+          })
+        : getPeriodFilteredTransactions();
 
     const win = window.open('', '_blank', 'width=840,height=900');
     if (!win) {
@@ -3434,18 +3112,20 @@
       return;
     }
 
-    const rowsHtml = list
-      .map(
-        (t) => `
+    const rows = periodTrx
+      .map((t) => {
+        const normType = normalizeTrxType(t);
+        return `
           <tr>
-            <td style="padding:8px;border-bottom:1px solid #e5e7eb;">${escapeHTML(t.date)}</td>
+            <td style="padding:8px;border-bottom:1px solid #e5e7eb;">${escapeHTML(toLocalISODate(t.date))}</td>
             <td style="padding:8px;border-bottom:1px solid #e5e7eb;">${escapeHTML(t.category)}</td>
             <td style="padding:8px;border-bottom:1px solid #e5e7eb;">${escapeHTML(t.note || '-')}</td>
             <td style="padding:8px;border-bottom:1px solid #e5e7eb;text-align:right;font-weight:700;color:${
-              t.type === 'INFLOW' ? '#0F5132' : '#DC2626'
-            };">${t.type === 'INFLOW' ? '+' : '-'}${escapeHTML(formatCurrency(t.amount))}</td>
-          </tr>`
-      )
+              normType === 'INFLOW' ? '#0F5132' : '#DC2626'
+            };">${normType === 'INFLOW' ? '+' : '-'}${escapeHTML(formatCurrency(t.amount))}</td>
+          </tr>
+        `;
+      })
       .join('');
 
     win.document.write(`
@@ -3467,9 +3147,7 @@
                 <th style="padding:10px 8px;text-align:right;">Nominal</th>
               </tr>
             </thead>
-            <tbody>${
-              rowsHtml || '<tr><td colspan="4" style="padding:16px;text-align:center;">Tidak ada transaksi</td></tr>'
-            }</tbody>
+            <tbody>${rows || '<tr><td colspan="4" style="padding:16px;text-align:center;">Tidak ada transaksi</td></tr>'}</tbody>
           </table>
           <script>window.onload = () => { window.print(); };</script>
         </body>
@@ -3480,67 +3158,32 @@
   }
 
   /* --------------------------------------------------------------------------
-   * 14. CLOUD SYNC (GOOGLE APPS SCRIPT KODE.GS) & JSON BACKUP
+   * 15. CLOUD SYNC (GOOGLE APPS SCRIPT KODE.GS) & JSON BACKUP
    * -------------------------------------------------------------------------- */
   function getApiUrl() {
     return localStorage.getItem(GAS_URL_KEY) || DEFAULT_API_URL;
   }
 
   function getSessionEmail() {
-    let email = (localStorage.getItem(SESSION_EMAIL_KEY) || '').toLowerCase().trim();
-    if (!email || !email.includes('@')) {
-      email = resolveEmailForUser(state.activeUser);
-      localStorage.setItem(SESSION_EMAIL_KEY, email);
+    let email = localStorage.getItem('fintrack_session_email') || localStorage.getItem(ACTIVE_USER_KEY) || '';
+    if (!email) {
+      email = state.activeUser || 'bayubt62@gmail.com';
     }
-    return email;
+    if (!email.includes('@')) {
+      email = email + '@gmail.com';
+    }
+    return email.toLowerCase().trim();
   }
 
   function getProp(obj, ...possibleKeys) {
     if (!obj) return undefined;
     const keys = Object.keys(obj);
     for (const pk of possibleKeys) {
-      const match = keys.find(
-        (k) =>
-          k.toString().replace(/[_ ]/g, '').toLowerCase() ===
-          pk.toString().replace(/[_ ]/g, '').toLowerCase()
-      );
-      if (match && obj[match] !== undefined && obj[match] !== null && String(obj[match]).trim() !== '') {
-        return obj[match];
-      }
+      const target = pk.toString().replace(/[_ ]/g, '').toLowerCase();
+      const match = keys.find((k) => k.toString().replace(/[_ ]/g, '').toLowerCase() === target);
+      if (match && obj[match] !== undefined && obj[match] !== '') return obj[match];
     }
     return undefined;
-  }
-
-  function extractNumber(val) {
-    if (val === undefined || val === null || val === '') return 0;
-    if (typeof val === 'number') return isFinite(val) ? val : 0;
-    let str = val.toString().replace(/Rp/gi, '').trim();
-    if (!str || str.startsWith('#')) return 0;
-
-    // Both dot and comma present: determine which is decimal separator
-    if (str.indexOf(',') > -1 && str.indexOf('.') > -1) {
-      if (str.lastIndexOf(',') > str.lastIndexOf('.')) {
-        // Indonesian format: 1.250.000,50
-        str = str.replace(/\./g, '').replace(',', '.');
-      } else {
-        // US format: 1,250,000.50
-        str = str.replace(/,/g, '');
-      }
-    } else if (str.indexOf(',') > -1) {
-      // Only comma present (e.g., "0,007302044" or "5095678,159" in M_Portofolio)
-      str = str.replace(',', '.');
-    } else if (str.indexOf('.') > -1) {
-      // Only dots present (e.g., "151.637" or "1.000.000" in M_Akun Rp format vs decimal float)
-      const parts = str.split('.');
-      const allThreeGroups = parts.slice(1).every((p) => p.length === 3);
-      if (parts.length > 2 || (parts.length === 2 && allThreeGroups)) {
-        str = str.replace(/\./g, '');
-      }
-    }
-
-    str = str.replace(/[^0-9.-]/g, '');
-    const parsed = parseFloat(str);
-    return isFinite(parsed) ? parsed : 0;
   }
 
   async function apiPost(payload) {
@@ -3566,7 +3209,13 @@
   async function fetchAllData() {
     const url = getApiUrl();
     const email = getSessionEmail();
-    if (!url) return;
+    if (!url) {
+      showToast('URL Google Apps Script belum disetel', 'warning');
+      return;
+    }
+
+    refreshForexRate();
+    showToast('Menyinkronkan data dari Google Sheets...', 'info');
 
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 16000);
@@ -3575,7 +3224,7 @@
       const res = await fetch(url, {
         method: 'POST',
         headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-        body: JSON.stringify({ action: 'getData', email }),
+        body: JSON.stringify({ action: 'getData', email: email }),
         signal: controller.signal
       });
       clearTimeout(timeoutId);
@@ -3587,230 +3236,233 @@
           json = JSON.parse(text);
         } catch (e) {
           console.error('[Fintrack] Response bukan JSON:', text);
+          if (text.includes('GANTI_DENGAN_ID_SPREADSHEET_ANDA') || text.includes('Illegal spreadsheet id')) {
+            showToast('ID Spreadsheet di Kode.gs belum diganti!', 'warning');
+          } else {
+            showToast('Koneksi Apps Script error, cek Kode.gs', 'warning');
+          }
           return;
         }
 
         if (json.status === 'success' && json.data) {
-          parseBackendDataIntoState(json.data, email);
+          rawBackendData = json.data;
+          parseBackendDataIntoState(json.data);
           saveState(true);
           renderCurrentPage();
-          showToast(`Data ${state.activeUser} tersinkronisasi!`, 'success');
+          showToast('Data Google Sheets berhasil disinkronkan!', 'success');
+          return;
+        } else if (json.message) {
+          showToast(json.message, 'warning');
         }
+      } else {
+        showToast(`Server Apps Script: Status ${res.status}`, 'warning');
       }
     } catch (err) {
       clearTimeout(timeoutId);
-      console.warn('[Fintrack] Mode offline aktif:', err);
+      console.warn('[Fintrack] fetchAllData failed:', err);
+      showToast('Mode offline aktif — menggunakan data lokal', 'info');
     }
   }
 
-  function parseBackendDataIntoState(data, ownerEmail) {
-    const resolvedEmail = (ownerEmail || getSessionEmail()).toLowerCase().trim();
-
+  function parseBackendDataIntoState(data) {
     // 1. M_Akun -> state.accounts & state.wallets
     if (Array.isArray(data.M_Akun)) {
       const regularAccounts = [];
       const wallets = [];
 
       data.M_Akun.forEach((acc, i) => {
-        const rawNama = getProp(acc, 'Nama_Akun', 'Nama Akun', 'nama') || 'Akun';
-        const nama = String(rawNama).trim();
-        const tipe = String(getProp(acc, 'Tipe_Akun', 'Tipe Akun', 'tipe') || 'Bank').trim();
-        const atasNama = String(
-          getProp(acc, 'Atas_Nama', 'Atas Nama') || USER_PROFILES[state.activeUser]?.fullName || state.activeUser
-        ).trim();
+        const nama = getProp(acc, 'Nama_Akun', 'Nama Akun', 'nama') || 'Akun';
+        const tipe = getProp(acc, 'Tipe_Akun', 'Tipe Akun', 'tipe') || 'BANK';
+        const valReal = getProp(acc, 'Saldo_Realtime', 'Saldo Realtime', 'Saldo_Awal', 'Saldo Awal');
+        const balance = extractNumber(valReal);
+        const noRek = getProp(acc, 'Nomor_Rekening', 'No Rekening', 'Rekening') || '•••• ' + (4000 + i);
+        const id = getProp(acc, 'ID_Akun', 'ID Akun', 'id') || 'acc_' + i;
 
-        // Read Saldo_Realtime first; if cell is blank, fallback to Saldo_Awal (e.g., Bank BRI, GoPay, OVO, Indra Bank Mandiri)
-        const valReal = getProp(acc, 'Saldo_Realtime', 'Saldo Realtime');
-        const valAwal = getProp(acc, 'Saldo_Awal', 'Saldo Awal');
-        const balance = valReal !== undefined ? extractNumber(valReal) : extractNumber(valAwal);
-
-        const rawRek = getProp(acc, 'Nomor_Rekening', 'No Rekening', 'Rekening');
-        const noRek = rawRek !== undefined ? String(rawRek).trim() : '';
-        const rawId = getProp(acc, 'ID_Akun', 'ID Akun', 'id');
-        const id = rawId ? String(rawId).trim() : `acc_${i}_${nama.toLowerCase().replace(/\s+/g, '_')}`;
-
+        let theme = 'emerald';
         const lower = nama.toLowerCase();
-        const theme = detectCardTheme(nama, tipe);
-
-        if (
-          tipe === 'Wallet Investasi' ||
-          lower.includes('rdn') ||
-          lower.includes('sekuritas') ||
-          lower.includes('wallet')
+        if (lower.includes('bca')) theme = 'bca';
+        else if (lower.includes('mandiri')) theme = 'mandiri';
+        else if (lower.includes('bni')) theme = 'bni';
+        else if (
+          lower.includes('gopay') ||
+          lower.includes('ovo') ||
+          lower.includes('dana') ||
+          lower.includes('shopee')
         ) {
+          theme = 'ewallet';
+        } else if (lower.includes('gold') || lower.includes('emas')) {
+          theme = 'gold';
+        } else {
+          theme = i % 2 === 0 ? 'emerald' : 'obsidian';
+        }
+
+        if (tipe === 'Wallet Investasi' || lower.includes('rdn') || lower.includes('sekuritas') || lower.includes('wallet')) {
           wallets.push({
-            id,
+            id: id,
             name: nama,
             platform: nama,
-            balance
+            balance: balance
           });
         } else {
           regularAccounts.push({
-            id,
+            id: id,
             name: nama,
             type: tipe.toUpperCase().includes('WALLET')
               ? 'E-WALLET'
               : tipe.toUpperCase().includes('CASH') || tipe.toUpperCase().includes('TUNAI')
               ? 'CASH'
               : 'BANK',
-            holder: atasNama,
             number: noRek,
-            balance,
-            theme,
-            owner: state.activeUser,
-            ownerEmail: resolvedEmail
+            balance: balance,
+            theme: theme,
+            owner: state.activeUser
           });
         }
       });
 
-      state.accounts = regularAccounts;
-      state.wallets = wallets;
+      if (regularAccounts.length > 0) state.accounts = regularAccounts;
+      if (wallets.length > 0) state.wallets = wallets;
     }
 
-    // 2. T_Transaksi_Detail -> Map by ID_Transaksi
-    const detailByTrxId = {};
-    if (Array.isArray(data.T_Transaksi_Detail)) {
-      data.T_Transaksi_Detail.forEach((det) => {
-        const trxKey = String(getProp(det, 'ID_Transaksi', 'ID_Trx', 'id') || '').trim();
-        if (!trxKey) return;
-        if (!detailByTrxId[trxKey]) detailByTrxId[trxKey] = [];
-        detailByTrxId[trxKey].push({
-          name: String(getProp(det, 'Nama_Item', 'Nama', 'item') || 'Item').trim(),
-          qty: Number(getProp(det, 'Qty', 'qty')) || 1,
-          price: extractNumber(getProp(det, 'Total_Harga', 'Harga', 'price'))
-        });
-      });
-    }
-
-    // 3. T_Transaksi -> state.transactions (handles both DD/MM/YYYY and YYYY-MM-DD)
+    // 2. T_Transaksi -> state.transactions
     if (Array.isArray(data.T_Transaksi)) {
       state.transactions = data.T_Transaksi.map((t, i) => {
-        const rawTipe = String(getProp(t, 'Tipe', 'tipe') || 'OUTFLOW').toUpperCase().trim();
-        const type =
-          rawTipe.includes('IN') || rawTipe === 'PEMASUKAN'
-            ? 'INFLOW'
-            : rawTipe.includes('TF') || rawTipe === 'TRANSFER'
-            ? 'TRANSFER'
-            : rawTipe === 'NEUTRAL'
-            ? 'NEUTRAL'
-            : 'OUTFLOW';
-
-        const rawDate = getProp(t, 'Tanggal', 'tanggal');
-        const dateStr = parseFlexibleDateToISO(rawDate);
-        const timeStr = extractTimeFromRaw(rawDate);
-
-        const rawAmt = getProp(t, 'Jumlah', 'jumlah', 'Nominal', 'nominal');
+        const rawTipe = (getProp(t, 'Tipe', 'tipe', 'Type') || 'OUTFLOW').toString().trim().toUpperCase();
+        const category = (getProp(t, 'Kategori', 'kategori', 'Category') || 'Lainnya').toString().trim();
+        const rawDate = getProp(t, 'Tanggal', 'tanggal', 'Date') || todayISO();
+        const dateStr = toLocalISODate(rawDate);
+        const rawAmt = getProp(t, 'Jumlah', 'jumlah', 'Nominal', 'nominal', 'Amount');
         const amount = extractNumber(rawAmt);
-        const category = String(getProp(t, 'Kategori', 'kategori') || 'Lainnya').trim();
-        const accountName = String(getProp(t, 'Akun', 'Nama_Akun', 'akun') || '').trim();
-        const matchingAcc = findAccountByIdOrName(accountName);
+        const accountName = getProp(t, 'Nama_Akun', 'Akun', 'akun', 'Account') || '';
+        const matchingAcc = state.accounts.find((a) => a.name === accountName || a.id === accountName);
         const accountId = matchingAcc ? matchingAcc.id : accountName;
-        const note = String(getProp(t, 'Keterangan', 'keterangan') || category).trim();
-        const idTrx = String(getProp(t, 'ID_Trx', 'ID_Transaksi', 'id') || `TRX-${i}`).trim();
-        const refId = String(getProp(t, 'Ref_ID', 'RefID') || '').trim();
-        const items = detailByTrxId[idTrx] || (refId ? detailByTrxId[refId] : []) || [];
+        const note = getProp(t, 'Keterangan', 'keterangan', 'Description') || category;
+
+        const normType = normalizeTrxType({ type: rawTipe, category });
 
         return {
-          id: idTrx,
+          id: getProp(t, 'ID_Transaksi', 'ID Trx', 'ID Transaksi', 'id') || 'trx_' + i,
           date: dateStr,
-          time: timeStr,
-          type,
-          category,
-          amount,
-          accountId,
-          accountName,
-          note,
-          refId,
-          items
+          rawDate: String(rawDate),
+          type: normType,
+          rawTipe: rawTipe,
+          category: category,
+          amount: amount,
+          accountId: accountId,
+          note: note,
+          receipt: ''
         };
       });
     }
 
-    // 4. M_Recurring -> state.recurring (matches ID_Rec, Tgl_Tagihan, Akun_Sumber)
+    // 3. M_Recurring -> state.recurring
     if (Array.isArray(data.M_Recurring)) {
-      state.recurring = data.M_Recurring.map((r, i) => ({
-        id: String(getProp(r, 'ID_Rec', 'ID_Recurring', 'ID', 'id') || `REC-${i}`).trim(),
-        name: String(getProp(r, 'Nama', 'nama', 'Nama_Langganan') || 'Langganan').trim(),
-        amount: extractNumber(getProp(r, 'Nominal', 'nominal', 'Jumlah')),
-        cycle: String(getProp(r, 'Frekuensi', 'frekuensi') || 'Bulanan').trim(),
-        dueDate: getProp(r, 'Tgl_Tagihan', 'Tanggal', 'tgl_tagihan') || 1,
-        accountId: String(getProp(r, 'Akun_Sumber', 'Akun', 'akun', 'Rekening') || '').trim(),
-        category: 'Tagihan',
-        active: true
-      }));
+      state.recurring = data.M_Recurring.map((r, i) => {
+        const name = getProp(r, 'Nama', 'nama', 'Nama_Langganan') || 'Langganan';
+        const amount = extractNumber(getProp(r, 'Nominal', 'nominal', 'Jumlah'));
+        const dueDate = getProp(r, 'Tgl_Tagihan', 'Tanggal', 'tgl_tagihan') || 1;
+        const frek = getProp(r, 'Frekuensi', 'frekuensi') || 'Monthly';
+        const accName = getProp(r, 'Akun_Sumber', 'Akun', 'akun', 'Rekening') || '';
+
+        return {
+          id: getProp(r, 'ID_Recurring', 'ID', 'id') || 'rec_' + i,
+          name: name,
+          amount: amount,
+          cycle: frek,
+          dueDate: dueDate,
+          accountId: accName,
+          category: 'Tagihan & Utilitas',
+          active: true
+        };
+      });
     }
 
-    // 5. M_Debt -> state.debts (matches ID_Debt, Total_Awal, Sisa, Status COMPLETED/INACTIVE/ACTIVE)
+    // 4. M_Debt -> state.debts
     if (Array.isArray(data.M_Debt)) {
       state.debts = data.M_Debt.map((d, i) => {
-        const rawTipe = String(getProp(d, 'Tipe', 'tipe') || 'UTANG').toLowerCase().trim();
+        const rawTipe = (getProp(d, 'Tipe', 'tipe') || 'Hutang').toLowerCase();
         const type = rawTipe.includes('piutang') || rawTipe === 'receivable' ? 'RECEIVABLE' : 'DEBT';
-        const person = String(getProp(d, 'Kontak', 'kontak', 'Nama', 'nama', 'Pihak') || 'Pihak Lain').trim();
-        const awal = extractNumber(getProp(d, 'Total_Awal', 'Nominal_Awal', 'Nominal Awal', 'Nominal'));
-        const sisa = extractNumber(getProp(d, 'Sisa', 'sisa'));
+        const person = getProp(d, 'Kontak', 'kontak', 'Nama', 'nama', 'Pihak') || 'Pihak Lain';
+        const awal = extractNumber(getProp(d, 'Nominal_Awal', 'Nominal Awal', 'Jumlah_Awal', 'Nominal', 'nominal'));
+        const sisa = extractNumber(getProp(d, 'Sisa', 'Sisa_Saldo', 'sisa'));
         const amount = awal || sisa || 0;
         const paid = awal > sisa ? awal - sisa : 0;
-        const dueDate = getProp(d, 'Jatuh_Tempo', 'Jatuh Tempo', 'jatuhTempo') || '';
-        const note = String(getProp(d, 'Keterangan', 'keterangan') || '').trim();
-        const status = String(getProp(d, 'Status', 'status') || 'ACTIVE').toUpperCase().trim();
-        const settled = status === 'COMPLETED' || status === 'INACTIVE' || (sisa === 0 && awal > 0);
+        const dueDate = getProp(d, 'Jatuh_Tempo', 'Jatuh Tempo', 'jatuhTempo') || offsetDateISO(7);
+        const note = getProp(d, 'Keterangan', 'keterangan') || '';
+        const status = (getProp(d, 'Status', 'status') || '').toUpperCase();
+        const settled = status === 'COMPLETED' || (sisa === 0 && awal > 0);
 
         return {
-          id: String(getProp(d, 'ID_Debt', 'ID', 'id') || `DEBT-${i}`).trim(),
-          type,
-          person,
-          amount,
-          paid,
-          dueDate,
-          note,
-          status,
-          settled
+          id: getProp(d, 'ID_Debt', 'ID Debt', 'ID', 'id') || 'debt_' + i,
+          type: type,
+          person: person,
+          amount: amount,
+          paid: paid,
+          dueDate: dueDate,
+          note: note,
+          settled: settled
         };
       });
     }
 
-    // 6. M_Goals -> state.goals (matches ID_Goal, Nama_Goal, Target, Terkumpul, Deadline, Status)
+    // 5. M_Goals -> state.goals
     if (Array.isArray(data.M_Goals)) {
-      state.goals = data.M_Goals.filter(
-        (g) => String(getProp(g, 'Status') || 'ACTIVE').toUpperCase().trim() !== 'COMPLETED'
-      ).map((g, i) => {
-        const goalTitle = String(getProp(g, 'Nama_Goal', 'Nama Goal', 'Nama', 'nama') || 'Target').trim();
-        const target = extractNumber(getProp(g, 'Target', 'Target_Nominal', 'Target Nominal', 'target'));
-        const saved = extractNumber(getProp(g, 'Terkumpul', 'terkumpul', 'Nominal'));
-        const rawDeadline = getProp(g, 'Deadline', 'Tenggat_Waktu', 'Tenggat Waktu', 'Tenggat');
-        const deadline = rawDeadline ? parseFlexibleDateToISO(rawDeadline) : '';
+      state.goals = data.M_Goals.map((g, i) => {
+        const name = getProp(g, 'Nama_Goal', 'Nama Goal', 'Nama', 'nama') || 'Target';
+        const target = extractNumber(getProp(g, 'Target_Nominal', 'Target Nominal', 'Target', 'target'));
+        const current = extractNumber(getProp(g, 'Terkumpul', 'terkumpul', 'Nominal'));
+        const deadline = getProp(g, 'Tenggat_Waktu', 'Tenggat Waktu', 'Tenggat') || offsetDateISO(90);
+        const status = (getProp(g, 'Status', 'status') || 'ACTIVE').toUpperCase();
 
         return {
-          id: String(getProp(g, 'ID_Goal', 'ID', 'id') || `GOAL-${i}`).trim(),
-          title: goalTitle,
-          target,
-          saved,
-          deadline
+          id: getProp(g, 'ID_Goal', 'ID', 'id') || 'goal_' + i,
+          title: name,
+          name: name,
+          target: target,
+          saved: current,
+          current: current,
+          deadline: deadline,
+          status: status
         };
       });
     }
 
-    // 7. M_Portofolio -> state.assets (matches ID_Aset, Simbol, Jumlah, Harga_Beli, Harga_Saat_Ini, Jenis_Aset)
+    // 6. M_Portofolio -> state.assets (Reads live price from Harga_Saat_Ini / Harga_Realtime + currency)
     if (Array.isArray(data.M_Portofolio)) {
       state.assets = data.M_Portofolio.map((p, i) => {
-        const symbol = String(getProp(p, 'Simbol', 'simbol', 'Nama_Aset') || 'ASET').trim();
-        const name = String(getProp(p, 'Nama_Aset', 'Nama Aset', 'Simbol') || symbol).trim();
-        const category = String(getProp(p, 'Jenis_Aset', 'Jenis Aset', 'Jenis') || 'Saham Indonesia').trim();
-        const qty = extractNumber(getProp(p, 'Jumlah', 'Unit', 'lot'));
-        const buyPrice = extractNumber(getProp(p, 'Harga_Beli', 'Harga Beli', 'Harga'));
-        const liveVal = extractNumber(getProp(p, 'Harga_Saat_Ini', 'Harga_Realtime', 'Harga Realtime'));
-        const currentPrice = liveVal > 0 ? liveVal : buyPrice;
-        const walletId = String(getProp(p, 'Wallet', 'wallet', 'Akun') || state.wallets[0]?.id || '').trim();
+        const symbol = String(getProp(p, 'Simbol', 'simbol', 'Nama_Aset') || 'ASET')
+          .trim()
+          .toUpperCase();
+        const rawName = String(getProp(p, 'Nama_Aset', 'Nama Aset', 'Simbol') || symbol).trim();
+        const category = String(getProp(p, 'Jenis_Aset', 'Jenis Aset', 'Jenis') || 'Saham').trim();
+        const currency = String(getProp(p, 'Mata_Uang', 'Mata Uang', 'Currency') || 'IDR')
+          .trim()
+          .toUpperCase();
+        const qtyRaw = String(getProp(p, 'Jumlah', 'Unit', 'lot') || '0').replace(',', '.');
+        const qty = parseFloat(qtyRaw) || 0;
+        const buyPrice = extractPriceNumber(getProp(p, 'Harga_Beli', 'Harga Beli', 'Harga'), currency);
+        const liveRaw = getProp(
+          p,
+          'Harga_Saat_Ini',
+          'Harga Saat Ini',
+          'Harga_Realtime',
+          'Harga Realtime',
+          'Current_Price'
+        );
+        const parsedLive = extractPriceNumber(liveRaw, currency);
+        const currentPrice = parsedLive > 0 ? parsedLive : buyPrice;
+        const walletId = getProp(p, 'Wallet', 'wallet', 'Akun') || state.wallets[0]?.id || 'wal_1';
 
         return {
-          id: String(getProp(p, 'ID_Aset', 'ID Aset', 'id') || `AST-${i}`).trim(),
-          symbol,
-          name: name === symbol ? symbol : `${name} (${symbol})`,
-          category,
-          qty,
-          buyPrice,
-          currentPrice,
-          walletId
+          id: getProp(p, 'ID_Aset', 'ID Aset', 'id') || 'ast_' + i,
+          symbol: symbol,
+          name: rawName,
+          category: category,
+          currency: currency,
+          qty: qty,
+          buyPrice: buyPrice,
+          currentPrice: currentPrice,
+          walletId: walletId
         };
       });
     }
@@ -3821,21 +3473,20 @@
   }
 
   function saveGasUrl() {
-    const emailVal = document.getElementById('settings-email-input')?.value?.trim().toLowerCase() || '';
+    const emailVal = document.getElementById('settings-email-input')?.value?.trim() || '';
     if (emailVal) {
-      localStorage.setItem(SESSION_EMAIL_KEY, emailVal);
-      state.activeUser = normalizeUserLabel(emailVal);
-      localStorage.setItem(ACTIVE_USER_KEY, state.activeUser);
+      localStorage.setItem('fintrack_session_email', emailVal);
     }
     const val = document.getElementById('gas-url-input')?.value?.trim() || '';
     if (val) {
       localStorage.setItem(GAS_URL_KEY, val);
       showToast('Pengaturan Cloud disimpan & menyinkronkan...', 'success');
+      fetchAllData();
     } else {
       localStorage.removeItem(GAS_URL_KEY);
       showToast('Menggunakan URL deployment default & menyinkronkan...', 'info');
+      fetchAllData();
     }
-    fetchAllData();
   }
 
   function exportBackupJSON() {
@@ -3912,7 +3563,7 @@
   }
 
   /* --------------------------------------------------------------------------
-   * 15. SECURITY SANITIZER, FORM ACTIONS & INITIALIZATION
+   * 16. SECURITY SANITIZER, MODAL HANDLERS & INITIALIZATION
    * -------------------------------------------------------------------------- */
   function escapeHTML(str) {
     return String(str ?? '')
@@ -3931,7 +3582,7 @@
       setTimeout(() => {
         loader.classList.add('hidden');
         loader.style.display = 'none';
-      }, 350);
+      }, 400);
     }
     const splash = document.getElementById('fintrack-cold-splash');
     if (splash && sessionStorage.getItem('fintrack_cold_splash_shown')) {
@@ -3944,6 +3595,15 @@
     const num = inputElement.value.replace(/[^0-9]/g, '');
     inputElement.value = num ? new Intl.NumberFormat('id-ID').format(num) : '';
     validateTrxForm();
+  }
+
+  function formatDecimalInput(el) {
+    if (!el) return;
+    let val = el.value.replace(/[^0-9.]/g, '');
+    if ((val.match(/\./g) || []).length > 1) {
+      val = val.substring(0, val.lastIndexOf('.'));
+    }
+    el.value = val;
   }
 
   function validateTrxForm() {
@@ -4005,15 +3665,13 @@
   async function handleLogin() {
     const emailInput = document.getElementById('login-email');
     const passInput = document.getElementById('login-password');
-    const rawEmail = (emailInput?.value || '').trim().toLowerCase();
+    const email = (emailInput?.value || '').trim();
     const password = passInput?.value || '';
 
-    if (!rawEmail) {
+    if (!email) {
       showToast('Masukkan alamat email terdaftar', 'warning');
       return;
     }
-
-    const email = rawEmail.includes('@') ? rawEmail : resolveEmailForUser(rawEmail);
 
     const btn = document.getElementById('btn-login');
     const origText = btn ? btn.textContent : '';
@@ -4028,22 +3686,21 @@
         const res = await fetch(url, {
           method: 'POST',
           headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-          body: JSON.stringify({ action: 'login', email, password })
+          body: JSON.stringify({ action: 'login', email: email, password: password })
         });
         if (res.ok) {
           const json = await res.json();
           if (json.status === 'success') {
-            const label = normalizeUserLabel(json.name || email);
-            state.activeUser = label;
-            localStorage.setItem(ACTIVE_USER_KEY, label);
-            localStorage.setItem(SESSION_EMAIL_KEY, (json.email || email).toLowerCase().trim());
+            state.activeUser = json.name || email.split('@')[0];
+            localStorage.setItem(ACTIVE_USER_KEY, state.activeUser);
+            localStorage.setItem('fintrack_session_email', json.email || email);
             const loginPage = document.getElementById('login-page');
             if (loginPage) loginPage.classList.add('hidden-page');
             const appWrapper = document.getElementById('app-wrapper');
             if (appWrapper) appWrapper.classList.remove('hidden-page');
             closeLoader();
             renderCurrentPage();
-            showToast(`Selamat datang, ${label}!`, 'success');
+            showToast(`Selamat datang, ${state.activeUser}!`, 'success');
             await fetchAllData();
             if (btn) {
               btn.disabled = false;
@@ -4064,17 +3721,16 @@
       console.warn('Login online failed, switching to offline fallback:', err);
     }
 
-    const label = normalizeUserLabel(email);
-    state.activeUser = label;
-    localStorage.setItem(ACTIVE_USER_KEY, label);
-    localStorage.setItem(SESSION_EMAIL_KEY, email);
+    state.activeUser = email.split('@')[0] || 'Bayu';
+    localStorage.setItem(ACTIVE_USER_KEY, state.activeUser);
+    localStorage.setItem('fintrack_session_email', email.includes('@') ? email : email + '@gmail.com');
     const loginPage = document.getElementById('login-page');
     if (loginPage) loginPage.classList.add('hidden-page');
     const appWrapper = document.getElementById('app-wrapper');
     if (appWrapper) appWrapper.classList.remove('hidden-page');
     closeLoader();
     renderCurrentPage();
-    showToast(`Selamat datang, ${label}!`, 'info');
+    showToast(`Selamat datang, ${state.activeUser}!`, 'info');
     fetchAllData();
     if (btn) {
       btn.disabled = false;
@@ -4084,7 +3740,7 @@
 
   function handleLogout() {
     localStorage.removeItem(ACTIVE_USER_KEY);
-    localStorage.removeItem(SESSION_EMAIL_KEY);
+    localStorage.removeItem('fintrack_session_email');
     const loginPage = document.getElementById('login-page');
     if (loginPage) loginPage.classList.remove('hidden-page');
     const appWrapper = document.getElementById('app-wrapper');
@@ -4119,31 +3775,39 @@
   }
 
   function openEditAccountFromDetail() {
-    const id = currentDetailAccountId || getUserAccounts()[activeDeckIndex]?.id;
+    const id = document.getElementById('det-acc-id')?.value;
     closeModal('modal-account-detail');
-    if (id) openAccountModal(id);
+    openAccountModal(id);
   }
 
   function copyAccountInfo() {
     const num = document.getElementById('det-acc-number')?.textContent || '';
     if (num && navigator.clipboard) {
-      navigator.clipboard.writeText(num.replace(/[^0-9]/g, '') || num);
+      navigator.clipboard.writeText(num.replace(/[^0-9]/g, ''));
       showToast('Nomor rekening disalin!', 'success');
     }
   }
 
+  function openWalletDetailModal(name, balance) {
+    const nameEl = document.getElementById('det-wallet-name');
+    if (nameEl) nameEl.textContent = name;
+    const balEl = document.getElementById('det-wallet-bal');
+    if (balEl) {
+      setMaskedValue(balEl, formatCurrency(balance), Number(balance) || 0);
+    }
+    const modal = document.getElementById('modal-wallet-detail');
+    if (modal) openModal('modal-wallet-detail');
+  }
+
   function submitAddWallet(e) {
     if (e && typeof e.preventDefault === 'function') e.preventDefault();
-    const name = document.getElementById('form-wallet-name')?.value?.trim();
+    const name = document.getElementById('form-wallet-name')?.value?.trim() || prompt('Nama Dompet Investasi:');
     const rawBal = document.getElementById('form-wallet-bal')?.value || '0';
     const balance = Number(String(rawBal).replace(/[^0-9]/g, '')) || 0;
-    if (!name) {
-      showToast('Nama dompet wajib diisi', 'warning');
-      return;
-    }
+    if (!name) return;
     state.wallets = state.wallets || [];
     state.wallets.push({
-      id: 'ACC-' + Date.now(),
+      id: 'wal_' + Date.now(),
       name,
       platform: name,
       balance
@@ -4161,6 +3825,28 @@
     }).then(() => fetchAllData());
   }
 
+  function handleBuyAssetAccountChange() {
+    const acc = document.getElementById('form-asset-account')?.value || '';
+    const priceLabel = document.getElementById('lbl-buy-price');
+    const priceInput = document.getElementById('form-asset-harga');
+    if (!priceInput) return;
+
+    if (acc.startsWith('VALAS_')) {
+      const curr = acc.replace('VALAS_', '');
+      if (priceLabel) priceLabel.textContent = getLang() === 'id' ? `Harga Satuan (${curr})` : `Price per Unit (${curr})`;
+      priceInput.oninput = function () {
+        formatDecimalInput(this);
+      };
+      priceInput.placeholder = '0.00';
+    } else {
+      if (priceLabel) priceLabel.textContent = getLang() === 'id' ? 'Harga Satuan (Rp)' : 'Price per Unit (Rp)';
+      priceInput.oninput = function () {
+        formatRupiahInput(this);
+      };
+      priceInput.placeholder = '0';
+    }
+  }
+
   function submitBuyAsset(e) {
     if (e && typeof e.preventDefault === 'function') e.preventDefault();
     const symbol =
@@ -4171,6 +3857,11 @@
       )
         .trim()
         .toUpperCase() || 'ASET';
+    const name = (
+      document.getElementById('form-asset-nama')?.value ||
+      document.getElementById('form-buy-asset-nama')?.value ||
+      symbol
+    ).trim();
     const type =
       document.getElementById('form-asset-jenis')?.value ||
       document.getElementById('form-buy-asset-tipe')?.value ||
@@ -4179,53 +3870,41 @@
       document.getElementById('form-asset-harga')?.value ||
       document.getElementById('form-buy-asset-harga')?.value ||
       '0';
-    const price = extractNumber(rawPrice);
-    const units = extractNumber(
-      document.getElementById('form-asset-jumlah')?.value ||
-        document.getElementById('form-buy-asset-lot')?.value ||
-        '0'
-    );
-    const rawAdmin = document.getElementById('form-buy-asset-admin')?.value || '0';
-    const adminFee = Number(String(rawAdmin).replace(/[^0-9]/g, '')) || 0;
-    const sourceId =
+    const price = extractPriceNumber(rawPrice, 'IDR');
+    const units =
+      parseFloat(
+        String(
+          document.getElementById('form-asset-jumlah')?.value ||
+            document.getElementById('form-buy-asset-lot')?.value ||
+            '1'
+        ).replace(',', '.')
+      ) || 1;
+    const walletId =
       document.getElementById('form-asset-account')?.value ||
       document.getElementById('form-buy-asset-wallet')?.value ||
-      state.wallets?.[0]?.id ||
-      getUserAccounts()[0]?.id;
+      (state.wallets && state.wallets[0]?.id) ||
+      'wal_1';
+    const walletObj =
+      (state.wallets || []).find((w) => w.id === walletId || w.name === walletId) ||
+      state.accounts.find((a) => a.id === walletId || a.name === walletId) ||
+      getUserAccounts()[0];
 
     if (price <= 0 || units <= 0) {
       showToast('Harga dan unit aset tidak valid', 'warning');
       return;
     }
 
-    const totalCost = Math.round(price * units + adminFee);
-    const walletObj = (state.wallets || []).find((w) => w.id === sourceId);
-    const accObj = findAccountByIdOrName(sourceId);
-    if (walletObj) walletObj.balance = (Number(walletObj.balance) || 0) - totalCost;
-    else if (accObj) accObj.balance = (Number(accObj.balance) || 0) - totalCost;
-
     state.assets = state.assets || [];
     state.assets.push({
-      id: 'AST-' + Date.now(),
-      symbol,
-      name: symbol,
+      id: 'ast_' + Date.now(),
+      symbol: symbol,
+      name: name,
       category: type,
+      currency: 'IDR',
       qty: units,
       buyPrice: price,
       currentPrice: price,
-      walletId: sourceId
-    });
-
-    const fundingName = walletObj ? walletObj.name : accObj ? accObj.name : '';
-    state.transactions.unshift({
-      id: 'TRX-' + Date.now(),
-      date: todayISO(),
-      type: 'OUTFLOW',
-      category: 'Tabungan & Investasi',
-      amount: totalCost,
-      accountId: sourceId,
-      accountName: fundingName,
-      note: `Beli Aset: ${symbol} (${units} unit)`
+      walletId
     });
 
     saveState();
@@ -4241,38 +3920,255 @@
       harga: price,
       jenis: type,
       mataUang: 'IDR',
-      totalHarga: totalCost,
-      akun: fundingName
+      totalHarga: price * units,
+      akun: walletObj ? walletObj.name : ''
     }).then(() => fetchAllData());
+  }
+
+  function submitSellAsset(e) {
+    if (e && typeof e.preventDefault === 'function') e.preventDefault();
+    const idAset = document.getElementById('form-sell-asset-id')?.value || '';
+    const simbol = document.getElementById('form-sell-asset-simbol')?.value || '';
+    const unitDijual =
+      parseFloat(String(document.getElementById('form-sell-asset-jumlah')?.value || '0').replace(',', '.')) || 0;
+    const hargaJual = extractNumber(document.getElementById('form-sell-asset-harga')?.value);
+    const akunTujuan = document.getElementById('form-sell-asset-account')?.value || '';
+
+    if (unitDijual <= 0 || hargaJual <= 0 || !akunTujuan) {
+      showToast('Lengkapi detail penjualan aset', 'warning');
+      return;
+    }
+
+    const targetAcc =
+      state.accounts.find((a) => a.id === akunTujuan || a.name === akunTujuan) ||
+      state.wallets.find((w) => w.id === akunTujuan || w.name === akunTujuan);
+
+    apiPost({
+      action: 'sellAsset',
+      email: getSessionEmail(),
+      idAset: idAset,
+      simbol: simbol,
+      jumlahJual: unitDijual,
+      totalDapat: unitDijual * hargaJual,
+      akunTujuan: targetAcc ? targetAcc.name : akunTujuan
+    }).then(() => fetchAllData());
+
+    closeModal('modal-sell-asset');
+    showToast(`Penjualan ${simbol} diproses`, 'success');
+  }
+
+  function openAssetDetailModal(
+    idAset,
+    simbol,
+    jenisAset,
+    lot,
+    avgHargaIDR,
+    investasiIDR,
+    liveHargaIDR,
+    totalValIDR,
+    nominalReturnIDR,
+    pnlPercent
+  ) {
+    window.lastAssetData = {
+      idAset,
+      simbol,
+      jenisAset,
+      lot,
+      avgHarga: avgHargaIDR,
+      investasi: investasiIDR,
+      liveHarga: liveHargaIDR,
+      totalVal: totalValIDR,
+      nominalReturn: nominalReturnIDR,
+      pnlPercent
+    };
+
+    const modal = document.getElementById('modal-asset-detail');
+    if (!modal) return;
+
+    const simbolEl = document.getElementById('det-aset-simbol');
+    if (simbolEl) simbolEl.textContent = simbol;
+    const logoEl = document.getElementById('det-aset-logo');
+    if (logoEl) logoEl.innerHTML = getAssetAvatarHtml(simbol);
+
+    const btnBeli = document.getElementById('btn-det-beli');
+    if (btnBeli) {
+      btnBeli.onclick = () => {
+        closeModal('modal-asset-detail');
+        openModal('modal-buy-asset');
+        const formSimbol = document.getElementById('form-asset-simbol');
+        if (formSimbol) formSimbol.value = simbol;
+      };
+    }
+
+    const btnJual = document.getElementById('btn-det-jual');
+    if (btnJual) {
+      btnJual.onclick = () => {
+        closeModal('modal-asset-detail');
+        const displaySimbol = document.getElementById('sell-asset-simbol-display');
+        if (displaySimbol) displaySimbol.textContent = simbol;
+        const displayMax = document.getElementById('sell-asset-max-display');
+        if (displayMax) {
+          displayMax.textContent = formatUnitQty(lot);
+          displayMax.setAttribute('data-raw', String(lot));
+        }
+        const inputId = document.getElementById('form-sell-asset-id');
+        if (inputId) inputId.value = idAset;
+        const inputSimbol = document.getElementById('form-sell-asset-simbol');
+        if (inputSimbol) inputSimbol.value = simbol;
+        openModal('modal-sell-asset');
+      };
+    }
+
+    const btnDividen = document.getElementById('btn-det-dividen');
+    if (btnDividen) {
+      if (jenisAset && jenisAset.toUpperCase().includes('SAHAM')) {
+        btnDividen.classList.remove('hidden');
+        btnDividen.onclick = () => {
+          closeModal('modal-asset-detail');
+          prepareReceiveDividend(simbol);
+        };
+      } else {
+        btnDividen.classList.add('hidden');
+      }
+    }
+
+    updateAssetDetailCurrencyView();
+    openModal('modal-asset-detail');
+  }
+
+  function setAssetDetailCurrency(curr) {
+    window.currentActiveCurrency = curr;
+    updateAssetDetailCurrencyView();
+  }
+
+  function updateAssetDetailCurrencyView() {
+    if (!window.lastAssetData) return;
+    const { simbol, lot, avgHarga, investasi, liveHarga, totalVal, nominalReturn, pnlPercent } =
+      window.lastAssetData;
+    const curr = window.currentActiveCurrency || 'IDR';
+    const rate = Number(window.usdExchangeRate) || 16250;
+    const mask = isPrivacyEnabled();
+
+    const fmt = (numIDR) =>
+      curr === 'IDR'
+        ? formatCurrency(numIDR, 'IDR')
+        : '$' + new Intl.NumberFormat('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(numIDR / rate);
+
+    const setTxt = (id, val) => {
+      const el = document.getElementById(id);
+      if (el) el.textContent = val;
+    };
+
+    setTxt('det-aset-live', mask ? '••••••••' : fmt(liveHarga));
+    setTxt('det-aset-lot', `${formatUnitQty(lot)} Unit`);
+    setTxt('det-aset-avg', mask ? '••••••••' : fmt(avgHarga));
+    setTxt('det-aset-invest', mask ? '••••••••' : fmt(investasi));
+    setTxt('det-aset-total', mask ? '••••••••' : fmt(totalVal));
+
+    const pnlSign = nominalReturn > 0 ? '+' : '';
+    const pnlColor =
+      nominalReturn >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-500 dark:text-red-400';
+    const retStr = `${pnlSign}${fmt(Math.abs(nominalReturn))} (${pnlSign}${Number(pnlPercent || 0).toFixed(2)}%)`;
+
+    const retEl = document.getElementById('det-aset-return');
+    if (retEl) {
+      retEl.textContent = retStr;
+      retEl.className = `text-xs font-bold text-right ${pnlColor}`;
+    }
+    const liveChgEl = document.getElementById('det-aset-live-change');
+    if (liveChgEl) {
+      liveChgEl.textContent = retStr;
+      liveChgEl.className = `text-xs font-bold mt-1 ${pnlColor}`;
+    }
+
+    const btnIdr = document.getElementById('currency-btn-idr');
+    const btnUsd = document.getElementById('currency-btn-usd');
+    if (btnIdr && btnUsd) {
+      if (curr === 'IDR') {
+        btnIdr.className = 'px-2.5 py-1 rounded-full bg-[#0F5132] dark:bg-emerald-500 text-white dark:text-[#070908] transition-all';
+        btnUsd.className = 'px-2.5 py-1 rounded-full text-stone-400 transition-all';
+      } else {
+        btnUsd.className = 'px-2.5 py-1 rounded-full bg-[#0F5132] dark:bg-emerald-500 text-white dark:text-[#070908] transition-all';
+        btnIdr.className = 'px-2.5 py-1 rounded-full text-stone-400 transition-all';
+      }
+    }
+
+    const canvas = document.getElementById('portoChart');
+    if (canvas && typeof Chart !== 'undefined') {
+      if (assetDetailLineChartInstance) assetDetailLineChartInstance.destroy();
+      const ctx = canvas.getContext('2d');
+      const points = 16;
+      const series = [];
+      let p = liveHarga;
+      for (let i = 0; i < points; i++) {
+        p = p * (1 + (Math.random() - 0.48) * 0.025);
+        series.unshift(p);
+      }
+      series[points - 1] = liveHarga;
+      assetDetailLineChartInstance = new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels: series.map((_, i) => String(i)),
+          datasets: [
+            {
+              data: series,
+              borderColor: '#10B981',
+              borderWidth: 2,
+              fill: true,
+              backgroundColor: 'rgba(16, 185, 129, 0.14)',
+              tension: 0.4,
+              pointRadius: 0
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { display: false }, tooltip: { enabled: false } },
+          scales: { x: { display: false }, y: { display: false } }
+        }
+      });
+    }
+  }
+
+  function setChartFilter(filter) {
+    window.currentActiveFilter = filter;
+    document.querySelectorAll('.time-filter-btn').forEach((btn) => {
+      btn.classList.toggle('active', btn.getAttribute('data-filter') === filter);
+    });
+    if (window.lastAssetData) updateAssetDetailCurrencyView();
+  }
+
+  function prepareReceiveDividend(simbol) {
+    const disp = document.getElementById('dividend-asset-simbol-display');
+    if (disp) disp.textContent = simbol;
+    openModal('modal-dividend');
   }
 
   function submitGoal(e) {
     if (e && typeof e.preventDefault === 'function') e.preventDefault();
-    const title =
+    const name =
       document.getElementById('form-goal-name')?.value?.trim() ||
+      document.getElementById('form-goal-nama')?.value?.trim() ||
       document.getElementById('goal-title')?.value?.trim();
     const rawTarget =
-      document.getElementById('form-goal-amount')?.value ||
-      document.getElementById('goal-target')?.value ||
-      '0';
+      document.getElementById('form-goal-amount')?.value || document.getElementById('goal-target')?.value || '0';
     const target = Number(String(rawTarget).replace(/[^0-9]/g, '')) || 0;
-    const deadline =
-      document.getElementById('form-goal-deadline')?.value ||
-      document.getElementById('goal-deadline')?.value ||
-      offsetDateISO(90);
 
-    if (!title || target <= 0) {
+    if (!name || target <= 0) {
       showToast('Nama target dan nominal target harus diisi', 'warning');
       return;
     }
 
     state.goals = state.goals || [];
     state.goals.push({
-      id: 'GOAL-' + Date.now(),
-      title,
+      id: 'goal_' + Date.now(),
+      title: name,
+      name,
       target,
       saved: 0,
-      deadline
+      current: 0,
+      deadline: offsetDateISO(90)
     });
 
     saveState();
@@ -4283,23 +4179,15 @@
     apiPost({
       action: 'addGoal',
       email: getSessionEmail(),
-      nama: title,
-      target,
-      saved: 0,
-      deadline
+      nama: name,
+      target: target
     }).then(() => fetchAllData());
   }
 
   function submitPayDebt(e) {
     if (e && typeof e.preventDefault === 'function') e.preventDefault();
     const debtId = document.getElementById('form-pay-debt-id')?.value;
-    const rawAmt = document.getElementById('form-pay-debt-amount')?.value || '0';
-    const amt = Number(String(rawAmt).replace(/[^0-9]/g, '')) || 0;
-    const accId = document.getElementById('form-pay-debt-account')?.value;
-
-    if (debtId && amt > 0) {
-      settleDebt(debtId, amt, accId);
-    }
+    if (debtId) settleDebt(debtId);
     closeModal('modal-pay-debt');
   }
 
@@ -4308,23 +4196,20 @@
     const rawAmt = document.getElementById('form-dividend-amount')?.value || '0';
     const amount = Number(String(rawAmt).replace(/[^0-9]/g, '')) || 0;
     const accId = document.getElementById('form-dividend-account')?.value || getUserAccounts()[0]?.id;
-    const sym = document.getElementById('dividend-asset-simbol-display')?.textContent?.trim() || 'Saham';
-
     if (amount <= 0) {
       showToast('Nominal dividen tidak valid', 'warning');
       return;
     }
-    const acc = findAccountByIdOrName(accId);
+    const acc = state.accounts.find((a) => a.id === accId || a.name === accId);
     if (acc) acc.balance = (Number(acc.balance) || 0) + amount;
     state.transactions.unshift({
-      id: 'TRX-' + Date.now(),
+      id: 'trx_' + Date.now(),
       date: todayISO(),
       type: 'INFLOW',
-      category: 'Dividen & Yield',
+      category: 'Dividen',
       amount,
       accountId: acc ? acc.id : accId,
-      accountName: acc ? acc.name : accId,
-      note: `Penerimaan Dividen ${sym}`
+      note: 'Penerimaan Dividen Saham'
     });
     saveState();
     closeModal('modal-dividend');
@@ -4336,110 +4221,82 @@
       email: getSessionEmail(),
       tanggal: `${todayISO()} 12:00`,
       tipe: 'INFLOW',
-      akun: acc ? acc.name : '',
-      kategori: 'Tabungan & Investasi',
+      akun: acc ? acc.name : accId,
+      kategori: 'Dividen',
       jumlah: amount,
-      keterangan: `Penerimaan Dividen ${sym}`
+      keterangan: 'Penerimaan Dividen Saham'
     }).then(() => fetchAllData());
   }
 
   function deleteRecurringAction(id) {
-    const targetId = id || document.getElementById('det-rec-id')?.value;
-    if (!targetId) return;
+    const recId = id || document.getElementById('det-rec-id')?.value;
+    if (!recId) return;
     if (confirm('Hapus tagihan langganan ini?')) {
-      deleteRecurring(targetId);
+      deleteRecurring(recId);
       closeModal('modal-rec-detail');
     }
   }
 
   function deleteWalletAction(id) {
-    const targetId = id || document.getElementById('btn-del-wallet-submit')?.dataset.walletId;
-    if (!targetId) return;
-    const wal = (state.wallets || []).find((w) => w.id === targetId);
+    const wal = id
+      ? (state.wallets || []).find((w) => w.id === id)
+      : (state.wallets || []).find((w) => w.name === document.getElementById('det-wallet-name')?.textContent);
     if (!wal) return;
     if (confirm(`Hapus dompet investasi "${wal.name}"?`)) {
-      deleteWallet(targetId);
+      state.wallets = state.wallets.filter((w) => w.id !== wal.id);
+      saveState();
       closeModal('modal-wallet-detail');
+      renderCurrentPage();
+      showToast('Dompet investasi dihapus', 'info');
+
+      apiPost({
+        action: 'deleteWallet',
+        email: getSessionEmail(),
+        nama: wal.name
+      }).then(() => fetchAllData());
     }
   }
 
   function payRecurringNowAction(id) {
-    const targetId = id || document.getElementById('det-rec-id')?.value;
-    if (!targetId) return;
-    payRecurringNow(targetId);
+    if (!id) return;
+    payRecurringNow(id);
     closeModal('modal-rec-detail');
   }
 
   function processGoalAction(action, isDone) {
-    const goalId = currentGoalActionId || document.getElementById('form-goal-action-id')?.value;
+    const goalId = document.getElementById('form-goal-action-id')?.value;
     if (!goalId) return;
     const goal = (state.goals || []).find((g) => g.id === goalId);
     if (!goal) return;
 
-    const goalTitle = goal.title || goal.name || 'Target';
-    const currentSaved = Number(goal.saved !== undefined ? goal.saved : goal.current) || 0;
     let nominalVal = 0;
-    let selectedAcc = getUserAccounts()[0];
+    const payingAcc = getUserAccounts()[0];
 
     if (action === 'withdraw') {
       const rawAmt = document.getElementById('form-withdraw-amount')?.value || '0';
       const amt = Number(String(rawAmt).replace(/[^0-9]/g, '')) || 0;
-      const accId = document.getElementById('form-withdraw-account')?.value;
-      if (accId) selectedAcc = findAccountByIdOrName(accId) || selectedAcc;
-
       nominalVal = amt;
-      if (selectedAcc && amt > 0) {
-        selectedAcc.balance = (Number(selectedAcc.balance) || 0) + amt;
-      }
-
       if (isDone) {
-        state.goals = state.goals.filter((g) => g.id !== goalId);
+        goal.saved = 0;
+        goal.current = 0;
         showToast('Target selesai dicapai!', 'success');
       } else if (amt > 0) {
-        goal.saved = Math.max(0, currentSaved - amt);
+        goal.saved = Math.max(0, (Number(goal.saved ?? goal.current) || 0) - amt);
+        goal.current = goal.saved;
         showToast('Penarikan dana target berhasil', 'info');
-      }
-
-      if (amt > 0) {
-        state.transactions.unshift({
-          id: 'TRX-' + Date.now(),
-          date: todayISO(),
-          type: 'INFLOW',
-          category: 'Tabungan & Investasi',
-          amount: amt,
-          accountId: selectedAcc ? selectedAcc.id : '',
-          accountName: selectedAcc ? selectedAcc.name : '',
-          note: `Pencairan Target: ${goalTitle}`
-        });
       }
       closeModal('modal-withdraw-goal');
     } else if (action === 'add') {
       const rawAmt = document.getElementById('form-add-savings-amount')?.value || '0';
       const amt = Number(String(rawAmt).replace(/[^0-9]/g, '')) || 0;
-      const accId = document.getElementById('form-add-savings-account')?.value;
-      if (accId) selectedAcc = findAccountByIdOrName(accId) || selectedAcc;
-
       nominalVal = amt;
       if (amt > 0) {
-        goal.saved = currentSaved + amt;
-        if (selectedAcc) {
-          selectedAcc.balance = (Number(selectedAcc.balance) || 0) - amt;
-        }
-        state.transactions.unshift({
-          id: 'TRX-' + Date.now(),
-          date: todayISO(),
-          type: 'OUTFLOW',
-          category: 'Tabungan & Investasi',
-          amount: amt,
-          accountId: selectedAcc ? selectedAcc.id : '',
-          accountName: selectedAcc ? selectedAcc.name : '',
-          note: `Nabung Target: ${goalTitle}`
-        });
+        goal.saved = (Number(goal.saved ?? goal.current) || 0) + amt;
+        goal.current = goal.saved;
         showToast('Tabungan target bertambah', 'success');
       }
       closeModal('modal-add-savings');
     }
-
     saveState();
     renderCurrentPage();
 
@@ -4447,12 +4304,11 @@
       apiPost({
         action: 'manageGoalFunds',
         email: getSessionEmail(),
-        idGoal: goal.id,
-        namaGoal: goalTitle,
+        namaGoal: goal.title || goal.name,
         tipeAksi: action,
         nominal: nominalVal,
-        akun: selectedAcc ? selectedAcc.name : '',
-        isAchieved: Boolean(isDone)
+        akun: payingAcc ? payingAcc.name : '',
+        isAchieved: !!isDone
       }).then(() => fetchAllData());
     }
   }
@@ -4464,6 +4320,7 @@
 
     initTheme();
     applyTranslations();
+    refreshForexRate();
 
     const appWrapper = document.getElementById('app-wrapper');
     if (appWrapper) appWrapper.classList.remove('hidden-page');
@@ -4478,17 +4335,18 @@
     } catch (e) {
       console.warn('Initial cloud sync notice:', e);
     } finally {
-      setTimeout(closeLoader, 250);
+      setTimeout(closeLoader, 300);
     }
   }
 
-  // Expose global handlers synchronously for inline HTML attributes
+  // Expose global handlers for inline HTML attributes
   window.initApp = initApp;
   window.closeLoader = closeLoader;
   window.navigateTo = navigateTo;
   window.showPage = navigateTo;
   window.switchPage = navigateTo;
   window.formatRupiahInput = formatRupiahInput;
+  window.formatDecimalInput = formatDecimalInput;
   window.validateTrxForm = validateTrxForm;
   window.quickAddAmount = quickAddAmount;
   window.handleLogin = handleLogin;
@@ -4501,24 +4359,21 @@
   window.dismissDueBanner = dismissDueBanner;
   window.slideAccountDeck = slideAccountDeck;
   window.selectAccountCard = selectAccountCard;
-  window.openAccountDetail = openAccountDetail;
   window.openAccountModal = openAccountModal;
   window.saveAccount = saveAccount;
   window.submitAccountForm = submitAccountForm;
   window.deleteAccountAction = deleteAccountAction;
   window.openEditAccountFromDetail = openEditAccountFromDetail;
   window.copyAccountInfo = copyAccountInfo;
+  window.openWalletDetailModal = openWalletDetailModal;
   window.openModal = openModal;
   window.closeModal = closeModal;
   window.closeAllModals = closeAllModals;
-  window.openTransactionDetail = openTransactionDetail;
-  window.toggleAdvanceMode = toggleAdvanceMode;
   window.saveTransaction = saveTransaction;
   window.submitTransaction = saveTransaction;
   window.deleteTransaction = deleteTransaction;
   window.saveTransfer = saveTransfer;
   window.submitTransfer = saveTransfer;
-  window.openRecurringDetail = openRecurringDetail;
   window.saveRecurring = saveRecurring;
   window.submitRecurring = saveRecurring;
   window.payRecurringNow = payRecurringNow;
@@ -4527,24 +4382,24 @@
   window.deleteRecurringAction = deleteRecurringAction;
   window.saveDebt = saveDebt;
   window.submitDebt = saveDebt;
-  window.openPayDebtModal = openPayDebtModal;
   window.settleDebt = settleDebt;
   window.submitPayDebt = submitPayDebt;
-  window.toggleDebtHistoryTab = toggleDebtHistoryTab;
-  window.openWalletDetail = openWalletDetail;
+  window.saveWallet = saveWallet;
   window.submitAddWallet = submitAddWallet;
   window.deleteWallet = deleteWallet;
   window.deleteWalletAction = deleteWalletAction;
-  window.openAssetDetail = openAssetDetail;
-  window.setCurrencyFilter = setCurrencyFilter;
-  window.setChartFilter = setChartFilter;
-  window.openSellAssetModal = openSellAssetModal;
-  window.submitSellAsset = submitSellAsset;
+  window.saveAsset = saveAsset;
   window.submitBuyAsset = submitBuyAsset;
+  window.submitSellAsset = submitSellAsset;
+  window.handleBuyAssetAccountChange = handleBuyAssetAccountChange;
+  window.openAssetDetailModal = openAssetDetailModal;
+  window.setAssetDetailCurrency = setAssetDetailCurrency;
+  window.updateAssetDetailCurrencyView = updateAssetDetailCurrencyView;
+  window.setChartFilter = setChartFilter;
+  window.prepareReceiveDividend = prepareReceiveDividend;
   window.submitReceiveDividend = submitReceiveDividend;
+  window.saveGoal = saveGoal;
   window.submitGoal = submitGoal;
-  window.openAddSavingsModal = openAddSavingsModal;
-  window.openWithdrawGoalModal = openWithdrawGoalModal;
   window.topupGoal = topupGoal;
   window.processGoalAction = processGoalAction;
   window.changeCalMonth = changeCalMonth;
@@ -4557,18 +4412,17 @@
   window.resetHistoryFilters = resetHistoryFilters;
   window.handleReceiptUpload = handleReceiptUpload;
   window.processReceiptImage = handleReceiptUpload;
-  window.selectExportYear = selectExportYear;
   window.generateStatementPDF = generateStatementPDF;
   window.exportPDFStatement = generateStatementPDF;
+  window.generatePDF = generateStatementPDF;
+  window.setExportYear = setExportYear;
   window.syncWithCloud = syncWithCloud;
   window.saveGasUrl = saveGasUrl;
   window.exportBackupJSON = exportBackupJSON;
   window.switchUser = switchUser;
   window.showToast = showToast;
 
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', initApp);
-  } else {
+  document.addEventListener('DOMContentLoaded', () => {
     initApp();
-  }
+  });
 })();
