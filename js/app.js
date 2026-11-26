@@ -694,7 +694,37 @@ function handleLogout() { localStorage.removeItem('fintrack_session_email'); loc
 
 async function fetchAllData() { 
     showLoading(true); 
-    try { const response = await fetch(API_URL, { method: 'POST', body: JSON.stringify({ action: 'getData', email: sessionEmail }) }); const result = await response.json(); if(result.status === 'success') { appData = result.data; renderAllHTMLData(); } } catch (e) { console.error("DB Loss:", e); } finally { showLoading(false); } 
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 15000);
+
+    try { 
+        const response = await fetch(API_URL, { 
+            method: 'POST', 
+            body: JSON.stringify({ action: 'getData', email: sessionEmail }),
+            signal: controller.signal
+        }); 
+        clearTimeout(timeoutId);
+
+        const result = await response.json(); 
+        if(result.status === 'success') { 
+            appData = result.data; 
+            localStorage.setItem('fintrack_cache', JSON.stringify(appData));
+            renderAllHTMLData(); 
+        } 
+    } catch (e) { 
+        clearTimeout(timeoutId);
+        console.warn("Jaringan bermasalah atau request timeout:", e); 
+        const offlineData = localStorage.getItem('fintrack_cache');
+        if (offlineData) {
+            appData = JSON.parse(offlineData);
+            alert(currentLang === 'id' ? "Memasuki Mode Offline: Menampilkan sinkronisasi data terakhir." : "Entering Offline Mode: Displaying last synced data.");
+            renderAllHTMLData();
+        } else {
+            alert(currentLang === 'id' ? "Gagal memuat data. Periksa koneksi internet Anda." : "Failed to load data. Please check your internet connection.");
+        }
+    } finally { 
+        showLoading(false); 
+    } 
 }
 
 async function apiPost(payload) { 
@@ -842,6 +872,19 @@ window.deleteRecurringAction = async function() {
     if(!confirm(currentLang === 'id' ? 'Yakin ingin menghapus langganan ini?' : 'Are you sure you want to delete this subscription?')) return;
     setBtnState('btn-del-rec-submit', true); closeModal('modal-rec-detail'); showLoading(true);
     try { await fetch(API_URL, { method: 'POST', body: JSON.stringify({ action: 'deleteRecurring', email: sessionEmail, idRec: id }) }); await fetchAllData(); } catch(e) {} finally { setBtnState('btn-del-rec-submit', false); showLoading(false); }
+};
+
+window.prepareGoalAction = function(actionType, goalName) {
+    activeGoalName = goalName;
+    if (actionType === 'add') {
+        const titleEl = document.getElementById('add-savings-goal-name');
+        if (titleEl) titleEl.innerText = goalName;
+        openModal('modal-add-savings');
+    } else if (actionType === 'withdraw') {
+        const titleEl = document.getElementById('withdraw-goal-name-display');
+        if (titleEl) titleEl.innerText = goalName;
+        openModal('modal-withdraw-goal');
+    }
 };
 
 async function submitGoal() { 
@@ -1142,6 +1185,17 @@ window.openWalletDetailModal = function(name, balance) {
 
 window.deleteWalletAction = async function() {
     if (!activeWalletNameForDetail) return;
+    
+    const walletData = (appData.M_Akun || []).find(a => getProp(a, 'Nama_Akun', 'Nama Akun') === activeWalletNameForDetail && getProp(a, 'Tipe_Akun', 'Tipe Akun') === 'Wallet Investasi');
+    if (walletData) {
+        let valReal = getProp(walletData, 'Saldo_Realtime', 'Saldo Realtime', 'Saldo_Realtime'), valAwal = getProp(walletData, 'Saldo_Awal', 'Saldo Awal', 'Saldo_Awal');
+        let balance = extractNumber((valReal !== undefined && valReal !== null && valReal !== "") ? valReal : valAwal);
+        if (balance > 0) {
+            alert(currentLang === 'id' ? "Aksi Ditolak: Dompet masih memiliki saldo. Silakan transfer atau sesuaikan saldo menjadi 0 terlebih dahulu untuk menjaga akurasi histori kekayaan." : "Action Denied: Wallet still has a balance. Please transfer or adjust the balance to 0 first to maintain wealth history accuracy.");
+            return;
+        }
+    }
+    
     if (!confirm(t('msg-del-wallet'))) return;
     
     setBtnState('btn-del-wallet-submit', true); closeModal('modal-wallet-detail'); showLoading(true);
@@ -1206,7 +1260,7 @@ window.submitBuyAsset = async function() {
 };
 
 window.submitSellAsset = async function() {
-    const idAset = document.getElementById('form-sell-asset-id').value, simbol = document.getElementById('form-sell-asset-simbol').value, unitDijual = parseFloat(document.getElementById('form-sell-asset-jumlah').value.replace(/,/g, '.')) || 0, hargaJual = extractNumber(document.getElementById('form-sell-asset-harga').value), akunTujuan = document.getElementById('form-sell-asset-account').value, maxUnit = parseFloat(document.getElementById('sell-asset-max-display').innerText) || 0, admin = extractNumber(document.getElementById('form-sell-asset-admin').value) || 0;
+    const idAset = document.getElementById('form-sell-asset-id').value, simbol = document.getElementById('form-sell-asset-simbol').value, unitDijual = parseFloat(document.getElementById('form-sell-asset-jumlah').value.replace(/,/g, '.')) || 0, hargaJual = extractNumber(document.getElementById('form-sell-asset-harga').value), akunTujuan = document.getElementById('form-sell-asset-account').value, maxUnit = parseFloat(document.getElementById('sell-asset-max-display').getAttribute('data-raw')) || 0, admin = extractNumber(document.getElementById('form-sell-asset-admin').value) || 0;
     if (unitDijual <= 0 || hargaJual <= 0 || !akunTujuan || unitDijual > maxUnit) return;
     
     setBtnState('btn-sell-asset-submit', true);
@@ -1507,7 +1561,7 @@ window.openAssetDetailModal = function(idAset, simbol, jenisAset, lot, avgHarga,
     if (btnBeli) { btnBeli.onclick = () => { closeModal('modal-asset-detail'); openModal('modal-buy-asset'); const formSimbol = document.getElementById('form-asset-simbol'); if (formSimbol) formSimbol.value = simbol; }; }
     
     const btnJual = document.getElementById('btn-det-jual');
-    if (btnJual) { btnJual.onclick = () => { closeModal('modal-asset-detail'); const displaySimbol = document.getElementById('sell-asset-simbol-display'); if (displaySimbol) displaySimbol.innerText = simbol; const displayMax = document.getElementById('sell-asset-max-display'); if (displayMax) { displayMax.innerText = formatShortNumber(lot); } const inputId = document.getElementById('form-sell-asset-id'); if (inputId) inputId.value = idAset; const inputSimbol = document.getElementById('form-sell-asset-simbol'); if (inputSimbol) inputSimbol.value = liveHarga; openModal('modal-sell-asset'); }; }
+    if (btnJual) { btnJual.onclick = () => { closeModal('modal-asset-detail'); const displaySimbol = document.getElementById('sell-asset-simbol-display'); if (displaySimbol) displaySimbol.innerText = simbol; const displayMax = document.getElementById('sell-asset-max-display'); if (displayMax) { displayMax.innerText = formatShortNumber(lot); displayMax.setAttribute('data-raw', lot); } const inputId = document.getElementById('form-sell-asset-id'); if (inputId) inputId.value = idAset; const inputSimbol = document.getElementById('form-sell-asset-simbol'); if (inputSimbol) inputSimbol.value = liveHarga; openModal('modal-sell-asset'); }; }
     
     const btnDividen = document.getElementById('btn-det-dividen');
     if (btnDividen) {
@@ -1531,6 +1585,20 @@ function renderMockPriceChart(assetName, currentPrice) {
     const mockLabels = Array.from({length: points}, (_, i) => i.toString()), gradient = ctx.createLinearGradient(0, 0, 0, 160); gradient.addColorStop(0, 'rgba(99, 66, 232, 0.25)'); gradient.addColorStop(1, 'rgba(99, 66, 232, 0.0)');  
     window.portoChartInstance = new Chart(ctx, { type: 'line', data: { labels: mockLabels, datasets: [{ data: mockData, borderColor: '#6342E8', borderWidth: 2, fill: true, backgroundColor: gradient, tension: 0.4, pointRadius: 0, pointHoverRadius: 5, pointHoverBackgroundColor: '#6342E8', pointHoverBorderColor: 'white', pointHoverBorderWidth: 2 }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false }, tooltip: { enabled: false } }, scales: { x: { display: false }, y: { display: false } }, interaction: { mode: 'index', intersect: false } } });
 }
+
+window.setChartFilter = function(filter) {
+    window.currentActiveFilter = filter;
+    document.querySelectorAll('.time-filter-btn').forEach(btn => {
+        if (btn.getAttribute('data-filter') === filter) {
+            btn.classList.add('active');
+        } else {
+            btn.classList.remove('active');
+        }
+    });
+    if (window.lastAssetData) {
+        renderMockPriceChart(window.lastAssetData.simbol, window.lastAssetData.liveHarga);
+    }
+};
 
 window.setHistoryFilter = function(filterType) {
     histFilterTime = filterType;
@@ -1616,7 +1684,7 @@ function renderHistoryScreen(drawChart = true) {
             if (akun.startsWith('VALAS_')) { iconHtml = getAssetLogoHtml(akun.replace('VALAS_', '')).replace('w-10 h-10', 'w-10 h-10 object-contain rounded-full border border-gray-100 dark:border-gray-700'); } 
             else { const logoSrc = getAccountLogo(akun); iconHtml = logoSrc ? `<img src="${logoSrc}" class="w-10 h-10 object-contain rounded-full bg-white dark:bg-[#1e1e1e] border border-gray-100 dark:border-gray-700 p-1">` : `<div class="w-10 h-10 rounded-full ${isOut ? 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-300' : 'bg-green-50 text-green-500 dark:bg-green-900/30'} flex items-center justify-center"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="${isOut ? 'M19 9l-7 7-7-7' : 'M5 15l7-7 7 7'}"></path></svg></div>`; }
             
-            const val = extractNumber(getProp(tobj, 'Jumlah')), tobjJSON = encodeURIComponent(JSON.stringify(tobj));
+            const val = extractNumber(getProp(tobj, 'Jumlah')), tobjJSON = encodeURIComponent(JSON.stringify(tobj)).replace(/'/g, "%27");
             html += `<div onclick="window.openTransactionDetail('${tobjJSON}')" class="cursor-pointer flex items-center justify-between p-4 bg-white dark:bg-[#1e1e1e] border border-gray-50 dark:border-gray-800 last:border-0 hover:bg-gray-50 dark:hover:bg-[#2d2d2d] active:scale-[0.98] transition-all duration-200"><div class="flex items-center gap-3">${iconHtml}<div class="overflow-hidden"><p class="text-sm font-bold truncate w-32 dark:text-white">${kategori}</p><p class="text-[10px] text-gray-500 truncate w-32 uppercase tracking-wide">${getProp(tobj, 'Keterangan') || akunDisplay}</p></div></div><p class="text-sm font-bold ${color} whitespace-nowrap">${sign} <span class="privacy-mask" data-value="${val}">${isPrivate?'********':toRp(val)}</span></p></div>`;
         });
         historyListContainer.innerHTML = html;
@@ -1653,7 +1721,7 @@ function showDailyDetail(day, refreshCalendarUI = true) {
         const isOut = (getProp(tobj, 'Tipe')||'').toString().trim().toUpperCase() === 'OUTFLOW', sign = isOut ? '-' : '+', kategori = getProp(tobj, 'Kategori') || '', akun = getProp(tobj, 'Akun') || '';
         let color = isOut ? 'text-gray-800 dark:text-gray-100' : 'text-green-500 dark:text-green-400'; if(kategori === 'Transfer Keluar' || kategori === 'Transfer Masuk' || kategori === 'Biaya Admin') color = 'text-gray-800 dark:text-gray-100';
         const logoSrc = getAccountLogo(akun), iconHtml = logoSrc ? `<img src="${logoSrc}" class="w-10 h-10 object-contain rounded-full bg-white dark:bg-[#1e1e1e] border border-gray-100 dark:border-gray-700 p-1">` : `<div class="w-10 h-10 rounded-full ${isOut ? 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-300' : 'bg-green-50 text-green-500 dark:bg-green-900/30'} flex items-center justify-center"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="${isOut ? 'M19 9l-7 7-7-7' : 'M5 15l7-7 7 7'}"></path></svg></div>`;
-        const val = extractNumber(getProp(tobj, 'Jumlah')), tobjJSON = encodeURIComponent(JSON.stringify(tobj));
+        const val = extractNumber(getProp(tobj, 'Jumlah')), tobjJSON = encodeURIComponent(JSON.stringify(tobj)).replace(/'/g, "%27");
         html += `<div onclick="window.openTransactionDetail('${tobjJSON}')" class="cursor-pointer flex items-center justify-between p-4 bg-white dark:bg-[#1e1e1e] border border-gray-50 dark:border-gray-800 rounded-2xl shadow-sm mb-2 hover:bg-gray-50 dark:hover:bg-[#2d2d2d] active:scale-[0.98] transition-all duration-200"><div class="flex items-center gap-3">${iconHtml}<div class="overflow-hidden"><p class="text-sm font-bold truncate w-32 dark:text-white">${kategori}</p><p class="text-[10px] text-gray-500 truncate w-32 uppercase tracking-wide">${getProp(tobj, 'Keterangan') || akun}</p></div></div><p class="text-sm font-bold ${color} whitespace-nowrap">${sign} <span class="privacy-mask" data-value="${val}">${isPrivate?'********':toRp(val)}</span></p></div>`;
     });
     listContainer.innerHTML = html; applyPrivacyMasks();
@@ -1958,9 +2026,4 @@ window.openTransactionDetail = function(jsonStr) {
     } catch (e) {
         console.error("Gagal mengeksekusi pop-up:", e);
     }
-};
-
-window.setCurrencyFilter = function(currency) {
-    window.currentActiveCurrency = currency;
-    window.updateAssetDetailCurrencyView();
 };
