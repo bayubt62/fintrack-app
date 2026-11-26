@@ -1,103 +1,177 @@
 <div class="space-y-6 pb-24" id="dashboard-container">
-    <!-- Current Balance Card (Forest Green Hero Card) -->
-    <div class="bg-[#183B2B] dark:bg-[#142E22] p-6 rounded-[28px] text-white shadow-xl relative overflow-hidden border border-[#284E3B] dark:border-[#1E3E2E]">
-        <div class="flex justify-between items-center mb-1">
-            <p class="text-xs text-[#A8C5B5] font-medium tracking-wide uppercase" data-i18n="dash-bal">Current Balance</p>
-            <button onclick="togglePrivacy()" class="text-[#A8C5B5] hover:text-white transition p-1" title="Toggle Privacy">
-                <svg id="privacy-icon" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path></svg>
-            </button>
-        </div>
-        <h2 class="text-3xl md:text-4xl font-extrabold tracking-tight privacy-mask text-white mt-1" data-value="0" id="main-balance">Rp 0</h2>
+  <!-- Main Balance Hero Card (Deep Forest Emerald & Integrated Cashflow Pills) -->
+  <div class="bg-gradient-to-br from-[#0F5132] via-[#0C4329] to-[#082E1C] dark:from-[#12261D] dark:via-[#0E1E17] dark:to-[#0A1410] p-6 rounded-[28px] text-white shadow-[0_18px_40px_-12px_rgba(15,81,50,0.45)] dark:shadow-[0_18px_40px_-12px_rgba(0,0,0,0.75)] border border-emerald-400/15 relative overflow-hidden">
+    <!-- Decorative Ambient Glow -->
+    <div class="absolute -right-12 -top-12 w-44 h-44 rounded-full bg-emerald-400/10 blur-2xl pointer-events-none"></div>
+    <div class="absolute -left-10 -bottom-14 w-36 h-36 rounded-full bg-teal-300/10 blur-2xl pointer-events-none"></div>
 
-        <!-- Integrated Monthly Summary Badges -->
-        <div class="flex flex-wrap items-center gap-2.5 mt-5 pt-4 border-t border-white/10">
-            <div class="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/10 dark:bg-black/25 backdrop-blur-sm text-xs text-white/90 font-medium">
-                <span data-i18n="dash-inc">Income</span>
-                <span class="text-[#2CE59B] font-bold">↗</span>
-                <span class="font-extrabold text-white privacy-mask" data-value="0" id="summary-income">Rp 0</span>
-            </div>
-            <div class="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/10 dark:bg-black/25 backdrop-blur-sm text-xs text-white/90 font-medium">
-                <span data-i18n="dash-exp">Expenditure</span>
-                <span class="text-red-400 font-bold">↘</span>
-                <span class="font-extrabold text-white privacy-mask" data-value="0" id="summary-expense">Rp 0</span>
-            </div>
-        </div>
+    <div class="flex items-center justify-between mb-1.5 relative z-10">
+      <p class="text-xs font-semibold tracking-wide text-emerald-100/85" data-i18n="dash-bal">Current Balance</p>
+      <span id="dash-net-badge" class="hidden text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-white/15 text-emerald-100 backdrop-blur-md border border-white/10"></span>
     </div>
 
-    <!-- Quick Action Menu (Warm Cream Squircles in Light, Charcoal in Dark) -->
+    <div class="flex items-center justify-between gap-3 relative z-10">
+      <h2 class="text-[32px] sm:text-4xl font-extrabold tracking-tight privacy-mask text-white dark:text-emerald-300" data-value="0" id="main-balance">Rp 0</h2>
+      <button type="button" onclick="togglePrivacy()" class="w-9 h-9 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-emerald-100 transition hover:scale-105 active:scale-95 shrink-0 border border-white/10" aria-label="Toggle Balance Privacy">
+        <svg id="privacy-icon" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
+        </svg>
+      </button>
+    </div>
+
+    <!-- Integrated Monthly Cashflow Pills -->
+    <div class="grid grid-cols-2 gap-2.5 mt-5 pt-4 border-t border-white/10 relative z-10">
+      <div class="bg-[#FAF8F5] dark:bg-[#17261F] px-3.5 py-2.5 rounded-2xl flex items-center justify-between gap-2 shadow-sm border border-white/20 dark:border-emerald-500/20">
+        <div class="min-w-0">
+          <p class="text-[10px] font-bold text-stone-500 dark:text-stone-400 uppercase tracking-wider" data-i18n="dash-inc">Income</p>
+          <p class="font-extrabold text-xs text-[#0F5132] dark:text-emerald-300 privacy-mask truncate mt-0.5" data-value="0" id="summary-income">Rp 0</p>
+        </div>
+        <span class="w-6 h-6 rounded-full bg-emerald-500/15 text-[#0F5132] dark:text-emerald-400 flex items-center justify-center shrink-0">
+          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M7 17L17 7M17 7H8M17 7V16"></path></svg>
+        </span>
+      </div>
+
+      <div class="bg-white/12 dark:bg-[#151D19] px-3.5 py-2.5 rounded-2xl flex items-center justify-between gap-2 backdrop-blur-md border border-white/15 dark:border-stone-800">
+        <div class="min-w-0">
+          <p class="text-[10px] font-bold text-emerald-100/75 dark:text-stone-400 uppercase tracking-wider" data-i18n="dash-exp">Expenditure</p>
+          <p class="font-extrabold text-xs text-white dark:text-red-400 privacy-mask truncate mt-0.5" data-value="0" id="summary-expense">Rp 0</p>
+        </div>
+        <span class="w-6 h-6 rounded-full bg-red-500/20 text-red-200 dark:text-red-400 flex items-center justify-center shrink-0">
+          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M7 7L17 17M17 17H8M17 17V8"></path></svg>
+        </span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Smart Due-Date & Obligation Notification Banner -->
+  <div id="due-alert-banner" class="hidden bg-amber-50/90 dark:bg-amber-950/30 border border-amber-200/80 dark:border-amber-800/60 rounded-2xl p-4 shadow-sm transition-all">
+    <div class="flex items-start justify-between gap-3">
+      <div class="flex items-start gap-3">
+        <div class="w-9 h-9 rounded-xl bg-amber-500/15 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0 mt-0.5">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"></path>
+          </svg>
+        </div>
+        <div>
+          <p class="text-xs font-bold text-amber-800 dark:text-amber-300" data-i18n="alert-due-title">Pengingat Jatuh Tempo</p>
+          <div id="due-alert-items" class="mt-1.5 space-y-1.5"></div>
+        </div>
+      </div>
+      <button type="button" onclick="dismissDueBanner()" class="text-amber-500 hover:text-amber-700 dark:hover:text-amber-300 p-1 rounded-lg transition" aria-label="Tutup notifikasi">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+        </svg>
+      </button>
+    </div>
+  </div>
+
+  <!-- Quick Menu (4 Squircle Action Tiles) -->
+  <div>
+    <h3 class="text-xs font-bold uppercase tracking-wider text-stone-400 dark:text-stone-500 mb-3 px-0.5" data-i18n="dash-qm">Quick Menu</h3>
+    <div class="grid grid-cols-4 gap-3" style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px;">
+      <div class="flex flex-col items-center gap-2 cursor-pointer group" onclick="openModal('modal-trx', 'INFLOW')">
+        <button type="button" class="w-full aspect-square max-w-[74px] bg-white dark:bg-[#111613] rounded-[22px] shadow-sm border border-stone-200/70 dark:border-stone-800/80 flex items-center justify-center icon-box group-hover:border-[#0F5132]/40 dark:group-hover:border-emerald-500/40">
+          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v6m3-3H9m12 0a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+        </button>
+        <span class="text-[11px] font-bold text-stone-700 dark:text-stone-300" data-i18n="qm-topup">Top up</span>
+      </div>
+
+      <div class="flex flex-col items-center gap-2 cursor-pointer group" onclick="openModal('modal-trx', 'OUTFLOW')">
+        <button type="button" class="w-full aspect-square max-w-[74px] bg-white dark:bg-[#111613] rounded-[22px] shadow-sm border border-stone-200/70 dark:border-stone-800/80 flex items-center justify-center icon-box group-hover:border-[#0F5132]/40 dark:group-hover:border-emerald-500/40">
+          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"></path></svg>
+        </button>
+        <span class="text-[11px] font-bold text-stone-700 dark:text-stone-300" data-i18n="qm-pay">Pay</span>
+      </div>
+
+      <div class="flex flex-col items-center gap-2 cursor-pointer group" onclick="openModal('modal-transfer')">
+        <button type="button" class="w-full aspect-square max-w-[74px] bg-white dark:bg-[#111613] rounded-[22px] shadow-sm border border-stone-200/70 dark:border-stone-800/80 flex items-center justify-center icon-box group-hover:border-[#0F5132]/40 dark:group-hover:border-emerald-500/40">
+          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"></path></svg>
+        </button>
+        <span class="text-[11px] font-bold text-stone-700 dark:text-stone-300" data-i18n="qm-tf">Transfer</span>
+      </div>
+
+      <div class="flex flex-col items-center gap-2 cursor-pointer group" onclick="openModal('modal-recurring')">
+        <button type="button" class="w-full aspect-square max-w-[74px] bg-white dark:bg-[#111613] rounded-[22px] shadow-sm border border-stone-200/70 dark:border-stone-800/80 flex items-center justify-center icon-box group-hover:border-[#0F5132]/40 dark:group-hover:border-emerald-500/40">
+          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
+        </button>
+        <span class="text-[11px] font-bold text-stone-700 dark:text-stone-300" data-i18n="qm-rec">Recurring</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Obsidian Lower Sheet Container: Stacked Cards, Subscriptions, Debts & Goals -->
+  <div class="-mx-6 px-6 pt-5 pb-10 bg-[#0E1310] dark:bg-[#0D120F] rounded-t-[34px] text-white shadow-[0_-14px_35px_rgba(7,9,8,0.18)] border-t border-white/10 space-y-7">
+    <!-- Sheet Handle Indicator -->
+    <div class="w-10 h-1 rounded-full bg-white/20 mx-auto -mt-1"></div>
+
+    <!-- Your Accounts: 3D Stacked Sliding Card Deck -->
     <div>
-        <div class="grid grid-cols-4 gap-3 text-center">
-            <div class="flex flex-col items-center gap-2 cursor-pointer group" onclick="openModal('modal-trx', 'INFLOW')">
-                <button class="w-16 h-16 rounded-2xl bg-[#EAE3D2] dark:bg-[#1E2220] border border-[#DDD4C1] dark:border-[#2C322F] flex items-center justify-center text-[#183B2B] dark:text-[#2CE59B] shadow-sm group-hover:scale-105 active:scale-95 transition-all duration-200">
-                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v6m3-3H9m12 0a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-                </button>
-                <span class="text-xs font-semibold text-gray-700 dark:text-gray-300" data-i18n="qm-topup">Top up</span>
-            </div>
-            <div class="flex flex-col items-center gap-2 cursor-pointer group" onclick="openModal('modal-trx', 'OUTFLOW')">
-                <button class="w-16 h-16 rounded-2xl bg-[#EAE3D2] dark:bg-[#1E2220] border border-[#DDD4C1] dark:border-[#2C322F] flex items-center justify-center text-[#183B2B] dark:text-[#2CE59B] shadow-sm group-hover:scale-105 active:scale-95 transition-all duration-200">
-                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"></path></svg>
-                </button>
-                <span class="text-xs font-semibold text-gray-700 dark:text-gray-300" data-i18n="qm-pay">Pay</span>
-            </div>
-            <div class="flex flex-col items-center gap-2 cursor-pointer group" onclick="openModal('modal-transfer')">
-                <button class="w-16 h-16 rounded-2xl bg-[#EAE3D2] dark:bg-[#1E2220] border border-[#DDD4C1] dark:border-[#2C322F] flex items-center justify-center text-[#183B2B] dark:text-[#2CE59B] shadow-sm group-hover:scale-105 active:scale-95 transition-all duration-200">
-                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"></path></svg>
-                </button>
-                <span class="text-xs font-semibold text-gray-700 dark:text-gray-300" data-i18n="qm-tf">Transfer</span>
-            </div>
-            <div class="flex flex-col items-center gap-2 cursor-pointer group" onclick="openModal('modal-recurring')">
-                <button class="w-16 h-16 rounded-2xl bg-[#EAE3D2] dark:bg-[#1E2220] border border-[#DDD4C1] dark:border-[#2C322F] flex items-center justify-center text-[#183B2B] dark:text-[#2CE59B] shadow-sm group-hover:scale-105 active:scale-95 transition-all duration-200">
-                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
-                </button>
-                <span class="text-xs font-semibold text-gray-700 dark:text-gray-300" data-i18n="qm-rec">Recurring</span>
-            </div>
+      <div class="flex justify-between items-center mb-3.5">
+        <div class="flex items-center gap-2">
+          <h3 class="text-base font-extrabold tracking-tight text-white" data-i18n="dash-acc">Your Accounts</h3>
+          <span id="accounts-deck-counter" class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-white/10 text-emerald-300 border border-white/10">1/1</span>
         </div>
-    </div>
+        <div class="flex items-center gap-2">
+          <button type="button" onclick="openAccountModal()" class="text-[11px] font-bold px-3 py-1.5 rounded-full bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-300 border border-emerald-400/25 transition active:scale-95 flex items-center gap-1" data-i18n="btn-add-acc">+ Tambah Akun</button>
+        </div>
+      </div>
 
-    <!-- Your Accounts Section (Dark Sheet / Card Carousel) -->
-    <div class="bg-[#181B1A] dark:bg-[#141615] p-5 rounded-[32px] border border-[#282E2B] text-white shadow-xl">
-        <div class="w-8 h-1 bg-gray-600/70 rounded-full mx-auto mb-4"></div>
-        <div class="flex justify-between items-center mb-4 px-1">
-            <h3 class="text-sm font-bold text-white tracking-wide" data-i18n="dash-acc">Your Accounts</h3>
-            <span class="text-xs font-semibold text-gray-400 tracking-wider">Cards</span>
+      <!-- 3D Stacked Card Stage -->
+      <div class="account-deck-stage" id="accounts-list"></div>
+
+      <!-- Deck Pagination Dots & Quick Slide Controls -->
+      <div class="flex items-center justify-between mt-2 px-1">
+        <div id="accounts-deck-dots" class="flex items-center gap-1.5"></div>
+        <div class="flex items-center gap-1.5">
+          <button type="button" onclick="slideAccountDeck(-1)" class="w-7 h-7 rounded-full bg-white/8 hover:bg-white/15 border border-white/10 flex items-center justify-center text-stone-300 hover:text-white transition active:scale-90" aria-label="Previous Card">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M15 19l-7-7 7-7"></path></svg>
+          </button>
+          <button type="button" onclick="slideAccountDeck(1)" class="w-7 h-7 rounded-full bg-white/8 hover:bg-white/15 border border-white/10 flex items-center justify-center text-stone-300 hover:text-white transition active:scale-90" aria-label="Next Card">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5l7 7-7 7"></path></svg>
+          </button>
         </div>
-        <div id="accounts-list" class="overflow-hidden"></div>
+      </div>
     </div>
 
     <!-- Active Subscriptions -->
-    <div class="space-y-3">
-        <h3 class="text-sm font-bold dark:text-gray-200" data-i18n="dash-sub">Active Subscriptions</h3>
-        <div id="recurring-list" class="space-y-2.5"></div>
+    <div class="pt-2 border-t border-white/10">
+      <div class="flex justify-between items-center mb-3">
+        <h3 class="text-sm font-bold text-stone-200" data-i18n="dash-sub">Active Subscriptions</h3>
+        <button type="button" onclick="openModal('modal-recurring')" class="text-xs font-bold text-emerald-400 hover:text-emerald-300 transition" data-i18n="btn-add-sub">+ Tagihan</button>
+      </div>
+      <div id="recurring-list" class="space-y-2.5"></div>
     </div>
 
     <!-- Debts & Receivables -->
-    <div class="space-y-3">
-        <div class="flex justify-between items-center">
-            <h3 class="text-sm font-bold dark:text-gray-200" data-i18n="dash-debt">Debts & Receivables</h3>
-            <div class="flex gap-3">
-                <button onclick="openModal('modal-debt-history')" class="text-xs font-bold text-gray-500 hover:text-gray-800 dark:hover:text-gray-300 transition" data-i18n="btn-hist-debt">Riwayat</button>
-                <button onclick="openModal('modal-debt')" class="text-xs font-bold text-[#183B2B] dark:text-[#2CE59B] hover:opacity-80 transition" data-i18n="btn-add-debt">+ Add Debt</button>
-            </div>
+    <div class="pt-2 border-t border-white/10">
+      <div class="flex justify-between items-center mb-3">
+        <h3 class="text-sm font-bold text-stone-200" data-i18n="dash-debt">Debts & Receivables</h3>
+        <div class="flex gap-3">
+          <button type="button" onclick="openModal('modal-debt-history')" class="text-xs font-bold text-stone-400 hover:text-white transition" data-i18n="btn-hist-debt">Riwayat</button>
+          <button type="button" onclick="openModal('modal-debt')" class="text-xs font-bold text-emerald-400 hover:text-emerald-300 transition" data-i18n="btn-add-debt">+ Add Debt</button>
         </div>
-        <div class="grid grid-cols-2 gap-3">
-            <div class="p-3.5 bg-red-500/10 dark:bg-red-950/20 rounded-2xl border border-red-500/20">
-                <p class="text-[10px] font-semibold text-red-600 dark:text-red-400 uppercase tracking-wider" data-i18n="txt-mydebt">My Debt</p>
-                <p id="debt-out" class="font-black text-sm text-red-600 dark:text-red-400 privacy-mask mt-1" data-value="0">Rp 0</p>
-            </div>
-            <div class="p-3.5 bg-[#2CE59B]/10 dark:bg-[#2CE59B]/15 rounded-2xl border border-[#2CE59B]/30">
-                <p class="text-[10px] font-semibold text-emerald-700 dark:text-[#2CE59B] uppercase tracking-wider" data-i18n="txt-receivable">Receivables</p>
-                <p id="debt-in" class="font-black text-sm text-emerald-700 dark:text-[#2CE59B] privacy-mask mt-1" data-value="0">Rp 0</p>
-            </div>
+      </div>
+      <div class="grid grid-cols-2 gap-3 mb-2">
+        <div class="p-3.5 bg-red-500/10 rounded-2xl border border-red-500/20">
+          <p class="text-[10px] font-bold uppercase tracking-wider text-red-400" data-i18n="txt-mydebt">My Debt</p>
+          <p id="debt-out" class="font-extrabold text-sm privacy-mask text-white mt-0.5" data-value="0">Rp 0</p>
         </div>
-        <div id="debt-list" class="space-y-2 mt-2"></div>
+        <div class="p-3.5 bg-emerald-500/10 rounded-2xl border border-emerald-500/20">
+          <p class="text-[10px] font-bold uppercase tracking-wider text-emerald-400" data-i18n="txt-receivable">Receivables</p>
+          <p id="debt-in" class="font-extrabold text-sm privacy-mask text-white mt-0.5" data-value="0">Rp 0</p>
+        </div>
+      </div>
+      <div id="debt-list" class="space-y-2 mt-2"></div>
     </div>
 
     <!-- Target Savings Progress -->
-    <div class="space-y-3">
-        <div class="flex justify-between items-center">
-            <h3 class="text-sm font-bold dark:text-gray-200" data-i18n="port-prog">Target Savings Progress</h3>
-            <button onclick="openModal('modal-goal')" class="text-xs font-bold text-[#183B2B] dark:text-[#2CE59B] hover:opacity-80 transition" data-i18n="btn-add-goal">+ Create Target</button>
-        </div>
-        <div id="goals-list" class="space-y-3"></div>
+    <div class="pt-2 border-t border-white/10">
+      <div class="flex justify-between items-center mb-3">
+        <h3 class="text-sm font-bold text-stone-200" data-i18n="port-prog">Target Savings Progress</h3>
+        <button type="button" onclick="openModal('modal-goal')" class="text-xs font-bold text-emerald-400 hover:text-emerald-300 transition" data-i18n="btn-add-goal">+ Create Target</button>
+      </div>
+      <div id="goals-list" class="space-y-2.5"></div>
     </div>
+  </div>
 </div>

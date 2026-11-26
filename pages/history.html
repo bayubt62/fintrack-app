@@ -1,99 +1,119 @@
 <div class="space-y-6 pb-24">
-    <div class="space-y-4">
-        <div class="flex justify-between items-center">
-            <h2 class="text-2xl font-extrabold text-[#111815] dark:text-white tracking-tight" data-i18n="hist-title">
-                Financial Recap</h2>
-            <button onclick="openModal('modal-export-pdf')"
-                class="w-10 h-10 flex items-center justify-center rounded-full bg-white dark:bg-[#181B1A] border border-gray-200/80 dark:border-[#282D2A] text-gray-700 dark:text-gray-300 hover:text-black dark:hover:text-white shadow-sm transition"
-                title="Export PDF">
-                <svg class="w-5 h-5 text-[#183B2B] dark:text-[#2CE59B]" fill="none" stroke="currentColor"
-                    viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                        d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path>
-                </svg>
-            </button>
-        </div>
-
-        <!-- Filter Tabs (Pills) -->
-        <div class="flex gap-2 overflow-x-auto no-scrollbar pb-1">
-            <button onclick="setHistoryFilter('month')" id="filter-month"
-                class="px-4 py-2 text-xs font-bold rounded-full whitespace-nowrap bg-[#183B2B] text-[#2CE59B] dark:bg-[#2CE59B] dark:text-black shadow-sm transition hover:opacity-90"
-                data-i18n="btn-month">This Month</button>
-            <button onclick="setHistoryFilter('7days')" id="filter-7days"
-                class="px-4 py-2 text-xs font-semibold rounded-full whitespace-nowrap bg-white dark:bg-[#181B1A] border border-gray-200/80 dark:border-[#282D2A] text-gray-600 dark:text-gray-300 shadow-sm transition hover:bg-gray-50 dark:hover:bg-[#202422]"
-                data-i18n="btn-7days">Last 7 Days</button>
-            <button onclick="setHistoryFilter('custom')" id="filter-custom"
-                class="px-4 py-2 text-xs font-semibold rounded-full whitespace-nowrap bg-white dark:bg-[#181B1A] border border-gray-200/80 dark:border-[#282D2A] text-gray-600 dark:text-gray-300 shadow-sm transition hover:bg-gray-50 dark:hover:bg-[#202422]"
-                data-i18n="btn-custom">Custom Date</button>
-        </div>
-
-        <div id="custom-date-container"
-            class="hidden grid-cols-2 gap-3 bg-white dark:bg-[#181B1A] p-3.5 rounded-2xl shadow-sm border border-gray-200/80 dark:border-[#282D2A] transition-all duration-300">
-            <div>
-                <label class="text-[10px] font-bold text-gray-500 ml-1" data-i18n="lbl-from">From</label>
-                <input type="date" id="date-start" onchange="triggerHistoryRender()"
-                    class="w-full p-2.5 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-[#222724] dark:text-white text-xs outline-none focus:border-[#2CE59B] transition">
-            </div>
-            <div>
-                <label class="text-[10px] font-bold text-gray-500 ml-1" data-i18n="lbl-to">To</label>
-                <input type="date" id="date-end" onchange="triggerHistoryRender()"
-                    class="w-full p-2.5 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-[#222724] dark:text-white text-xs outline-none focus:border-[#2CE59B] transition">
-            </div>
-        </div>
+  <div class="space-y-4">
+    <!-- Header Title & Export Statement Button -->
+    <div class="flex justify-between items-center px-0.5">
+      <div>
+        <h2 class="text-xl font-extrabold tracking-tight text-stone-900 dark:text-white" data-i18n="hist-title">Financial Recap</h2>
+        <p class="text-[11px] font-medium text-stone-500 dark:text-stone-400 mt-0.5 lang-custom" data-id="Analisis arus kas & riwayat mutasi" data-en="Cashflow analytics & mutation history">Analisis arus kas & riwayat mutasi</p>
+      </div>
+      <button type="button" onclick="openModal('modal-export-pdf')" class="w-10 h-10 flex items-center justify-center rounded-full bg-white dark:bg-[#111613] border border-stone-200/70 dark:border-stone-800 shadow-sm hover:bg-[#EDF5F0] dark:hover:bg-[#18201C] transition active:scale-95" aria-label="Export Statement">
+        <svg class="w-5 h-5 text-[#0F5132] dark:text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+      </button>
     </div>
 
-    <!-- Net Difference Card (Forest Green Card matching Image 2) -->
-    <div
-        class="bg-[#183B2B] dark:bg-[#142E22] p-6 rounded-[28px] text-white shadow-xl border border-[#284E3B] dark:border-[#1E3E2E] transition-all duration-300">
-        <div class="flex justify-between items-center mb-1">
-            <p class="text-xs text-[#A8C5B5] font-medium tracking-wide uppercase" data-i18n="txt-diff">Net Difference
-            </p>
-            <div class="flex items-center gap-2 text-[10px] text-white/90">
-                <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-[#2CE59B]"></span> In:
-                    <strong id="hist-sum-in" class="privacy-mask font-bold" data-value="0">Rp 0</strong></span>
-                <span>•</span>
-                <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-red-400"></span> Out: <strong
-                        id="hist-sum-out" class="privacy-mask font-bold" data-value="0">Rp 0</strong></span>
-            </div>
-        </div>
-        <p class="text-3xl font-extrabold tracking-tight privacy-mask text-white mt-1" id="hist-sum-diff"
-            data-value="0">Rp 0</p>
+    <!-- Period Filter Pills -->
+    <div class="flex gap-2 overflow-x-auto no-scrollbar pb-1">
+      <button type="button" onclick="setHistoryFilter('month')" id="filter-month" class="px-4 py-2 text-xs font-bold rounded-full whitespace-nowrap bg-[#0F5132] dark:bg-emerald-500 text-white dark:text-[#070908] shadow-md shadow-emerald-950/15 transition hover:opacity-95" data-i18n="btn-month">This Month</button>
+      <button type="button" onclick="setHistoryFilter('7days')" id="filter-7days" class="px-4 py-2 text-xs font-bold rounded-full whitespace-nowrap bg-white dark:bg-[#111613] border border-stone-200/70 dark:border-stone-800 text-stone-600 dark:text-stone-300 shadow-sm transition hover:bg-[#FAF8F5] dark:hover:bg-[#18201C]" data-i18n="btn-7days">Last 7 Days</button>
+      <button type="button" onclick="setHistoryFilter('custom')" id="filter-custom" class="px-4 py-2 text-xs font-bold rounded-full whitespace-nowrap bg-white dark:bg-[#111613] border border-stone-200/70 dark:border-stone-800 text-stone-600 dark:text-stone-300 shadow-sm transition hover:bg-[#FAF8F5] dark:hover:bg-[#18201C]" data-i18n="btn-custom">Custom Date</button>
     </div>
 
-    <!-- Type Toggle Pills & Chart -->
-    <div
-        class="bg-white dark:bg-[#181B1A] p-6 rounded-[28px] shadow-sm border border-gray-200/80 dark:border-[#282D2A] transition-all duration-300">
-        <div
-            class="flex bg-[#EAE3D2] dark:bg-[#202422] rounded-full p-1 mb-6 relative border border-[#DDD4C1] dark:border-[#2C322F]">
-            <button onclick="setHistoryType('OUTFLOW')" id="toggle-outflow"
-                class="flex-1 py-2 rounded-full text-xs font-bold text-gray-600 dark:text-gray-400 toggle-btn toggle-active"
-                data-i18n="dash-exp">Expenditure</button>
-            <button onclick="setHistoryType('INFLOW')" id="toggle-inflow"
-                class="flex-1 py-2 rounded-full text-xs font-bold text-gray-600 dark:text-gray-400 toggle-btn"
-                data-i18n="dash-inc">Income</button>
-            <button onclick="setHistoryType('TRANSFER')" id="toggle-transfer"
-                class="flex-1 py-2 rounded-full text-xs font-bold text-gray-600 dark:text-gray-400 toggle-btn"
-                data-i18n="qm-tf">Transfer</button>
-        </div>
+    <!-- Custom Date Range -->
+    <div id="custom-date-container" class="hidden grid-cols-2 gap-3 bg-white dark:bg-[#111613] p-3.5 rounded-2xl shadow-sm border border-stone-200/70 dark:border-stone-800 transition-all duration-300">
+      <div>
+        <label class="text-[10px] font-bold uppercase tracking-wider text-stone-400 dark:text-stone-500 ml-1" data-i18n="lbl-from">From</label>
+        <input type="date" id="date-start" onchange="triggerHistoryRender()" class="w-full mt-1 p-2.5 rounded-xl border border-stone-200/70 dark:border-stone-800 bg-[#FAF8F5] dark:bg-[#161D19] dark:text-white text-xs font-bold outline-none focus:border-[#0F5132] dark:focus:border-emerald-400 transition">
+      </div>
+      <div>
+        <label class="text-[10px] font-bold uppercase tracking-wider text-stone-400 dark:text-stone-500 ml-1" data-i18n="lbl-to">To</label>
+        <input type="date" id="date-end" onchange="triggerHistoryRender()" class="w-full mt-1 p-2.5 rounded-xl border border-stone-200/70 dark:border-stone-800 bg-[#FAF8F5] dark:bg-[#161D19] dark:text-white text-xs font-bold outline-none focus:border-[#0F5132] dark:focus:border-emerald-400 transition">
+      </div>
+    </div>
+  </div>
 
-        <h3 class="text-xs font-bold uppercase tracking-wider mb-4 text-center text-gray-500 dark:text-gray-400"
-            data-i18n="hist-cat">Category Details</h3>
-        <div class="relative w-48 h-48 mx-auto mb-6">
-            <canvas id="categoryChart"></canvas>
-            <div class="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-                <p class="text-[10px] text-gray-400 uppercase tracking-wider" id="chart-center-label"
-                    data-i18n="txt-total">Total</p>
-                <p class="text-xs font-extrabold privacy-mask text-[#111815] dark:text-white mt-0.5"
-                    id="chart-center-val">Rp 0</p>
-            </div>
-        </div>
-        <div id="history-category-list" class="space-y-1"></div>
+  <!-- Summary Card (Income, Expenditure & Deep Forest Emerald Difference Box) -->
+  <div class="bg-white dark:bg-[#111613] p-5 rounded-[28px] shadow-[0_14px_34px_-12px_rgba(15,81,50,0.08)] dark:shadow-[0_18px_38px_-12px_rgba(0,0,0,0.65)] border border-stone-200/70 dark:border-stone-800/80 text-center transition-all duration-300 space-y-4">
+    <div class="grid grid-cols-2 gap-3">
+      <div class="p-3.5 rounded-2xl bg-[#FAF8F5] dark:bg-[#161D19] border border-stone-200/60 dark:border-stone-800/70">
+        <p class="text-[10px] font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400 mb-1 flex items-center justify-center gap-1.5">
+          <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
+          <span data-i18n="dash-inc">Income</span>
+        </p>
+        <p class="font-extrabold text-sm privacy-mask text-stone-900 dark:text-white" id="hist-sum-in">Rp 0</p>
+      </div>
+      <div class="p-3.5 rounded-2xl bg-[#FAF8F5] dark:bg-[#161D19] border border-stone-200/60 dark:border-stone-800/70">
+        <p class="text-[10px] font-bold uppercase tracking-wider text-red-500 dark:text-red-400 mb-1 flex items-center justify-center gap-1.5">
+          <span class="w-2 h-2 rounded-full bg-red-500"></span>
+          <span data-i18n="dash-exp">Expenditure</span>
+        </p>
+        <p class="font-extrabold text-sm privacy-mask text-stone-900 dark:text-white" id="hist-sum-out">Rp 0</p>
+      </div>
     </div>
 
-    <!-- Transaction List Section -->
-    <div class="space-y-3">
-        <h3 class="text-sm font-bold dark:text-gray-200" data-i18n="hist-list">Transaction List</h3>
-        <div class="bg-white dark:bg-[#181B1A] rounded-[28px] shadow-sm border border-gray-200/80 dark:border-[#282D2A] overflow-hidden transition-all duration-300 relative"
-            id="history-list"></div>
+    <div class="p-4 rounded-2xl bg-gradient-to-br from-[#0F5132] to-[#093822] dark:from-[#12261D] dark:to-[#0C1913] border border-emerald-400/15 relative overflow-hidden">
+      <div class="absolute -right-8 -top-8 w-24 h-24 rounded-full bg-emerald-400/10 blur-xl pointer-events-none"></div>
+      <p class="text-[10px] font-bold uppercase tracking-widest text-emerald-100/80 mb-0.5" data-i18n="txt-diff">Difference</p>
+      <p class="font-black text-xl tracking-tight privacy-mask text-white" id="hist-sum-diff">Rp 0</p>
     </div>
+  </div>
+
+  <!-- Category Breakdown & Chart -->
+  <div class="bg-white dark:bg-[#111613] p-6 rounded-[28px] shadow-sm border border-stone-200/70 dark:border-stone-800/80 transition-all duration-300">
+    <div class="flex bg-[#FAF8F5] dark:bg-[#161D19] rounded-full p-1 mb-6 border border-stone-200/70 dark:border-stone-800 relative">
+      <button type="button" onclick="setHistoryType('INFLOW')" id="toggle-inflow" class="flex-1 py-2 rounded-full text-xs font-bold text-stone-500 dark:text-stone-400 toggle-btn" data-i18n="dash-inc">Income</button>
+      <button type="button" onclick="setHistoryType('OUTFLOW')" id="toggle-outflow" class="flex-1 py-2 rounded-full text-xs font-bold text-stone-500 dark:text-stone-400 toggle-active toggle-btn" data-i18n="dash-exp">Expenditure</button>
+      <button type="button" onclick="setHistoryType('TRANSFER')" id="toggle-transfer" class="flex-1 py-2 rounded-full text-xs font-bold text-stone-500 dark:text-stone-400 toggle-btn" data-i18n="qm-tf">Transfer</button>
+    </div>
+
+    <div class="flex items-center justify-center gap-2 mb-4">
+      <span class="w-1.5 h-4 rounded-full bg-[#0F5132] dark:bg-emerald-400"></span>
+      <h3 class="text-xs font-extrabold uppercase tracking-wider text-stone-700 dark:text-stone-200" data-i18n="hist-cat">Category Details</h3>
+    </div>
+
+    <div class="relative w-48 h-48 mx-auto mb-6">
+      <canvas id="categoryChart"></canvas>
+      <div class="absolute inset-0 flex flex-col items-center justify-center pointer-events-none px-4">
+        <p class="text-[10px] font-bold uppercase tracking-wider text-stone-400 dark:text-stone-500" id="chart-center-label" data-i18n="txt-total">Total</p>
+        <p class="text-xs font-black privacy-mask text-stone-900 dark:text-white mt-0.5 truncate max-w-[120px]" id="chart-center-val">Rp 0</p>
+      </div>
+    </div>
+
+    <div id="history-category-list" class="space-y-1.5"></div>
+  </div>
+
+  <!-- Advanced Search & Filter + Transaction List -->
+  <div class="space-y-3.5">
+    <div class="flex justify-between items-center px-0.5">
+      <div class="flex items-center gap-2">
+        <span class="w-1.5 h-4 rounded-full bg-[#0F5132] dark:bg-emerald-400"></span>
+        <h3 class="text-sm font-extrabold text-stone-900 dark:text-white" data-i18n="hist-list">Transaction List</h3>
+        <span id="hist-count-badge" class="text-[10px] font-extrabold px-2.5 py-0.5 rounded-full bg-[#EDF5F0] dark:bg-emerald-500/15 text-[#0F5132] dark:text-emerald-300 border border-[#0F5132]/15 dark:border-emerald-500/25">0</span>
+      </div>
+      <button type="button" onclick="resetHistoryFilters()" id="btn-reset-hist-filter" class="hidden text-[11px] font-bold text-[#0F5132] dark:text-emerald-400 hover:opacity-80 transition" data-i18n="btn-reset-filter">Reset Filter</button>
+    </div>
+
+    <!-- Search & Dropdown Filter Box -->
+    <div class="bg-white dark:bg-[#111613] p-3.5 rounded-[24px] shadow-sm border border-stone-200/70 dark:border-stone-800/80 space-y-2.5">
+      <div class="relative">
+        <svg class="w-4 h-4 text-stone-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+        </svg>
+        <input type="text" id="hist-search-input" oninput="triggerHistoryFilterUpdate()" placeholder="Cari keterangan, kategori, atau nominal..." data-i18n-ph="ph-hist-search" class="w-full pl-9 pr-8 py-2.5 rounded-xl border border-stone-200/70 dark:border-stone-800 bg-[#FAF8F5] dark:bg-[#161D19] text-xs font-semibold text-stone-800 dark:text-white outline-none focus:border-[#0F5132] dark:focus:border-emerald-400 transition">
+        <button type="button" id="btn-clear-hist-search" onclick="clearHistorySearch()" class="hidden absolute right-2.5 top-1/2 -translate-y-1/2 text-stone-400 hover:text-stone-600 dark:hover:text-stone-200 p-1" aria-label="Clear search">
+          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+        </button>
+      </div>
+
+      <div class="grid grid-cols-2 gap-2.5">
+        <select id="hist-filter-account" onchange="triggerHistoryFilterUpdate()" class="w-full p-2.5 rounded-xl border border-stone-200/70 dark:border-stone-800 bg-[#FAF8F5] dark:bg-[#161D19] text-xs font-bold text-stone-700 dark:text-stone-200 outline-none focus:border-[#0F5132] dark:focus:border-emerald-400 transition truncate cursor-pointer">
+          <option value="ALL" data-i18n="opt-all-acc">Semua Akun</option>
+        </select>
+        <select id="hist-filter-category" onchange="triggerHistoryFilterUpdate()" class="w-full p-2.5 rounded-xl border border-stone-200/70 dark:border-stone-800 bg-[#FAF8F5] dark:bg-[#161D19] text-xs font-bold text-stone-700 dark:text-stone-200 outline-none focus:border-[#0F5132] dark:focus:border-emerald-400 transition truncate cursor-pointer">
+          <option value="ALL" data-i18n="opt-all-cat">Semua Kategori</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="bg-white dark:bg-[#111613] rounded-[28px] shadow-sm border border-stone-200/70 dark:border-stone-800/80 overflow-hidden transition-all duration-300 relative" id="history-list"></div>
+  </div>
 </div>
