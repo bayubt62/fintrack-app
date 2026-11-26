@@ -1,67 +1,99 @@
-<div class="space-y-6">
+<div class="space-y-6 pb-24">
     <div class="space-y-4">
         <div class="flex justify-between items-center">
-            <h2 class="text-xl font-bold dark:text-white" data-i18n="hist-title">Financial Recap</h2>
-            <button onclick="openModal('modal-export-pdf')" class="w-10 h-10 flex items-center justify-center rounded-full bg-white dark:bg-[#1e1e1e] border border-gray-200 dark:border-gray-700 shadow-sm hover:bg-gray-50 dark:hover:bg-gray-800 transition">
-                <svg class="w-5 h-5 text-[#6342E8] dark:text-[#a78bfa]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+            <h2 class="text-2xl font-extrabold text-[#111815] dark:text-white tracking-tight" data-i18n="hist-title">
+                Financial Recap</h2>
+            <button onclick="openModal('modal-export-pdf')"
+                class="w-10 h-10 flex items-center justify-center rounded-full bg-white dark:bg-[#181B1A] border border-gray-200/80 dark:border-[#282D2A] text-gray-700 dark:text-gray-300 hover:text-black dark:hover:text-white shadow-sm transition"
+                title="Export PDF">
+                <svg class="w-5 h-5 text-[#183B2B] dark:text-[#2CE59B]" fill="none" stroke="currentColor"
+                    viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path>
+                </svg>
             </button>
         </div>
-        
-        <div class="flex gap-2 overflow-x-auto no-scrollbar pb-2">
-            <button onclick="setHistoryFilter('month')" id="filter-month" class="px-4 py-2 text-xs font-bold rounded-full whitespace-nowrap bg-[#6342E8] text-white shadow-md transition hover:opacity-90" data-i18n="btn-month">This Month</button>
-            <button onclick="setHistoryFilter('7days')" id="filter-7days" class="px-4 py-2 text-xs font-bold rounded-full whitespace-nowrap bg-white dark:bg-[#1e1e1e] border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 shadow-sm transition hover:bg-gray-50 dark:hover:bg-[#2d2d2d]" data-i18n="btn-7days">Last 7 Days</button>
-            <button onclick="setHistoryFilter('custom')" id="filter-custom" class="px-4 py-2 text-xs font-bold rounded-full whitespace-nowrap bg-white dark:bg-[#1e1e1e] border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 shadow-sm transition hover:bg-gray-50 dark:hover:bg-[#2d2d2d]" data-i18n="btn-custom">Custom Date</button>
+
+        <!-- Filter Tabs (Pills) -->
+        <div class="flex gap-2 overflow-x-auto no-scrollbar pb-1">
+            <button onclick="setHistoryFilter('month')" id="filter-month"
+                class="px-4 py-2 text-xs font-bold rounded-full whitespace-nowrap bg-[#183B2B] text-[#2CE59B] dark:bg-[#2CE59B] dark:text-black shadow-sm transition hover:opacity-90"
+                data-i18n="btn-month">This Month</button>
+            <button onclick="setHistoryFilter('7days')" id="filter-7days"
+                class="px-4 py-2 text-xs font-semibold rounded-full whitespace-nowrap bg-white dark:bg-[#181B1A] border border-gray-200/80 dark:border-[#282D2A] text-gray-600 dark:text-gray-300 shadow-sm transition hover:bg-gray-50 dark:hover:bg-[#202422]"
+                data-i18n="btn-7days">Last 7 Days</button>
+            <button onclick="setHistoryFilter('custom')" id="filter-custom"
+                class="px-4 py-2 text-xs font-semibold rounded-full whitespace-nowrap bg-white dark:bg-[#181B1A] border border-gray-200/80 dark:border-[#282D2A] text-gray-600 dark:text-gray-300 shadow-sm transition hover:bg-gray-50 dark:hover:bg-[#202422]"
+                data-i18n="btn-custom">Custom Date</button>
         </div>
-        
-        <div id="custom-date-container" class="hidden grid-cols-2 gap-3 bg-white dark:bg-[#1e1e1e] p-3 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-800 transition-all duration-300">
+
+        <div id="custom-date-container"
+            class="hidden grid-cols-2 gap-3 bg-white dark:bg-[#181B1A] p-3.5 rounded-2xl shadow-sm border border-gray-200/80 dark:border-[#282D2A] transition-all duration-300">
             <div>
                 <label class="text-[10px] font-bold text-gray-500 ml-1" data-i18n="lbl-from">From</label>
-                <input type="date" id="date-start" onchange="triggerHistoryRender()" class="w-full p-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-[#2d2d2d] dark:text-white text-xs outline-none focus:border-[#6342E8] transition">
+                <input type="date" id="date-start" onchange="triggerHistoryRender()"
+                    class="w-full p-2.5 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-[#222724] dark:text-white text-xs outline-none focus:border-[#2CE59B] transition">
             </div>
             <div>
                 <label class="text-[10px] font-bold text-gray-500 ml-1" data-i18n="lbl-to">To</label>
-                <input type="date" id="date-end" onchange="triggerHistoryRender()" class="w-full p-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-[#2d2d2d] dark:text-white text-xs outline-none focus:border-[#6342E8] transition">
+                <input type="date" id="date-end" onchange="triggerHistoryRender()"
+                    class="w-full p-2.5 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-[#222724] dark:text-white text-xs outline-none focus:border-[#2CE59B] transition">
             </div>
         </div>
     </div>
 
-    <div class="bg-white dark:bg-[#1e1e1e] p-5 rounded-[24px] shadow-sm border border-gray-100 dark:border-gray-800 text-center transition-all duration-300">
-        <div class="flex justify-between items-center mb-4">
-            <div class="w-1/2 border-r border-gray-100 dark:border-gray-800">
-                <p class="text-[10px] font-bold text-green-500 mb-1 flex items-center justify-center gap-1"><span class="w-2 h-2 rounded-full bg-green-500"></span> <span data-i18n="dash-inc">Income</span></p>
-                <p class="font-bold text-sm privacy-mask dark:text-white" id="hist-sum-in">Rp 0</p>
-            </div>
-            <div class="w-1/2">
-                <p class="text-[10px] font-bold text-red-500 mb-1 flex items-center justify-center gap-1"><span class="w-2 h-2 rounded-full bg-red-500"></span> <span data-i18n="dash-exp">Expenditure</span></p>
-                <p class="font-bold text-sm privacy-mask dark:text-white" id="hist-sum-out">Rp 0</p>
+    <!-- Net Difference Card (Forest Green Card matching Image 2) -->
+    <div
+        class="bg-[#183B2B] dark:bg-[#142E22] p-6 rounded-[28px] text-white shadow-xl border border-[#284E3B] dark:border-[#1E3E2E] transition-all duration-300">
+        <div class="flex justify-between items-center mb-1">
+            <p class="text-xs text-[#A8C5B5] font-medium tracking-wide uppercase" data-i18n="txt-diff">Net Difference
+            </p>
+            <div class="flex items-center gap-2 text-[10px] text-white/90">
+                <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-[#2CE59B]"></span> In:
+                    <strong id="hist-sum-in" class="privacy-mask font-bold" data-value="0">Rp 0</strong></span>
+                <span>•</span>
+                <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-red-400"></span> Out: <strong
+                        id="hist-sum-out" class="privacy-mask font-bold" data-value="0">Rp 0</strong></span>
             </div>
         </div>
-        <div class="pt-3 border-t border-gray-50 dark:border-gray-800">
-            <p class="text-[10px] text-gray-500 dark:text-gray-400" data-i18n="txt-diff">Difference</p>
-            <p class="font-bold text-lg privacy-mask" id="hist-sum-diff">Rp 0</p>
-        </div>
+        <p class="text-3xl font-extrabold tracking-tight privacy-mask text-white mt-1" id="hist-sum-diff"
+            data-value="0">Rp 0</p>
     </div>
 
-    <div class="bg-white dark:bg-[#1e1e1e] p-6 rounded-[32px] shadow-sm border border-gray-100 dark:border-gray-800 transition-all duration-300">
-        <div class="flex bg-gray-100 dark:bg-[#2d2d2d] rounded-full p-1 mb-6 relative">
-            <button onclick="setHistoryType('INFLOW')" id="toggle-inflow" class="flex-1 py-2 rounded-full text-xs font-bold text-gray-500 dark:text-gray-400 toggle-btn" data-i18n="dash-inc">Income</button>
-            <button onclick="setHistoryType('OUTFLOW')" id="toggle-outflow" class="flex-1 py-2 rounded-full text-xs font-bold text-gray-500 dark:text-gray-400 toggle-active toggle-btn" data-i18n="dash-exp">Expenditure</button>
-            <button onclick="setHistoryType('TRANSFER')" id="toggle-transfer" class="flex-1 py-2 rounded-full text-xs font-bold text-gray-500 dark:text-gray-400 toggle-btn" data-i18n="qm-tf">Transfer</button>
+    <!-- Type Toggle Pills & Chart -->
+    <div
+        class="bg-white dark:bg-[#181B1A] p-6 rounded-[28px] shadow-sm border border-gray-200/80 dark:border-[#282D2A] transition-all duration-300">
+        <div
+            class="flex bg-[#EAE3D2] dark:bg-[#202422] rounded-full p-1 mb-6 relative border border-[#DDD4C1] dark:border-[#2C322F]">
+            <button onclick="setHistoryType('OUTFLOW')" id="toggle-outflow"
+                class="flex-1 py-2 rounded-full text-xs font-bold text-gray-600 dark:text-gray-400 toggle-btn toggle-active"
+                data-i18n="dash-exp">Expenditure</button>
+            <button onclick="setHistoryType('INFLOW')" id="toggle-inflow"
+                class="flex-1 py-2 rounded-full text-xs font-bold text-gray-600 dark:text-gray-400 toggle-btn"
+                data-i18n="dash-inc">Income</button>
+            <button onclick="setHistoryType('TRANSFER')" id="toggle-transfer"
+                class="flex-1 py-2 rounded-full text-xs font-bold text-gray-600 dark:text-gray-400 toggle-btn"
+                data-i18n="qm-tf">Transfer</button>
         </div>
 
-        <h3 class="text-sm font-semibold mb-4 text-center dark:text-gray-200" data-i18n="hist-cat">Category Details</h3>
+        <h3 class="text-xs font-bold uppercase tracking-wider mb-4 text-center text-gray-500 dark:text-gray-400"
+            data-i18n="hist-cat">Category Details</h3>
         <div class="relative w-48 h-48 mx-auto mb-6">
             <canvas id="categoryChart"></canvas>
             <div class="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-                <p class="text-[10px] text-gray-400" id="chart-center-label" data-i18n="txt-total">Total</p>
-                <p class="text-xs font-bold privacy-mask dark:text-white" id="chart-center-val">Rp 0</p>
+                <p class="text-[10px] text-gray-400 uppercase tracking-wider" id="chart-center-label"
+                    data-i18n="txt-total">Total</p>
+                <p class="text-xs font-extrabold privacy-mask text-[#111815] dark:text-white mt-0.5"
+                    id="chart-center-val">Rp 0</p>
             </div>
         </div>
         <div id="history-category-list" class="space-y-1"></div>
     </div>
 
-    <div>
-        <h3 class="text-sm font-semibold mb-3 dark:text-gray-200" data-i18n="hist-list">Transaction List</h3>
-        <div class="bg-white dark:bg-[#1e1e1e] rounded-3xl shadow-sm border border-gray-100 dark:border-gray-800 overflow-hidden transition-all duration-300 relative" id="history-list"></div>
+    <!-- Transaction List Section -->
+    <div class="space-y-3">
+        <h3 class="text-sm font-bold dark:text-gray-200" data-i18n="hist-list">Transaction List</h3>
+        <div class="bg-white dark:bg-[#181B1A] rounded-[28px] shadow-sm border border-gray-200/80 dark:border-[#282D2A] overflow-hidden transition-all duration-300 relative"
+            id="history-list"></div>
     </div>
 </div>

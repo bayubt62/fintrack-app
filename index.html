@@ -18,7 +18,19 @@
             darkMode: 'class',
             theme: {
                 extend: {
-                    colors: { primary: '#6342E8' }
+                    colors: { 
+                        primary: '#2CE59B',
+                        'primary-dark': '#183B2B',
+                        'forest-hero': '#163828',
+                        'forest-dark': '#122D21',
+                        'cream-bg': '#F4EFE6',
+                        'cream-card': '#EDE7DA',
+                        'cream-btn': '#EAE3D2',
+                        'dark-bg': '#0E100F',
+                        'dark-surface': '#181B1A',
+                        'dark-card': '#202422',
+                        'dark-border': '#29302C'
+                    }
                 }
             }
         }
@@ -39,25 +51,26 @@
         
         .hidden-page { display: none !important; }
         
-        .icon-box { background-color: #F0EDFF; color: #6342E8; transition: transform 0.1s; }
+        .icon-box { background-color: #EAE3D2; color: #163828; transition: transform 0.15s, background-color 0.2s; }
         .icon-box:active { transform: scale(0.95); }
-        html.dark .icon-box { background-color: rgba(99, 66, 232, 0.2); color: #a78bfa; }
+        html.dark .icon-box { background-color: #1E2220; color: #2CE59B; border: 1px solid #2C322F; }
         
         .no-scrollbar::-webkit-scrollbar { display: none; }
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
         
-        .modal-overlay { background-color: rgba(0, 0, 0, 0.5); backdrop-filter: blur(4px); }
+        .modal-overlay { background-color: rgba(0, 0, 0, 0.65); backdrop-filter: blur(8px); }
 
         input[type=number]::-webkit-inner-spin-button, 
         input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
         input[type=number] { -moz-appearance: textfield; }
 
-        .toggle-btn { transition: all 0.3s ease; }
-        .toggle-active { background-color: #6342E8 !important; color: white !important; box-shadow: 0 4px 6px -1px rgba(99, 66, 232, 0.5); }
+        .toggle-btn { transition: all 0.25s ease; }
+        .toggle-active { background-color: #183B2B !important; color: #2CE59B !important; font-weight: 700; }
+        html.dark .toggle-active { background-color: #2CE59B !important; color: #0E100F !important; font-weight: 700; box-shadow: 0 4px 12px rgba(44, 229, 155, 0.25); }
         
         .cal-cell { transition: all 0.2s ease; }
-        .cal-cell.active-date { border-color: #6342E8; background-color: #F0EDFF; }
-        html.dark .cal-cell.active-date { border-color: #a78bfa; background-color: rgba(99, 66, 232, 0.15); }
+        .cal-cell.active-date { border-color: #2CE59B; background-color: #183B2B; color: #FFFFFF; }
+        html.dark .cal-cell.active-date { border-color: #2CE59B; background-color: #163828; color: #FFFFFF; }
 
         .coin-spinner {
             animation: flipCoin 1.5s infinite linear;
@@ -88,31 +101,27 @@
             100% { opacity: 1; transform: translateY(0) scale(1); }
         }
 
-        .nav-btn { position: relative; }
-        .nav-btn .icon-bg {
-            position: absolute; width: 48px; height: 48px; border-radius: 16px;
-            background-color: #F0EDFF; top: 2px; left: 50%; transform: translateX(-50%) scale(0);
-            opacity: 0; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-            z-index: 0;
+        .nav-btn { 
+            position: relative; 
+            color: #7D8A83; 
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1); 
         }
-        html.dark .nav-btn .icon-bg { background-color: rgba(99, 66, 232, 0.2); }
-        
         .nav-btn svg { 
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); 
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1); 
             position: relative; z-index: 10; 
+            color: #7D8A83;
         }
         .nav-btn span { 
-            font-size: 10px; font-weight: 600; opacity: 0; 
-            transform: translate(-50%, 10px); transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); 
-            position: absolute; bottom: 12px; left: 50%; white-space: nowrap;
+            font-size: 10px; font-weight: 500; 
+            color: #7D8A83;
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1); 
+            white-space: nowrap;
+            margin-top: 3px;
         }
         
-        .nav-btn.active-nav .icon-bg { transform: translateX(-50%) scale(1); opacity: 1; }
-        .nav-btn.active-nav svg { transform: translateY(-14px); color: #6342E8; }
-        html.dark .nav-btn.active-nav svg { color: #a78bfa; }
-        
-        .nav-btn.active-nav span { opacity: 1; transform: translate(-50%, 0); color: #6342E8; }
-        html.dark .nav-btn.active-nav span { color: #a78bfa; }
+        .nav-btn.active-nav svg { color: #2CE59B !important; transform: scale(1.08); }
+        .nav-btn.active-nav span { color: #2CE59B !important; font-weight: 700; }
+        .nav-btn .icon-bg { display: none !important; }
 
         @keyframes popIn {
             0% { opacity: 0; transform: scale(0.8) translateY(20px); }
@@ -121,16 +130,16 @@
         .animate-pop-in { animation: popIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards; }
     </style>
 </head>
-<body class="bg-[#F8F9FA] dark:bg-[#121212] min-h-screen max-w-md mx-auto relative text-gray-800 dark:text-gray-100 transition-colors duration-300" onload="initApp()">
+<body class="bg-[#F4EFE6] dark:bg-[#0E100F] min-h-screen max-w-md mx-auto relative text-[#141A17] dark:text-[#E8ECE9] transition-colors duration-300" onload="initApp()">
 
-    <div id="fintrack-cold-splash" class="fixed inset-0 z-[999999] bg-[#6342E8] flex flex-col items-center justify-center transition-opacity duration-500 opacity-100 pointer-events-auto">
+    <div id="fintrack-cold-splash" class="fixed inset-0 z-[999999] bg-[#133826] flex flex-col items-center justify-center transition-opacity duration-500 opacity-100 pointer-events-auto">
         <div class="flex flex-col items-center justify-center logo-breath">
             <img src="Logo_Fintrack.png" alt="Fintrack Logo" class="h-28 md:h-36 object-contain drop-shadow-2xl">
         </div>
         <div class="absolute bottom-16 flex gap-2">
-            <div class="w-2.5 h-2.5 rounded-full bg-white/90 animate-bounce" style="animation-delay: 0ms"></div>
-            <div class="w-2.5 h-2.5 rounded-full bg-white/90 animate-bounce" style="animation-delay: 150ms"></div>
-            <div class="w-2.5 h-2.5 rounded-full bg-white/90 animate-bounce" style="animation-delay: 300ms"></div>
+            <div class="w-2.5 h-2.5 rounded-full bg-[#2CE59B] animate-bounce" style="animation-delay: 0ms"></div>
+            <div class="w-2.5 h-2.5 rounded-full bg-[#2CE59B] animate-bounce" style="animation-delay: 150ms"></div>
+            <div class="w-2.5 h-2.5 rounded-full bg-[#2CE59B] animate-bounce" style="animation-delay: 300ms"></div>
         </div>
     </div>
     
@@ -152,60 +161,70 @@
         })();
     </script>
     <div id="ptr-indicator" class="fixed top-0 left-0 right-0 z-[60] flex justify-center pointer-events-none transition-transform duration-300" style="transform: translateY(-80px);">
-        <div class="mt-4 bg-white dark:bg-[#1e1e1e] rounded-full shadow-lg p-2.5 flex items-center justify-center border border-gray-100 dark:border-[#2d2d2d]">
-            <div class="coin-spinner w-8 h-8 rounded-full bg-gradient-to-tr from-[#6342E8] to-[#A88FFF] shadow-sm flex items-center justify-center border-2 border-[#E0D7FF] dark:border-[#8B5CF6]">
-                <span class="text-white font-bold text-[10px]">Rp</span>
+        <div class="mt-4 bg-[#183B2B] text-white dark:bg-[#1A1D1C] rounded-full shadow-lg p-2.5 flex items-center justify-center border border-[#2CE59B]/30">
+            <div class="coin-spinner w-8 h-8 rounded-full bg-[#2CE59B] text-black shadow-sm flex items-center justify-center border-2 border-white/50">
+                <span class="text-black font-bold text-[10px]">Rp</span>
             </div>
         </div>
     </div>
 
-    <div id="loading-overlay" class="fixed inset-0 z-[200] flex items-center justify-center bg-white/80 dark:bg-[#121212]/90 backdrop-blur-xl transition-opacity duration-500 opacity-100">
+    <div id="loading-overlay" class="fixed inset-0 z-[200] flex items-center justify-center bg-[#F4EFE6]/90 dark:bg-[#0E100F]/90 backdrop-blur-xl transition-opacity duration-500 opacity-100">
         <div class="flex flex-col items-center gap-4">
-            <div class="coin-spinner w-16 h-16 rounded-full bg-gradient-to-tr from-[#6342E8] to-[#A88FFF] shadow-[0_10px_30px_rgba(99,66,232,0.4)] flex items-center justify-center border-4 border-[#E0D7FF] dark:border-[#8B5CF6]">
+            <div class="coin-spinner w-16 h-16 rounded-full bg-gradient-to-tr from-[#2CE59B] to-[#183B2B] shadow-[0_10px_30px_rgba(44,229,155,0.35)] flex items-center justify-center border-4 border-[#2CE59B]/40">
                 <span class="text-white font-bold text-2xl">Rp</span>
             </div>
-            <p id="loading-text" class="text-xs font-bold text-[#6342E8] dark:text-[#a88fff] tracking-widest uppercase animate-pulse lang-custom" data-id="Menyiapkan Data..." data-en="Preparing Data...">Menyiapkan Data...</p>
+            <p id="loading-text" class="text-xs font-bold text-[#183B2B] dark:text-[#2CE59B] tracking-widest uppercase animate-pulse lang-custom" data-id="Menyiapkan Data..." data-en="Preparing Data...">Menyiapkan Data...</p>
         </div>
     </div>
 
-    <section id="login-page" class="fixed inset-0 z-[100] flex flex-col justify-center items-center px-6 bg-[#F8F9FA] dark:bg-[#121212] hidden-page">
+    <section id="login-page" class="fixed inset-0 z-[100] flex flex-col justify-center items-center px-6 bg-[#F4EFE6] dark:bg-[#0E100F] hidden-page">
         <div class="w-full max-w-md space-y-10">
             <div class="text-center flex flex-col items-center">
                 <img src="Logo_Fintrack.png" alt="Fintrack Logo" class="h-20 md:h-28 mb-4 object-contain drop-shadow-sm transition-transform">
-                <p class="text-sm text-gray-500 dark:text-gray-400" data-i18n="app-desc">Enterprise Wealth Management</p>
+                <p class="text-sm text-gray-600 dark:text-gray-400 font-medium" data-i18n="app-desc">Enterprise Wealth Management</p>
             </div>
-            <div class="bg-white dark:bg-[#1e1e1e] p-8 rounded-[32px] shadow-xl border border-gray-100 dark:border-[#2d2d2d] space-y-5">
-                <h2 class="font-bold text-xl text-center mb-4 dark:text-white" data-i18n="login-title">Log in to Account</h2>
+            <div class="bg-white dark:bg-[#181B1A] p-8 rounded-[32px] shadow-xl border border-gray-200/80 dark:border-[#282D2A] space-y-5">
+                <h2 class="font-extrabold text-xl text-center mb-4 dark:text-white" data-i18n="login-title">Log in to Account</h2>
                 <div>
-                    <label class="text-xs text-gray-500 dark:text-gray-400 font-semibold mb-1 block" data-i18n="lbl-email">Email Address</label>
-                    <input type="email" id="login-email" data-i18n="ph-email" placeholder="example@gmail.com" class="w-full p-4 rounded-xl border border-gray-200 dark:border-gray-700 outline-none text-sm bg-gray-50 dark:bg-[#2d2d2d] dark:text-white focus:border-[#6342E8] transition">
+                    <label class="text-xs text-gray-600 dark:text-gray-400 font-semibold mb-1 block" data-i18n="lbl-email">Email Address</label>
+                    <input type="email" id="login-email" data-i18n="ph-email" placeholder="example@gmail.com" class="w-full p-4 rounded-xl border border-gray-200 dark:border-gray-700 outline-none text-sm bg-[#F8F6F0] dark:bg-[#202422] dark:text-white focus:border-[#2CE59B] transition">
                 </div>
                 <div>
-                    <label class="text-xs text-gray-500 dark:text-gray-400 font-semibold mb-1 block" data-i18n="lbl-pass">Password</label>
-                    <input type="password" id="login-password" data-i18n="ph-pass" placeholder="••••••••" class="w-full p-4 rounded-xl border border-gray-200 dark:border-gray-700 outline-none text-sm bg-gray-50 dark:bg-[#2d2d2d] dark:text-white focus:border-[#6342E8] transition">
+                    <label class="text-xs text-gray-600 dark:text-gray-400 font-semibold mb-1 block" data-i18n="lbl-pass">Password</label>
+                    <input type="password" id="login-password" data-i18n="ph-pass" placeholder="••••••••" class="w-full p-4 rounded-xl border border-gray-200 dark:border-gray-700 outline-none text-sm bg-[#F8F6F0] dark:bg-[#202422] dark:text-white focus:border-[#2CE59B] transition">
                 </div>
-                <button id="btn-login" onclick="handleLogin()" class="w-full bg-[#6342E8] text-white py-4 rounded-xl font-bold active:scale-95 transition mt-2 shadow-lg shadow-purple-200 dark:shadow-none" data-i18n="btn-login">Confirm Identity</button>
+                <button id="btn-login" onclick="handleLogin()" class="w-full bg-[#183B2B] hover:bg-[#133826] text-[#2CE59B] dark:bg-[#2CE59B] dark:hover:bg-[#25ca88] dark:text-black py-4 rounded-xl font-extrabold active:scale-95 transition mt-2 shadow-lg" data-i18n="btn-login">Confirm Identity</button>
             </div>
         </div>
     </section>
 
     <div id="app-wrapper" class="hidden-page overflow-x-hidden">
-        <header class="pt-8 pb-4 px-6 flex justify-between items-center sticky top-0 z-40 bg-[#F8F9FA]/90 dark:bg-[#121212]/90 backdrop-blur-md transition-colors duration-300">
-            <div>
-                <div class="flex items-center gap-2">
-                    <p class="text-xs text-gray-500 dark:text-gray-400" id="lbl-hello" data-i18n="txt-hello">Hello,</p>
-                    <button onclick="handleLogout()" class="text-[10px] bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400 px-2 py-0.5 rounded-full font-bold transition hover:bg-red-200" data-i18n="btn-logout">Logout</button>
+        <header class="pt-6 pb-4 px-6 flex justify-between items-center sticky top-0 z-40 bg-[#F4EFE6]/90 dark:bg-[#0E100F]/90 backdrop-blur-md transition-colors duration-300">
+            <div class="flex items-center gap-3">
+                <div onclick="openModal('modal-level-info')" class="w-10 h-10 rounded-full ring-2 ring-[#183B2B]/20 dark:ring-[#2CE59B]/40 overflow-hidden cursor-pointer shadow-sm hover:scale-105 transition bg-[#183B2B] flex items-center justify-center text-white font-bold text-sm">
+                    <span id="user-avatar-initial">👤</span>
                 </div>
-                <h1 class="text-xl font-bold dark:text-white" id="user-display">User!</h1>
-                <button onclick="openModal('modal-level-info')" id="user-level-badge" class="mt-1 px-3 py-1 rounded-full text-[10px] font-bold text-white shadow-sm transition-all duration-300 flex items-center gap-1.5 hover:scale-105 active:scale-95 bg-gray-400 opacity-0">
-                    <span id="badge-icon">🌟</span> 
-                    <span id="badge-text" class="tracking-wide">Menghitung Level...</span>
-                </button>
+                <div>
+                    <h1 class="text-xl font-extrabold text-[#111815] dark:text-white tracking-tight flex items-center gap-1.5">
+                        Fintrack
+                    </h1>
+                    <div class="flex items-center gap-1.5">
+                        <span id="user-display" class="text-[11px] font-semibold text-gray-600 dark:text-gray-400">User</span>
+                        <span class="text-[9px] text-gray-300 dark:text-gray-600">•</span>
+                        <button onclick="openModal('modal-level-info')" id="user-level-badge" class="px-2 py-0.5 rounded-full text-[9px] font-bold text-[#183B2B] dark:text-[#2CE59B] bg-[#183B2B]/10 dark:bg-[#2CE59B]/15 transition flex items-center gap-1">
+                            <span id="badge-icon">🌟</span> 
+                            <span id="badge-text">Menghitung Level...</span>
+                        </button>
+                    </div>
+                </div>
             </div>
             <div class="flex gap-2 items-center">
-                <div onclick="toggleLanguage()" class="flex bg-gray-100 dark:bg-[#252525] rounded-full p-0.5 text-[10px] font-bold border border-gray-200 dark:border-gray-700/80 shadow-inner cursor-pointer hover:scale-105 active:scale-95 transition-transform duration-200">
-                    <div id="lang-btn-id" class="px-2.5 py-1.5 rounded-full bg-[#6342E8] text-white shadow-sm transition-all duration-200">ID</div>
-                    <div id="lang-btn-en" class="px-2.5 py-1.5 rounded-full text-gray-400 dark:text-gray-500 transition-all duration-200">EN</div>
+                <button onclick="handleLogout()" title="Logout" class="w-9 h-9 rounded-full bg-white dark:bg-[#1A1D1C] border border-gray-200/80 dark:border-gray-800 flex items-center justify-center text-gray-500 hover:text-red-500 dark:text-gray-400 transition shadow-sm">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path></svg>
+                </button>
+                <div onclick="toggleLanguage()" class="flex bg-white dark:bg-[#1A1D1C] rounded-full p-0.5 text-[10px] font-bold border border-gray-200/80 dark:border-gray-800 shadow-sm cursor-pointer hover:scale-105 active:scale-95 transition-transform duration-200">
+                    <div id="lang-btn-id" class="px-2.5 py-1 rounded-full bg-[#183B2B] text-[#2CE59B] dark:bg-[#2CE59B] dark:text-black shadow-sm transition-all duration-200">ID</div>
+                    <div id="lang-btn-en" class="px-2.5 py-1 rounded-full text-gray-400 dark:text-gray-500 transition-all duration-200">EN</div>
                 </div>
                 <span id="theme-icon" class="hidden"></span>
                 <span id="lang-icon" class="hidden"></span>
@@ -214,38 +233,33 @@
 
         <main id="main-content" class="px-6 pb-36 page-content active-page"></main>
 
-        <nav class="fixed bottom-0 left-0 right-0 max-w-md mx-auto bg-white/90 backdrop-blur-md border-t border-gray-100 dark:bg-[#1e1e1e]/90 dark:border-[#2d2d2d] px-6 h-[80px] flex justify-between items-center rounded-t-[32px] shadow-[0_-15px_40px_rgba(0,0,0,0.06)] z-30 transition-colors duration-300">
-            <button onclick="showPage('dashboard')" class="nav-btn w-12 h-full flex flex-col items-center justify-center text-gray-400 active-nav group" id="nav-dashboard">
-                <div class="icon-bg"></div>
-                <svg class="w-[22px] h-[22px]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"></path></svg>
+        <nav class="fixed bottom-0 left-0 right-0 max-w-md mx-auto bg-[#161918] dark:bg-[#101211] border-t border-[#252B28] px-5 h-[80px] flex justify-between items-center rounded-t-[32px] shadow-[0_-10px_35px_rgba(0,0,0,0.25)] z-30 transition-colors duration-300">
+            <button onclick="showPage('dashboard')" class="nav-btn w-12 h-full flex flex-col items-center justify-center active-nav group" id="nav-dashboard">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"></path></svg>
                 <span data-i18n="nav-home">Home</span>
             </button>
-            <button onclick="showPage('calendar')" class="nav-btn w-12 h-full flex flex-col items-center justify-center text-gray-400 group" id="nav-calendar">
-                <div class="icon-bg"></div>
-                <svg class="w-[22px] h-[22px]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+            <button onclick="showPage('calendar')" class="nav-btn w-12 h-full flex flex-col items-center justify-center group" id="nav-calendar">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
                 <span data-i18n="nav-cal">Calendar</span>
             </button>
             
-            <div class="relative w-14 h-full z-50">
-                <div class="absolute left-1/2 -translate-x-1/2 -top-6">
+            <div class="relative w-14 h-full z-50 flex items-center justify-center">
+                <div class="absolute left-1/2 -translate-x-1/2 -top-5">
                     <input type="file" accept="image/*" capture="environment" id="receipt-camera" class="hidden" onchange="processReceiptImage(event)">
-                    <button onclick="document.getElementById('receipt-camera').click()" class="w-[60px] h-[60px] bg-[#6342E8] rounded-full flex items-center justify-center text-white shadow-[0_10px_25px_rgba(99,66,232,0.5)] hover:scale-105 active:scale-95 transition-all duration-300">
-                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"></path>
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                    <button onclick="document.getElementById('receipt-camera').click()" class="w-[56px] h-[56px] bg-[#2CE59B] rounded-full flex items-center justify-center text-black shadow-[0_0_24px_rgba(44,229,155,0.45)] hover:scale-105 active:scale-95 transition-all duration-300" title="Scan Receipt">
+                        <svg class="w-6 h-6 text-black" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.3" d="M12 4v1m0 14v1m-7-8h1m14 0h1M7 7h.01M17 7h.01M7 17h.01M17 17h.01M5 9V7a2 2 0 012-2h2m6 0h2a2 2 0 012 2v2m0 6v2a2 2 0 01-2 2h-2m-6 0H7a2 2 0 01-2-2v-2"></path>
                         </svg>
                     </button>
                 </div>
             </div>
 
-            <button onclick="showPage('portfolio')" class="nav-btn w-12 h-full flex flex-col items-center justify-center text-gray-400 group" id="nav-portfolio">
-                <div class="icon-bg"></div>
-                <svg class="w-[22px] h-[22px]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 3.055A9.001 9.001 0 1020.945 13H11V3.055z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.488 9H15V3.512A9.025 9.025 0 0120.488 9z"></path></svg>
+            <button onclick="showPage('portfolio')" class="nav-btn w-12 h-full flex flex-col items-center justify-center group" id="nav-portfolio">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 3.055A9.001 9.001 0 1020.945 13H11V3.055z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.488 9H15V3.512A9.025 9.025 0 0120.488 9z"></path></svg>
                 <span data-i18n="nav-port">Assets</span>
             </button>
-            <button onclick="showPage('history')" class="nav-btn w-12 h-full flex flex-col items-center justify-center text-gray-400 group" id="nav-history">
-                <div class="icon-bg"></div>
-                <svg class="w-[22px] h-[22px]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"></path></svg>
+            <button onclick="showPage('history')" class="nav-btn w-12 h-full flex flex-col items-center justify-center group" id="nav-history">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"></path></svg>
                 <span data-i18n="nav-hist">History</span>
             </button>
         </nav>
