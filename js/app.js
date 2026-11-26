@@ -91,7 +91,9 @@ const i18n = {
         "ph-wallet-name": "e.g., RDN Ajaib, Binance", "lbl-wallet-bal": "Initial Balance",
         "btn-save-wallet": "Save Wallet", "mod-wallet-detail-title": "Wallet Detail", 
         "btn-del-wallet": "Delete Wallet", "txt-added": "Added", "txt-deducted": "Paid",
-        "msg-del-wallet": "Are you sure you want to delete this wallet?"
+        "msg-del-wallet": "Are you sure you want to delete this wallet?",
+        "txt-debt-added": "Debt Added", "txt-recv-added": "Receivable Added",
+        "mod-trx-title": "New Transaction"
     },
     id: {
         "app-desc": "Manajemen Kekayaan Enterprise", "login-title": "Masuk ke Akun",
@@ -186,7 +188,9 @@ const i18n = {
         "ph-wallet-name": "mis. RDN Ajaib, Binance", "lbl-wallet-bal": "Saldo Awal",
         "btn-save-wallet": "Simpan Dompet", "mod-wallet-detail-title": "Detail Dompet", 
         "btn-del-wallet": "Hapus Dompet", "txt-added": "Penambahan", "txt-deducted": "Pembayaran",
-        "msg-del-wallet": "Yakin ingin menghapus dompet ini?"
+        "msg-del-wallet": "Yakin ingin menghapus dompet ini?",
+        "txt-debt-added": "Hutang Bertambah", "txt-recv-added": "Piutang Bertambah",
+        "mod-trx-title": "Transaksi Baru", "cal-month": "Bulan"
     }
 };
 
@@ -278,7 +282,8 @@ function initPTR() {
     const ptrEl = document.getElementById('ptr-indicator');
     const coin = ptrEl.querySelector('.coin-spinner');
     document.addEventListener('touchstart', (e) => {
-        if (window.scrollY <= 0 && !isPtrRefreshing) { ptrStartY = e.touches[0].clientY; isPtrPulling = true; ptrEl.style.transition = 'none'; }
+        const hasOpenModal = document.querySelector('.modal-overlay:not(.hidden), [id^="modal-"]:not(.hidden):not(.hidden-page)');
+        if (window.scrollY <= 0 && !isPtrRefreshing && !hasOpenModal) { ptrStartY = e.touches[0].clientY; isPtrPulling = true; ptrEl.style.transition = 'none'; }
     }, { passive: true });
     document.addEventListener('touchmove', (e) => {
         if (!isPtrPulling || isPtrRefreshing) return;
@@ -308,6 +313,27 @@ function initPTR() {
 }
 
 function t(key) { return i18n[currentLang][key] || key; }
+
+function escapeHtml(text) {
+    if (text === undefined || text === null) return '';
+    return text.toString()
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+}
+
+function getTimezoneLabel() {
+    const offsetMin = -new Date().getTimezoneOffset();
+    if (offsetMin === 420) return 'WIB';
+    if (offsetMin === 480) return 'WITA';
+    if (offsetMin === 540) return 'WIT';
+    const hours = Math.floor(Math.abs(offsetMin) / 60);
+    const mins = Math.abs(offsetMin) % 60;
+    const sign = offsetMin >= 0 ? '+' : '-';
+    return `UTC${sign}${hours}${mins ? ':' + mins.toString().padStart(2, '0') : ''}`;
+}
 
 function getProp(obj, ...possibleKeys) {
     if (!obj) return undefined;
@@ -480,7 +506,7 @@ window.renderScannedItems = function() {
             <div class="flex flex-col gap-1 py-2 border-b border-gray-200 dark:border-gray-700 last:border-0 relative">
                 <div class="flex justify-between items-start gap-2">
                     <div class="flex-1">
-                        <input type="text" onchange="window.updateScannedItem(${index}, 'name', this.value)" value="${item.name}" class="w-full bg-white dark:bg-[#1e1e1e] border border-gray-200 dark:border-gray-700 rounded-lg px-2 py-1.5 text-xs font-bold uppercase text-gray-800 dark:text-gray-200 outline-none focus:border-[#6342E8] transition">
+                        <input type="text" onchange="window.updateScannedItem(${index}, 'name', this.value)" value="${escapeHtml(item.name)}" class="w-full bg-white dark:bg-[#1e1e1e] border border-gray-200 dark:border-gray-700 rounded-lg px-2 py-1.5 text-xs font-bold uppercase text-gray-800 dark:text-gray-200 outline-none focus:border-[#6342E8] transition">
                         ${catSelectHtml}
                     </div>
                     <div class="w-14">
@@ -493,11 +519,11 @@ window.renderScannedItems = function() {
                 </div>
             </div>`;
         } else {
-            const catLabel = item.category && item.category !== mainCat ? `<span class="text-[9px] text-[#6342E8] font-bold mt-0.5">Kat: ${item.category}</span>` : '';
+            const catLabel = item.category && item.category !== mainCat ? `<span class="text-[9px] text-[#6342E8] font-bold mt-0.5">Kat: ${escapeHtml(item.category)}</span>` : '';
             container.innerHTML += `
             <div class="flex justify-between items-center text-xs py-1.5 border-b border-gray-100 dark:border-gray-800 last:border-0">
                 <div class="flex flex-col w-2/3 pr-2">
-                    <span class="text-gray-700 dark:text-gray-200 font-bold uppercase truncate">${item.name}</span>
+                    <span class="text-gray-700 dark:text-gray-200 font-bold uppercase truncate">${escapeHtml(item.name)}</span>
                     <span class="text-[10px] text-gray-500 font-medium">${qty}x @ ${toRp(hargaSatuan)}</span>
                     ${catLabel}
                 </div>
@@ -559,7 +585,7 @@ window.showPage = async function(pageId) {
         applyLanguage();
         
         try {
-            if(pageId === 'dashboard') { renderDashboard(); renderAccounts(); renderRecurring(); }
+            if(pageId === 'dashboard') { renderDashboard(); renderAccounts(); renderRecurring(); renderGoals(); }
             if(pageId === 'calendar') { renderCalendar(); }
             if(pageId === 'portfolio') { renderPortfolioScreen(true); }
             if(pageId === 'history') { renderHistoryScreen(true); }
@@ -837,17 +863,59 @@ window.submitTransaction = async function() {
 async function submitTransfer() {
     const fromAcc = document.getElementById('form-tf-from').value, toAcc = document.getElementById('form-tf-to').value, amount = extractNumber(document.getElementById('form-tf-amount').value), admin = extractNumber(document.getElementById('form-tf-admin').value) || 0, descRaw = document.getElementById('form-tf-desc').value;
     if(amount <= 0 || !fromAcc || !toAcc || fromAcc === toAcc) return;
+
+    // Validasi saldo akun asal
+    const accFromData = (appData.M_Akun || []).find(a => getProp(a, 'Nama_Akun', 'Nama Akun') === fromAcc);
+    if (accFromData) {
+        const valReal = getProp(accFromData, 'Saldo_Realtime', 'Saldo Realtime', 'Saldo_Awal', 'Saldo Awal');
+        const currentBal = extractNumber(valReal);
+        if (currentBal < (amount + admin)) {
+            return alert(currentLang === 'id' ? "Saldo rekening asal tidak mencukupi." : "Insufficient balance in source account.");
+        }
+    }
+
     let transferKeluar = amount, transferMasuk = amount;
-    if (fromAcc.toUpperCase().includes('RDN') && admin > 0) { if (amount <= admin) return alert(currentLang === 'id' ? "Nominal transfer harus lebih besar dari biaya admin." : "Transfer amount must be greater than admin fee."); transferKeluar = amount - admin; transferMasuk = amount - admin; }
+    if (fromAcc.toUpperCase().includes('RDN') && admin > 0) { 
+        if (amount <= admin) return alert(currentLang === 'id' ? "Nominal transfer harus lebih besar dari biaya admin." : "Transfer amount must be greater than admin fee."); 
+        transferKeluar = amount - admin; 
+        transferMasuk = amount - admin; 
+    }
     
     setBtnState('btn-tf-submit', true); closeModal('modal-transfer'); showLoading(true);
     try {
+        const response = await fetch(API_URL, { 
+            method: 'POST', 
+            body: JSON.stringify({ 
+                action: 'transfer', 
+                email: sessionEmail, 
+                fromAcc: fromAcc, 
+                toAcc: toAcc, 
+                amount: transferMasuk, 
+                admin: admin, 
+                desc: descRaw 
+            }) 
+        });
+        const result = await response.json();
+        if (result.status === 'success') {
+            document.getElementById('form-tf-amount').value = ''; 
+            document.getElementById('form-tf-admin').value = ''; 
+            document.getElementById('form-tf-desc').value = '';
+            await fetchAllData();
+            return;
+        }
+
+        // Fallback untuk backend versi terdahulu
         await fetch(API_URL, { method: 'POST', body: JSON.stringify({ action: 'addTransaction', email: sessionEmail, tipe: 'OUTFLOW', akun: fromAcc, jumlah: transferKeluar, kategori: 'Transfer Keluar', keterangan: descRaw ? descRaw : `Tf ke ${toAcc}` })});
         await fetch(API_URL, { method: 'POST', body: JSON.stringify({ action: 'addTransaction', email: sessionEmail, tipe: 'INFLOW', akun: toAcc, jumlah: transferMasuk, kategori: 'Transfer Masuk', keterangan: descRaw ? descRaw : `Tf dari ${fromAcc}` })});
         if (admin > 0) await fetch(API_URL, { method: 'POST', body: JSON.stringify({ action: 'addTransaction', email: sessionEmail, tipe: 'OUTFLOW', akun: fromAcc, jumlah: admin, kategori: 'Biaya Admin', keterangan: `Admin tf ke ${toAcc}` })});
         document.getElementById('form-tf-amount').value = ''; document.getElementById('form-tf-admin').value = ''; document.getElementById('form-tf-desc').value = '';
         await fetchAllData(); 
-    } catch(e) {} finally { setBtnState('btn-tf-submit', false); showLoading(false); }
+    } catch(e) {
+        console.error("Transfer error:", e);
+    } finally { 
+        setBtnState('btn-tf-submit', false); 
+        showLoading(false); 
+    }
 }
 
 async function submitRecurring() {
@@ -1024,7 +1092,7 @@ window.renderDebtHistory = function() {
             <div class="bg-white dark:bg-[#1e1e1e] p-4 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-800 transition hover:shadow-md">
                 <div class="flex justify-between items-start mb-2">
                     <div>
-                        <p class="text-sm font-bold dark:text-gray-200">${nama}</p>
+                        <p class="text-sm font-bold dark:text-gray-200">${escapeHtml(nama)}</p>
                         <p class="text-[10px] font-semibold px-2 py-0.5 rounded-full inline-block mt-1 ${bgClass} ${colorClass}">${typeLabel}</p>
                     </div>
                     <div class="text-right">
@@ -1094,7 +1162,10 @@ function renderAccounts() {
         optsExport += `<option value="${item.namaAkun}">${item.namaAkun}</option>`;
         
         if (!isWallet) {
-            html += `<div onclick="window.openAccountDetailModal('${item.namaAkun}', '${item.atasNama}', '${item.noRek}', ${item.nominal}, '${encodedIconHtml}')" class="cursor-pointer flex items-center justify-between p-4 border-b border-gray-50 dark:border-gray-800 last:border-0 hover:bg-gray-50 dark:hover:bg-[#2d2d2d] active:scale-[0.98] transition-all duration-200"><div class="flex items-center gap-3">${iconHtml}<div><p class="text-sm font-bold">${item.namaAkun}</p><p class="text-[10px] text-gray-500">${item.tipeAkun}</p></div></div><p class="text-sm font-bold privacy-mask" data-value="${item.nominal}">${isPrivate?'********':toRp(item.nominal)}</p></div>`;
+            const safeNama = item.namaAkun.replace(/'/g, "\\'");
+            const safeAtasNama = item.atasNama.replace(/'/g, "\\'");
+            const safeNoRek = item.noRek.replace(/'/g, "\\'");
+            html += `<div onclick="window.openAccountDetailModal('${safeNama}', '${safeAtasNama}', '${safeNoRek}', ${item.nominal}, '${encodedIconHtml}')" class="cursor-pointer flex items-center justify-between p-4 border-b border-gray-50 dark:border-gray-800 last:border-0 hover:bg-gray-50 dark:hover:bg-[#2d2d2d] active:scale-[0.98] transition-all duration-200"><div class="flex items-center gap-3">${iconHtml}<div><p class="text-sm font-bold">${escapeHtml(item.namaAkun)}</p><p class="text-[10px] text-gray-500">${escapeHtml(item.tipeAkun)}</p></div></div><p class="text-sm font-bold privacy-mask" data-value="${item.nominal}">${isPrivate?'********':toRp(item.nominal)}</p></div>`;
             optsRegular += `<option value="${item.namaAkun}">${item.namaAkun}</option>`;
         }
     });
@@ -1288,10 +1359,12 @@ window.processGoalAction = async function(actionType, isAchieved) {
         const res = await fetch(API_URL, { method: 'POST', body: JSON.stringify({ action: 'manageGoalFunds', email: sessionEmail, namaGoal: activeGoalName, tipeAksi: actionType, nominal: amount, isAchieved: isAchieved, akun: account }) });
         const result = await res.json();
         if (result.status === 'success') {
-            const now = new Date(), combinedDateTime = now.toISOString().split('T')[0] + ' ' + now.getHours().toString().padStart(2, '0') + ':' + now.getMinutes().toString().padStart(2, '0');
-            if (actionType === 'add') { await fetch(API_URL, { method: 'POST', body: JSON.stringify({ action: 'addTransaction', email: sessionEmail, tipe: 'OUTFLOW', akun: account, jumlah: amount, kategori: 'Tabungan & Investasi', keterangan: `Menabung Target: ${activeGoalName}`, tanggal: combinedDateTime })}); } 
-            else if (actionType === 'withdraw') { await fetch(API_URL, { method: 'POST', body: JSON.stringify({ action: 'addTransaction', email: sessionEmail, tipe: 'INFLOW', akun: account, jumlah: amount, kategori: 'Tabungan & Investasi', keterangan: `Pencairan Target: ${activeGoalName}`, tanggal: combinedDateTime })}); }
-            closeModal('modal-withdraw-goal'); closeModal('modal-add-savings'); document.getElementById('form-withdraw-amount').value = ''; document.getElementById('form-add-savings-amount').value = ''; await fetchAllData(); 
+            // Backend manageGoalFunds sudah mencatat transaksi ke rekening dan tabel transaksi secara internal.
+            closeModal('modal-withdraw-goal'); 
+            closeModal('modal-add-savings'); 
+            document.getElementById('form-withdraw-amount').value = ''; 
+            document.getElementById('form-add-savings-amount').value = ''; 
+            await fetchAllData(); 
         } else { alert(result.message); }
     } catch(e) { console.error(e); } finally { 
         showLoading(false); 
@@ -1377,8 +1450,10 @@ function renderGoals() {
     let html = '';
     goals.forEach(g => {
         const nama = getProp(g, 'Nama_Goal', 'Nama Goal') || 'Target', terkumpul = extractNumber(getProp(g, 'Terkumpul')), target = extractNumber(getProp(g, 'Target')) || 1, percent = Math.min(100, Math.round((terkumpul / target) * 100));
-        if(container.id === 'porto-goals-list') html += `<div class="bg-white dark:bg-[#1e1e1e] border border-gray-50 dark:border-gray-800 p-4 rounded-2xl shadow-sm mb-3 hover:shadow-md transition duration-300"><div class="flex justify-between items-center mb-3"><div><p class="text-sm font-bold dark:text-gray-200">${nama}</p><p class="text-[10px] text-gray-500"><span class="privacy-mask" data-value="${terkumpul}">${isPrivate?'********':toRp(terkumpul)}</span> / <span class="privacy-mask" data-value="${target}">${isPrivate?'********':toRp(target)}</span></p></div><div class="flex gap-2"><button onclick="prepareGoalAction('add', '${nama}')" class="w-8 h-8 flex items-center justify-center bg-green-50 text-green-600 dark:bg-green-900/30 dark:text-green-400 rounded-lg font-bold text-lg hover:scale-105 transition shadow-sm">+</button><button onclick="prepareGoalAction('withdraw', '${nama}')" class="w-8 h-8 flex items-center justify-center bg-red-50 text-red-600 dark:bg-red-900/30 dark:text-red-400 rounded-lg font-bold text-lg hover:scale-105 transition shadow-sm">-</button></div></div><div class="w-full bg-gray-100 dark:bg-gray-800 rounded-full h-2 overflow-hidden"><div class="bg-[#6342E8] h-2 transition-all duration-1000 ease-out" style="width: ${percent}%"></div></div></div>`;
-        else html += `<div class="bg-white dark:bg-[#1e1e1e] p-4 rounded-2xl shadow-sm border border-gray-100 dark:border-[#2d2d2d] hover:shadow-md transition duration-300"><div class="flex justify-between items-end mb-2"><p class="text-sm font-bold">${nama}</p><p class="text-[10px] text-gray-500"><span class="privacy-mask" data-value="${terkumpul}">${isPrivate?'********':toRp(terkumpul)}</span> / <span class="privacy-mask" data-value="${target}">${isPrivate?'********':toRp(target)}</span></p></div><div class="w-full bg-gray-100 dark:bg-gray-800 rounded-full h-2"><div class="bg-[#6342E8] h-2 rounded-full transition-all duration-1000 ease-out" style="width: ${percent}%"></div></div></div>`;
+        const safeNama = nama.replace(/'/g, "\\'");
+        if(container.id === 'porto-goals-list' || container.id === 'goals-list') {
+            html += `<div class="bg-white dark:bg-[#1e1e1e] border border-gray-50 dark:border-gray-800 p-4 rounded-2xl shadow-sm mb-3 hover:shadow-md transition duration-300"><div class="flex justify-between items-center mb-3"><div><p class="text-sm font-bold dark:text-gray-200">${escapeHtml(nama)}</p><p class="text-[10px] text-gray-500"><span class="privacy-mask" data-value="${terkumpul}">${isPrivate?'********':toRp(terkumpul)}</span> / <span class="privacy-mask" data-value="${target}">${isPrivate?'********':toRp(target)}</span></p></div><div class="flex gap-2"><button onclick="prepareGoalAction('add', '${safeNama}')" class="w-8 h-8 flex items-center justify-center bg-green-50 text-green-600 dark:bg-green-900/30 dark:text-green-400 rounded-lg font-bold text-lg hover:scale-105 transition shadow-sm">+</button><button onclick="prepareGoalAction('withdraw', '${safeNama}')" class="w-8 h-8 flex items-center justify-center bg-red-50 text-red-600 dark:bg-red-900/30 dark:text-red-400 rounded-lg font-bold text-lg hover:scale-105 transition shadow-sm">-</button></div></div><div class="w-full bg-gray-100 dark:bg-gray-800 rounded-full h-2 overflow-hidden"><div class="bg-[#6342E8] h-2 transition-all duration-1000 ease-out" style="width: ${percent}%"></div></div></div>`;
+        }
     });
     container.innerHTML = html;
 }
@@ -1388,15 +1463,17 @@ function renderRecurring() {
     const recs = appData.M_Recurring || []; if(recs.length === 0) { return container.innerHTML = `<div class="bg-white dark:bg-[#1e1e1e] p-6 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-800 text-center"><p class="text-xs text-gray-400 italic">${t('no-rec')}</p></div>`; }
     let html = ''; const now = new Date(), currentMonth = now.getMonth(), currentYear = now.getFullYear();
     recs.forEach(r => {
-        const idRec = getProp(r, 'ID_Recurring', 'ID', 'Id') || '', nama = getProp(r, 'Nama') || '-', nominal = extractNumber(getProp(r, 'Nominal')), frekuensi = getProp(r, 'Frekuensi') || 'Bulanan', akun = getProp(r, 'Akun_Sumber', 'Akun'), tglTagihan = getProp(r, 'Tgl_Tagihan') || 1;
+        const idRec = getProp(r, 'ID_Recurring', 'ID', 'Id') || '', nama = getProp(r, 'Nama') || '-', nominal = extractNumber(getProp(r, 'Nominal')), frekuensi = getProp(r, 'Frekuensi') || 'Bulanan', akun = getProp(r, 'Akun_Sumber', 'Akun') || '', tglTagihan = getProp(r, 'Tgl_Tagihan') || 1;
+        const safeNama = nama.replace(/'/g, "\\'");
+        const safeAkun = akun.replace(/'/g, "\\'");
         let isPaid = false;
         (appData.T_Transaksi || []).forEach(tobj => {
             const tglRaw = getProp(tobj, 'Tanggal'); if(!tglRaw) return; 
             const tgl = new Date(tglRaw), tipe = (getProp(tobj, 'Tipe') || '').toString().trim().toUpperCase(), keterangan = getProp(tobj, 'Keterangan') || '';
             if (tipe === 'OUTFLOW' && keterangan.includes(nama)) { if (frekuensi.toLowerCase().includes('bulan') || frekuensi.toLowerCase().includes('month')) { if (tgl.getMonth() === currentMonth && tgl.getFullYear() === currentYear) isPaid = true; } else if (frekuensi.toLowerCase().includes('tahun') || frekuensi.toLowerCase().includes('year')) { if (tgl.getFullYear() === currentYear) isPaid = true; } }
         });
-        const btnHtml = isPaid ? `<button onclick="event.stopPropagation();" disabled class="px-3 py-1.5 bg-gray-100 dark:bg-gray-800 text-gray-400 rounded-lg text-[10px] font-bold cursor-not-allowed flex items-center gap-1 border border-gray-200 dark:border-gray-700 shadow-none"><svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg> ${t('txt-paid')}</button>` : `<button onclick="event.stopPropagation(); payRecurring('${nama}', ${nominal}, '${akun}')" class="px-3 py-1.5 bg-[#6342E8] text-white rounded-lg text-[10px] font-bold hover:scale-105 active:scale-95 transition shadow-sm">${t('btn-pay-now')}</button>`;
-        html += `<div onclick="window.openRecurringDetailModal('${idRec}', '${nama}', ${nominal}, '${frekuensi}', ${tglTagihan}, '${akun}')" class="cursor-pointer bg-white dark:bg-[#1e1e1e] p-4 rounded-2xl shadow-sm border border-gray-100 dark:border-[#2d2d2d] flex items-center justify-between hover:shadow-md transition duration-300 mb-3 last:mb-0 active:scale-[0.98]"><div class="flex items-center gap-3"><div class="w-10 h-10 rounded-full bg-purple-50 dark:bg-purple-900/30 text-[#6342E8] flex items-center justify-center font-bold text-lg">↻</div><div><p class="text-sm font-bold dark:text-gray-200">${nama}</p><p class="text-[10px] text-gray-500">Tgl ${tglTagihan} • ${akun}</p></div></div><div class="text-right flex flex-col items-end gap-1.5"><p class="text-sm font-bold text-red-500 dark:text-red-400 privacy-mask" data-value="${nominal}">${isPrivate?'********':toRp(nominal)}</p>${btnHtml}</div></div>`;
+        const btnHtml = isPaid ? `<button onclick="event.stopPropagation();" disabled class="px-3 py-1.5 bg-gray-100 dark:bg-gray-800 text-gray-400 rounded-lg text-[10px] font-bold cursor-not-allowed flex items-center gap-1 border border-gray-200 dark:border-gray-700 shadow-none"><svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg> ${t('txt-paid')}</button>` : `<button onclick="event.stopPropagation(); payRecurring('${safeNama}', ${nominal}, '${safeAkun}')" class="px-3 py-1.5 bg-[#6342E8] text-white rounded-lg text-[10px] font-bold hover:scale-105 active:scale-95 transition shadow-sm">${t('btn-pay-now')}</button>`;
+        html += `<div onclick="window.openRecurringDetailModal('${idRec}', '${safeNama}', ${nominal}, '${frekuensi}', ${tglTagihan}, '${safeAkun}')" class="cursor-pointer bg-white dark:bg-[#1e1e1e] p-4 rounded-2xl shadow-sm border border-gray-100 dark:border-[#2d2d2d] flex items-center justify-between hover:shadow-md transition duration-300 mb-3 last:mb-0 active:scale-[0.98]"><div class="flex items-center gap-3"><div class="w-10 h-10 rounded-full bg-purple-50 dark:bg-purple-900/30 text-[#6342E8] flex items-center justify-center font-bold text-lg">↻</div><div><p class="text-sm font-bold dark:text-gray-200">${escapeHtml(nama)}</p><p class="text-[10px] text-gray-500">Tgl ${tglTagihan} • ${escapeHtml(akun)}</p></div></div><div class="text-right flex flex-col items-end gap-1.5"><p class="text-sm font-bold text-red-500 dark:text-red-400 privacy-mask" data-value="${nominal}">${isPrivate?'********':toRp(nominal)}</p>${btnHtml}</div></div>`;
     });
     container.innerHTML = html;
 }
@@ -1429,12 +1506,13 @@ function renderPortfolioScreen(drawChart = true) {
         let valReal = getProp(w, 'Saldo_Realtime', 'Saldo Realtime', 'Saldo_Realtime'), valAwal = getProp(w, 'Saldo_Awal', 'Saldo Awal', 'Saldo_Awal'); 
         let bal = extractNumber((valReal !== undefined && valReal !== null && valReal !== "") ? valReal : valAwal); 
         rdnBalance += bal;
+        const safeNama = nama.replace(/'/g, "\\'");
         
         let logoSrc = getAccountLogo(nama);
         let iconHtml = logoSrc ? `<img src="${logoSrc}" class="w-10 h-10 object-contain rounded-full bg-white dark:bg-[#1e1e1e] border border-gray-100 dark:border-gray-700 p-1">` : `<div class="w-10 h-10 bg-blue-50 dark:bg-blue-900/30 flex items-center justify-center rounded-xl font-bold text-blue-600">${nama.substring(0,2).toUpperCase()}</div>`;
         
-        walletHtml += `<div onclick="window.openWalletDetailModal('${nama}', ${bal})" class="cursor-pointer flex items-center justify-between p-4 bg-white dark:bg-[#1e1e1e] border border-blue-100 dark:border-blue-900/50 rounded-2xl shadow-sm mb-2 hover:shadow-md transition duration-300 active:scale-[0.98]">
-            <div class="flex items-center gap-3">${iconHtml}<div><p class="text-sm font-bold dark:text-gray-200">${nama}</p><p class="text-[10px] text-gray-500">${isRDN ? 'Saldo Cash' : tipe}</p></div></div>
+        walletHtml += `<div onclick="window.openWalletDetailModal('${safeNama}', ${bal})" class="cursor-pointer flex items-center justify-between p-4 bg-white dark:bg-[#1e1e1e] border border-blue-100 dark:border-blue-900/50 rounded-2xl shadow-sm mb-2 hover:shadow-md transition duration-300 active:scale-[0.98]">
+            <div class="flex items-center gap-3">${iconHtml}<div><p class="text-sm font-bold dark:text-gray-200">${escapeHtml(nama)}</p><p class="text-[10px] text-gray-500">${isRDN ? 'Saldo Cash' : escapeHtml(tipe)}</p></div></div>
             <div class="text-right"><p class="text-sm font-bold privacy-mask text-[#6342E8]" data-value="${bal}">${isPrivate?'********':toRp(bal)}</p></div>
         </div>`;
     });
@@ -1478,7 +1556,7 @@ function renderPortfolioScreen(drawChart = true) {
                 <div class="flex items-center gap-3">
                     ${getAssetLogoHtml(a.simbol)}
                     <div>
-                        <p class="text-sm font-bold dark:text-gray-200">${a.simbol} Wallet</p>
+                        <p class="text-sm font-bold dark:text-gray-200">${escapeHtml(a.simbol)} Wallet</p>
                         <p class="text-[10px] text-gray-500">${formatShortNumber(a.totalJumlah)} Unit • Live: ${toRp(a.hargaSekarang)}</p>
                     </div>
                 </div>
@@ -1488,11 +1566,11 @@ function renderPortfolioScreen(drawChart = true) {
                 </div>
             </div>`;
         } else {
-            let labelBeli = a.mataUang !== 'IDR' ? ` (${a.mataUang})` : '';
+            let labelBeli = a.mataUang !== 'IDR' ? ` (${escapeHtml(a.mataUang)})` : '';
             let valSekarangStr = a.mataUang !== 'IDR' ? `$${totalValSekarang.toFixed(2)}` : toRp(totalValSekarang);
             let liveStr = a.mataUang !== 'IDR' ? `$${a.hargaSekarang.toFixed(2)}` : toRp(a.hargaSekarang);
             
-            assetHtml += `<div onclick="window.openAssetDetailModal('${a.idAset}', '${a.simbol}', '${a.jenisAset}', ${a.totalJumlah}, ${avgHargaBeli}, ${a.totalInvestasi}, ${a.hargaSekarang}, ${totalValSekarang}, ${nominalReturn}, ${pnl})" class="cursor-pointer flex items-center justify-between p-4 bg-white dark:bg-[#1e1e1e] border border-gray-50 dark:border-gray-800 rounded-2xl shadow-sm mb-2 hover:shadow-md active:scale-[0.98] transition-all duration-300"><div class="flex items-center gap-3">${getAssetLogoHtml(a.simbol)}<div><p class="text-sm font-bold dark:text-gray-200">${a.simbol}<span class="text-[9px] text-gray-400 ml-1 font-normal">${labelBeli}</span></p><p class="text-[10px] text-gray-500">${a.totalJumlah.toLocaleString('en-US', {maximumFractionDigits: 6})} ${t('unit')}</p><p class="text-[10px] text-[#6342E8] dark:text-[#a78bfa] font-semibold mt-1">${t('live')}: ${liveStr}</p></div></div><div class="text-right flex flex-col justify-center"><p class="text-sm font-bold privacy-mask dark:text-white" data-value="${totalValSekarang}">${isPrivate?'********':valSekarangStr}</p><p class="text-[10px] font-semibold ${pnlColor} mt-1">${pnlSign}${Math.abs(nominalReturn).toFixed(2)} (${pnlSign}${pnl.toFixed(2)}%)</p></div></div>`; 
+            assetHtml += `<div onclick="window.openAssetDetailModal('${escapeHtml(a.idAset)}', '${escapeHtml(a.simbol)}', '${escapeHtml(a.jenisAset)}', ${a.totalJumlah}, ${avgHargaBeli}, ${a.totalInvestasi}, ${a.hargaSekarang}, ${totalValSekarang}, ${nominalReturn}, ${pnl})" class="cursor-pointer flex items-center justify-between p-4 bg-white dark:bg-[#1e1e1e] border border-gray-50 dark:border-gray-800 rounded-2xl shadow-sm mb-2 hover:shadow-md active:scale-[0.98] transition-all duration-300"><div class="flex items-center gap-3">${getAssetLogoHtml(a.simbol)}<div><p class="text-sm font-bold dark:text-gray-200">${escapeHtml(a.simbol)}<span class="text-[9px] text-gray-400 ml-1 font-normal">${labelBeli}</span></p><p class="text-[10px] text-gray-500">${a.totalJumlah.toLocaleString('en-US', {maximumFractionDigits: 6})} ${t('unit')}</p><p class="text-[10px] text-[#6342E8] dark:text-[#a78bfa] font-semibold mt-1">${t('live')}: ${liveStr}</p></div></div><div class="text-right flex flex-col justify-center"><p class="text-sm font-bold privacy-mask dark:text-white" data-value="${totalValSekarang}">${isPrivate?'********':valSekarangStr}</p><p class="text-[10px] font-semibold ${pnlColor} mt-1">${pnlSign}${Math.abs(nominalReturn).toFixed(2)} (${pnlSign}${pnl.toFixed(2)}%)</p></div></div>`; 
         }
     });
 
@@ -1561,7 +1639,7 @@ window.openAssetDetailModal = function(idAset, simbol, jenisAset, lot, avgHarga,
     if (btnBeli) { btnBeli.onclick = () => { closeModal('modal-asset-detail'); openModal('modal-buy-asset'); const formSimbol = document.getElementById('form-asset-simbol'); if (formSimbol) formSimbol.value = simbol; }; }
     
     const btnJual = document.getElementById('btn-det-jual');
-    if (btnJual) { btnJual.onclick = () => { closeModal('modal-asset-detail'); const displaySimbol = document.getElementById('sell-asset-simbol-display'); if (displaySimbol) displaySimbol.innerText = simbol; const displayMax = document.getElementById('sell-asset-max-display'); if (displayMax) { displayMax.innerText = formatShortNumber(lot); displayMax.setAttribute('data-raw', lot); } const inputId = document.getElementById('form-sell-asset-id'); if (inputId) inputId.value = idAset; const inputSimbol = document.getElementById('form-sell-asset-simbol'); if (inputSimbol) inputSimbol.value = liveHarga; openModal('modal-sell-asset'); }; }
+    if (btnJual) { btnJual.onclick = () => { closeModal('modal-asset-detail'); const displaySimbol = document.getElementById('sell-asset-simbol-display'); if (displaySimbol) displaySimbol.innerText = simbol; const displayMax = document.getElementById('sell-asset-max-display'); if (displayMax) { displayMax.innerText = formatShortNumber(lot); displayMax.setAttribute('data-raw', lot); } const inputId = document.getElementById('form-sell-asset-id'); if (inputId) inputId.value = idAset; const inputSimbol = document.getElementById('form-sell-asset-simbol'); if (inputSimbol) inputSimbol.value = simbol; openModal('modal-sell-asset'); }; }
     
     const btnDividen = document.getElementById('btn-det-dividen');
     if (btnDividen) {
@@ -1598,6 +1676,11 @@ window.setChartFilter = function(filter) {
     if (window.lastAssetData) {
         renderMockPriceChart(window.lastAssetData.simbol, window.lastAssetData.liveHarga);
     }
+};
+
+window.setCurrencyFilter = function(curr) {
+    window.currentActiveCurrency = curr;
+    window.updateAssetDetailCurrencyView();
 };
 
 window.setHistoryFilter = function(filterType) {
@@ -1685,7 +1768,7 @@ function renderHistoryScreen(drawChart = true) {
             else { const logoSrc = getAccountLogo(akun); iconHtml = logoSrc ? `<img src="${logoSrc}" class="w-10 h-10 object-contain rounded-full bg-white dark:bg-[#1e1e1e] border border-gray-100 dark:border-gray-700 p-1">` : `<div class="w-10 h-10 rounded-full ${isOut ? 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-300' : 'bg-green-50 text-green-500 dark:bg-green-900/30'} flex items-center justify-center"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="${isOut ? 'M19 9l-7 7-7-7' : 'M5 15l7-7 7 7'}"></path></svg></div>`; }
             
             const val = extractNumber(getProp(tobj, 'Jumlah')), tobjJSON = encodeURIComponent(JSON.stringify(tobj)).replace(/'/g, "%27");
-            html += `<div onclick="window.openTransactionDetail('${tobjJSON}')" class="cursor-pointer flex items-center justify-between p-4 bg-white dark:bg-[#1e1e1e] border border-gray-50 dark:border-gray-800 last:border-0 hover:bg-gray-50 dark:hover:bg-[#2d2d2d] active:scale-[0.98] transition-all duration-200"><div class="flex items-center gap-3">${iconHtml}<div class="overflow-hidden"><p class="text-sm font-bold truncate w-32 dark:text-white">${kategori}</p><p class="text-[10px] text-gray-500 truncate w-32 uppercase tracking-wide">${getProp(tobj, 'Keterangan') || akunDisplay}</p></div></div><p class="text-sm font-bold ${color} whitespace-nowrap">${sign} <span class="privacy-mask" data-value="${val}">${isPrivate?'********':toRp(val)}</span></p></div>`;
+            html += `<div onclick="window.openTransactionDetail('${tobjJSON}')" class="cursor-pointer flex items-center justify-between p-4 bg-white dark:bg-[#1e1e1e] border border-gray-50 dark:border-gray-800 last:border-0 hover:bg-gray-50 dark:hover:bg-[#2d2d2d] active:scale-[0.98] transition-all duration-200"><div class="flex items-center gap-3">${iconHtml}<div class="overflow-hidden"><p class="text-sm font-bold truncate w-32 dark:text-white">${escapeHtml(kategori)}</p><p class="text-[10px] text-gray-500 truncate w-32 uppercase tracking-wide">${escapeHtml(getProp(tobj, 'Keterangan') || akunDisplay)}</p></div></div><p class="text-sm font-bold ${color} whitespace-nowrap">${sign} <span class="privacy-mask" data-value="${val}">${isPrivate?'********':toRp(val)}</span></p></div>`;
         });
         historyListContainer.innerHTML = html;
     }
@@ -1722,7 +1805,7 @@ function showDailyDetail(day, refreshCalendarUI = true) {
         let color = isOut ? 'text-gray-800 dark:text-gray-100' : 'text-green-500 dark:text-green-400'; if(kategori === 'Transfer Keluar' || kategori === 'Transfer Masuk' || kategori === 'Biaya Admin') color = 'text-gray-800 dark:text-gray-100';
         const logoSrc = getAccountLogo(akun), iconHtml = logoSrc ? `<img src="${logoSrc}" class="w-10 h-10 object-contain rounded-full bg-white dark:bg-[#1e1e1e] border border-gray-100 dark:border-gray-700 p-1">` : `<div class="w-10 h-10 rounded-full ${isOut ? 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-300' : 'bg-green-50 text-green-500 dark:bg-green-900/30'} flex items-center justify-center"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="${isOut ? 'M19 9l-7 7-7-7' : 'M5 15l7-7 7 7'}"></path></svg></div>`;
         const val = extractNumber(getProp(tobj, 'Jumlah')), tobjJSON = encodeURIComponent(JSON.stringify(tobj)).replace(/'/g, "%27");
-        html += `<div onclick="window.openTransactionDetail('${tobjJSON}')" class="cursor-pointer flex items-center justify-between p-4 bg-white dark:bg-[#1e1e1e] border border-gray-50 dark:border-gray-800 rounded-2xl shadow-sm mb-2 hover:bg-gray-50 dark:hover:bg-[#2d2d2d] active:scale-[0.98] transition-all duration-200"><div class="flex items-center gap-3">${iconHtml}<div class="overflow-hidden"><p class="text-sm font-bold truncate w-32 dark:text-white">${kategori}</p><p class="text-[10px] text-gray-500 truncate w-32 uppercase tracking-wide">${getProp(tobj, 'Keterangan') || akun}</p></div></div><p class="text-sm font-bold ${color} whitespace-nowrap">${sign} <span class="privacy-mask" data-value="${val}">${isPrivate?'********':toRp(val)}</span></p></div>`;
+        html += `<div onclick="window.openTransactionDetail('${tobjJSON}')" class="cursor-pointer flex items-center justify-between p-4 bg-white dark:bg-[#1e1e1e] border border-gray-50 dark:border-gray-800 rounded-2xl shadow-sm mb-2 hover:bg-gray-50 dark:hover:bg-[#2d2d2d] active:scale-[0.98] transition-all duration-200"><div class="flex items-center gap-3">${iconHtml}<div class="overflow-hidden"><p class="text-sm font-bold truncate w-32 dark:text-white">${escapeHtml(kategori)}</p><p class="text-[10px] text-gray-500 truncate w-32 uppercase tracking-wide">${escapeHtml(getProp(tobj, 'Keterangan') || akun)}</p></div></div><p class="text-sm font-bold ${color} whitespace-nowrap">${sign} <span class="privacy-mask" data-value="${val}">${isPrivate?'********':toRp(val)}</span></p></div>`;
     });
     listContainer.innerHTML = html; applyPrivacyMasks();
 }
@@ -1736,7 +1819,21 @@ function checkAndUpdateLevel() {
     (appData.T_Transaksi || []).filter(tx => getProp(tx, 'Tipe') !== 'NEUTRAL').forEach(t => { const tglRaw = getProp(t, 'Tanggal'); if(!tglRaw) return; const tgl = new Date(tglRaw), tipe = (getProp(t, 'Tipe') || '').toString().trim().toUpperCase(), kategori = (getProp(t, 'Kategori') || '').toString().trim(); if(tipe === 'OUTFLOW' && kategori !== 'Transfer Keluar') { totalOutflowHistorical += extractNumber(getProp(t, 'Jumlah')); uniqueMonths.add(`${tgl.getFullYear()}-${tgl.getMonth()}`); }});
     let avgExpenditure = totalOutflowHistorical / (uniqueMonths.size > 0 ? uniqueMonths.size : 1); if (avgExpenditure === 0) avgExpenditure = 0; 
     let newLevelNum = 1, totalGabunganDana = currentBalance + totalAsset, targetDanaDarurat = 6 * avgExpenditure;
-    if (totalDebt > 0) newLevelNum = 1; else if (totalDebt === 0 && totalGabunganDana < targetDanaDarurat) newLevelNum = 2; else if (totalGabunganDana >= targetDanaDarurat && totalAsset < 50000000) newLevelNum = 3; else if (totalAsset >= 50000000 && totalAsset < 250000000) newLevelNum = 4; else if (totalAsset >= 250000000 && totalAsset < (25 * (avgExpenditure * 12))) newLevelNum = 5; else if (totalAsset >= (25 * (avgExpenditure * 12))) newLevelNum = 6;
+    if (totalDebt > 0) {
+        newLevelNum = 1;
+    } else if (totalDebt === 0 && (totalGabunganDana < targetDanaDarurat || avgExpenditure === 0)) {
+        newLevelNum = 2;
+    } else if (totalGabunganDana >= targetDanaDarurat && totalAsset < 50000000) {
+        newLevelNum = 3;
+    } else if (totalAsset >= 50000000 && totalAsset < 250000000) {
+        newLevelNum = 4;
+    } else if (totalAsset >= 250000000 && (avgExpenditure === 0 || totalAsset < (25 * (avgExpenditure * 12)))) {
+        newLevelNum = 5;
+    } else if (avgExpenditure > 0 && totalAsset >= (25 * (avgExpenditure * 12)) && totalAsset >= 500000000) {
+        newLevelNum = 6;
+    } else {
+        newLevelNum = 2;
+    }
     const levelConfig = { 1: { title: "Level 1: " + t('lvl-1-name'), icon: "🔥", color: "from-amber-700 to-orange-900" }, 2: { title: "Level 2: " + t('lvl-2-name'), icon: "🛡️", color: "from-gray-400 to-gray-600" }, 3: { title: "Level 3: " + t('lvl-3-name'), icon: "🪙", color: "from-yellow-400 to-yellow-600" }, 4: { title: "Level 4: " + t('lvl-4-name'), icon: "📈", color: "from-slate-700 to-slate-900" }, 5: { title: "Level 5: " + t('lvl-5-name'), icon: "💎", color: "from-cyan-400 to-blue-600" }, 6: { title: "Level 6: " + t('lvl-6-name'), icon: "👑", color: "from-purple-500 to-indigo-700 ring-2 ring-purple-300" }};
     const conf = levelConfig[newLevelNum], badgeEl = document.getElementById('user-level-badge');
     if(badgeEl) { badgeEl.className = `mt-1 px-3 py-1.5 rounded-full text-[10px] font-bold text-white shadow-md transition-all duration-300 flex items-center gap-1.5 hover:scale-105 active:scale-95 bg-gradient-to-r ${conf.color}`; document.getElementById('badge-icon').innerText = conf.icon; document.getElementById('badge-text').innerText = conf.title; }
@@ -1796,7 +1893,7 @@ window.generatePDF = async function(monthIdx, year) {
         tableRows.push(['', { content: t('pdf-bal-start'), styles: { fontStyle: 'bold' } }, '', { content: new Intl.NumberFormat('id-ID').format(saldoAwalBulan), styles: { fontStyle: 'bold' } }]);
 
         monthTrxs.forEach(t => {
-            const d = new Date(getProp(t, 'Tanggal')), dateStr = `${d.getDate().toString().padStart(2,'0')} ${i18n[currentLang]['month-names'][d.getMonth()].substring(0,3)} ${d.getFullYear()}`, timeStr = `${d.getHours().toString().padStart(2,'0')}:${d.getMinutes().toString().padStart(2,'0')}:${d.getSeconds().toString().padStart(2,'0')} WIB`;
+            const d = new Date(getProp(t, 'Tanggal')), dateStr = `${d.getDate().toString().padStart(2,'0')} ${i18n[currentLang]['month-names'][d.getMonth()].substring(0,3)} ${d.getFullYear()}`, timeStr = `${d.getHours().toString().padStart(2,'0')}:${d.getMinutes().toString().padStart(2,'0')}:${d.getSeconds().toString().padStart(2,'0')} ${getTimezoneLabel()}`;
             const tipe = (getProp(t, 'Tipe') || '').toString().trim().toUpperCase(), kategori = getProp(t, 'Kategori') || ''; let keterangan = getProp(t, 'Keterangan') || '';
             if(!isAllAccounts && (kategori === 'Transfer Keluar' || kategori === 'Transfer Masuk')) keterangan = keterangan; else if (isAllAccounts) keterangan += ` (${getProp(t, 'Akun')})`;
             const val = extractNumber(getProp(t, 'Jumlah')); let nomStr = '', nomStyle = {};
@@ -1955,7 +2052,7 @@ window.openTransactionDetail = function(jsonStr) {
             const d = new Date(tglRaw);
             let mName = d.getMonth() + 1;
             if (typeof i18n !== 'undefined' && i18n[lang] && i18n[lang]['month-names']) mName = i18n[lang]['month-names'][d.getMonth()];
-            dateStr = `${d.getDate().toString().padStart(2, '0')} ${mName} ${d.getFullYear()} • ${d.getHours().toString().padStart(2, '0')}:${d.getMinutes().toString().padStart(2, '0')} WITA`;
+            dateStr = `${d.getDate().toString().padStart(2, '0')} ${mName} ${d.getFullYear()} • ${d.getHours().toString().padStart(2, '0')}:${d.getMinutes().toString().padStart(2, '0')} ${getTimezoneLabel()}`;
         }
 
         document.getElementById('dtl-type-label').innerText = isOut ? (lang === 'id' ? 'Pengeluaran' : 'Expenditure') : (lang === 'id' ? 'Pemasukan' : 'Income');
@@ -2008,7 +2105,7 @@ window.openTransactionDetail = function(jsonStr) {
                     itemsContainer.innerHTML += `
                         <div class="flex justify-between items-center text-xs py-1.5 border-b border-gray-100 dark:border-gray-800 last:border-0">
                             <div class="flex flex-col w-2/3 pr-2">
-                                <span class="text-gray-700 dark:text-gray-200 font-bold uppercase truncate">${itemName}</span>
+                                <span class="text-gray-700 dark:text-gray-200 font-bold uppercase truncate">${escapeHtml(itemName)}</span>
                                 <span class="text-[10px] text-gray-500 font-medium">${qty}x @ ${rp(hargaSatuan)}</span>
                             </div>
                             <span class="text-gray-800 dark:text-gray-100 font-bold text-right text-xs">${rp(priceTotal)}</span>
