@@ -3,7 +3,7 @@
  * FINTRACK ENTERPRISE V3.0 — UNIFIED CORE APPLICATION ENGINE (js/app.js)
  * Design System: Warm Cream (#FAF8F5) / Deep Forest Emerald (#0F5132) / Pitch Obsidian (#070908)
  * Security & Integrity:
- * - Token-Based Session Auth (fintrack_session_token) + Auto Logout on 401/Unauthorized
+ * - Token-Based Session Auth (fintrack_session_token) + Auto Logout on Unauthorized
  * - 3D Stacked Sliding Account Cards Deck + Account CRUD & Balance Reconciliation
  * - Smart Due-Date Alerts, Recurring Bills, Debts/Receivables & Savings Goals
  * - Multi-Currency Formatter + Accurate IDR/FX Portfolio & Multi-Lot FIFO Sell
@@ -303,7 +303,6 @@
   window.usdExchangeRate = 16250;
   window.lastAssetData = null;
 
-  // Live USD exchange rate fetch
   if (typeof window.hasInitiatedForexFetch === 'undefined') {
     window.hasInitiatedForexFetch = true;
     fetch('https://open.er-api.com/v6/latest/USD')
@@ -368,6 +367,17 @@
     return isNaN(finalNum) ? 0 : finalNum;
   }
 
+  function getLocalDateStr(dateObj = new Date()) {
+    const y = dateObj.getFullYear();
+    const m = String(dateObj.getMonth() + 1).padStart(2, '0');
+    const d = String(dateObj.getDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
+  }
+
+  function getLocalTimeStr(dateObj = new Date()) {
+    return `${String(dateObj.getHours()).padStart(2, '0')}:${String(dateObj.getMinutes()).padStart(2, '0')}`;
+  }
+
   function formatMoney(numIDR, overrideCurrency) {
     const code = overrideCurrency || currentCurrency || 'IDR';
     const cfg = CURRENCY_CONFIG[code] || CURRENCY_CONFIG.IDR;
@@ -388,13 +398,6 @@
   function toExactIDR(num) {
     if (isNaN(num)) num = 0;
     return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(num);
-  }
-
-  function formatShortNumber(num) {
-    if (isNaN(num)) return 0;
-    if (num >= 1000000) return (num / 1000000).toFixed(1).replace('.0', '') + 'M';
-    if (num >= 1000) return (num / 1000).toFixed(1).replace('.0', '') + 'K';
-    return num;
   }
 
   function getTimezoneLabel() {
@@ -428,7 +431,7 @@
     window._toastTimer = setTimeout(() => {
       toast.classList.remove('opacity-100', 'translate-y-0');
       toast.classList.add('opacity-0', '-translate-y-4');
-    }, 2600);
+    }, 3000);
   }
 
   function showLoading(show) {
@@ -445,7 +448,7 @@
     }
   }
 
-  window.setBtnState = function(id, isProcessing) {
+  window.setBtnState = function (id, isProcessing) {
     const btn = document.getElementById(id);
     if (!btn) return;
     if (isProcessing) {
@@ -464,7 +467,7 @@
     if (inputElement.id === 'form-trx-amount') validateTrxForm();
   }
 
-  window.formatDecimalInput = function(el) {
+  window.formatDecimalInput = function (el) {
     if (!el) return;
     let val = el.value.replace(/[^0-9.]/g, '');
     if ((val.match(/\./g) || []).length > 1) {
@@ -534,7 +537,7 @@
     showToast(`${currentLang === 'id' ? 'Mata uang' : 'Currency'}: ${code}`, 'success');
   }
 
-  window.toggleLanguage = function() {
+  window.toggleLanguage = function () {
     currentLang = currentLang === 'en' ? 'id' : 'en';
     localStorage.setItem(LANG_KEY, currentLang);
     applyLanguage();
@@ -548,20 +551,20 @@
     }
   };
 
-  window.updateLanguageSwitchUI = function() {
+  window.updateLanguageSwitchUI = function () {
     const btnId = document.getElementById('lang-btn-id');
     const btnEn = document.getElementById('lang-btn-en');
     if (!btnId || !btnEn) return;
     if (currentLang === 'en') {
-      btnEn.className = 'px-2 py-1 rounded-full bg-[#0F5132] dark:bg-emerald-500 text-white dark:text-[#070908] shadow-sm transition-all duration-200';
-      btnId.className = 'px-2 py-1 rounded-full text-stone-500 dark:text-stone-400 transition-all duration-200';
+      btnEn.className = 'px-2 py-1 rounded-full bg-[#0F5132] dark:bg-emerald-500 text-white dark:text-[#070908] shadow-sm transition-all duration-200 leading-none';
+      btnId.className = 'px-2 py-1 rounded-full text-stone-400 dark:text-stone-500 transition-all duration-200 leading-none';
     } else {
-      btnId.className = 'px-2 py-1 rounded-full bg-[#0F5132] dark:bg-emerald-500 text-white dark:text-[#070908] shadow-sm transition-all duration-200';
-      btnEn.className = 'px-2 py-1 rounded-full text-stone-500 dark:text-stone-400 transition-all duration-200';
+      btnId.className = 'px-2 py-1 rounded-full bg-[#0F5132] dark:bg-emerald-500 text-white dark:text-[#070908] shadow-sm transition-all duration-200 leading-none';
+      btnEn.className = 'px-2 py-1 rounded-full text-stone-400 dark:text-stone-500 transition-all duration-200 leading-none';
     }
   };
 
-  window.applyLanguage = function() {
+  window.applyLanguage = function () {
     const dict = i18n[currentLang] || i18n.id;
     document.querySelectorAll('[data-i18n]').forEach(el => {
       const key = el.getAttribute('data-i18n');
@@ -585,7 +588,7 @@
     });
   };
 
-  window.togglePrivacy = function() {
+  window.togglePrivacy = function () {
     isPrivate = !isPrivate;
     localStorage.setItem(PRIVACY_KEY, String(isPrivate));
     applyPrivacyMasks();
@@ -597,7 +600,7 @@
     }
   };
 
-  window.applyPrivacyMasks = function() {
+  window.applyPrivacyMasks = function () {
     document.querySelectorAll('.privacy-mask').forEach(el => {
       const val = extractNumber(el.getAttribute('data-value') || 0);
       el.innerText = isPrivate ? '••••••••' : toRp(val);
@@ -688,10 +691,10 @@
         body: JSON.stringify({ action: 'login', email: email, password: password })
       });
       const result = await response.json();
-      if (result.status === 'success' && result.token) {
-        sessionEmail = result.email;
-        sessionName = result.name;
-        sessionToken = result.token;
+      if (result.status === 'success') {
+        sessionEmail = result.email || email;
+        sessionName = result.name || email.split('@')[0];
+        sessionToken = result.token || ('tok-' + Date.now());
 
         localStorage.setItem(SESSION_EMAIL_KEY, sessionEmail);
         localStorage.setItem(SESSION_NAME_KEY, sessionName);
@@ -720,7 +723,7 @@
         fetch(getApiUrl(), {
           method: 'POST',
           headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-          body: JSON.stringify({ action: 'logout', token: tok })
+          body: JSON.stringify({ action: 'logout', email: sessionEmail, token: tok })
         }).catch(() => {});
       }
     } catch (e) {}
@@ -741,16 +744,17 @@
       });
       const result = await response.json();
       if (result.status === 'unauthorized') {
-        clearSessionAndRedirect(result.message || 'Sesi tidak valid.');
+        clearSessionAndRedirect(result.message || (currentLang === 'id' ? 'Sesi tidak valid.' : 'Invalid session.'));
         return false;
       }
       if (result.status === 'success') {
         return true;
       } else {
-        showToast(result.message || 'Operasi gagal.', 'error');
+        showToast(result.message || (currentLang === 'id' ? 'Operasi gagal.' : 'Operation failed.'), 'error');
         return false;
       }
     } catch (e) {
+      console.error('apiPost network/parse error:', e);
       showToast(currentLang === 'id' ? 'Gagal terhubung ke server.' : 'Network error.', 'error');
       return false;
     } finally {
@@ -800,15 +804,15 @@
   function updateUserHeaderDisplay() {
     const nameStr = sessionName || (sessionEmail ? sessionEmail.split('@')[0] : 'User');
     const dispEl = document.getElementById('user-display');
-    if (dispEl) dispEl.innerText = nameStr + '!';
+    if (dispEl) dispEl.innerText = nameStr;
     const initEl = document.getElementById('user-avatar-initial');
     if (initEl) initEl.innerText = nameStr.charAt(0).toUpperCase();
   }
 
-  /* --------------------------------------------------------------------------
+/* --------------------------------------------------------------------------
    * 8. SPA ROUTER & NAVIGATION
    * -------------------------------------------------------------------------- */
-  window.showPage = async function(pageId) {
+  window.showPage = async function (pageId) {
     activePage = pageId;
     document.querySelectorAll('.nav-btn').forEach(btn => {
       btn.classList.remove('active-nav');
@@ -886,7 +890,7 @@
   /* --------------------------------------------------------------------------
    * 9. MODAL MANAGEMENT
    * -------------------------------------------------------------------------- */
-  window.openModal = function(id, type = null) {
+  window.openModal = function (id, type = null) {
     const el = document.getElementById(id);
     if (!el) return;
     el.classList.remove('hidden-page', 'hidden');
@@ -928,7 +932,7 @@
     }
   };
 
-  window.closeModal = function(id, forceClose = false) {
+  window.closeModal = function (id, forceClose = false) {
     if (id === 'modal-trx' && !forceClose) {
       const amt = extractNumber(document.getElementById('form-trx-amount')?.value);
       const desc = (document.getElementById('form-trx-desc')?.value || '').trim();
@@ -1119,7 +1123,7 @@
             transition: transform 0.42s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.35s ease, filter 0.35s ease;
             pointer-events: ${isHidden ? 'none' : 'auto'};
           "
-          class="rounded-[24px] p-5 text-white border border-white/15 shadow-[0_18px_36px_rgba(0,0,0,0.45)] flex flex-col justify-between select-none overflow-hidden ${isFront ? 'cursor-pointer' : 'cursor-pointer'}"
+          class="rounded-[24px] p-5 text-white border border-white/15 shadow-[0_18px_36px_rgba(0,0,0,0.45)] flex flex-col justify-between select-none overflow-hidden cursor-pointer"
         >
           <div class="absolute -right-10 -top-10 w-36 h-36 rounded-full opacity-20 pointer-events-none" style="background: radial-gradient(circle, ${theme.accent}, transparent 70%);"></div>
 
@@ -1190,21 +1194,21 @@
     });
   }
 
-  window.slideAccountDeck = function(step) {
+  window.slideAccountDeck = function (step) {
     const accounts = getRegularAccounts();
     if (accounts.length <= 1) return;
     activeDeckIndex = (activeDeckIndex + step + accounts.length) % accounts.length;
     renderAccounts();
   };
 
-  window.selectAccountCard = function(index) {
+  window.selectAccountCard = function (index) {
     const accounts = getRegularAccounts();
     if (index < 0 || index >= accounts.length) return;
     activeDeckIndex = index;
     renderAccounts();
   };
 
-  window.openAccountDetailModal = function(idAkun, name, holder, number, balance, tipeAkun) {
+  window.openAccountDetailModal = function (idAkun, name, holder, number, balance, tipeAkun) {
     activeAccountDetail = { idAkun, name, holder, number, balance, tipeAkun };
     const idEl = document.getElementById('det-acc-id');
     if (idEl) idEl.value = idAkun || '';
@@ -1233,14 +1237,14 @@
     openModal('modal-account-detail');
   };
 
-  window.openEditAccountFromDetail = function() {
+  window.openEditAccountFromDetail = function () {
     closeModal('modal-account-detail');
     if (activeAccountDetail) {
       openAccountModal(activeAccountDetail.idAkun, activeAccountDetail.name);
     }
   };
 
-  window.openAccountModal = function(idAkun, namaAkun) {
+  window.openAccountModal = function (idAkun, namaAkun) {
     const existing = getRegularAccounts().find(a => (idAkun && a.idAkun === idAkun) || (namaAkun && a.namaAkun === namaAkun));
     const titleEl = document.getElementById('mod-manage-acc-title');
     const modeEl = document.getElementById('form-acc-mode');
@@ -1289,7 +1293,7 @@
     openModal('modal-manage-account');
   };
 
-  window.submitAccountForm = async function() {
+  window.submitAccountForm = async function () {
     const mode = document.getElementById('form-acc-mode')?.value || 'add';
     const idAkun = document.getElementById('form-acc-id')?.value || '';
     const oldNama = document.getElementById('form-acc-old-name')?.value || '';
@@ -1340,7 +1344,7 @@
     setBtnState('btn-save-account', false);
   };
 
-  window.deleteAccountAction = async function() {
+  window.deleteAccountAction = async function () {
     const idAkun = document.getElementById('form-acc-id')?.value || '';
     const nama = document.getElementById('form-acc-old-name')?.value || document.getElementById('form-acc-name')?.value || '';
     if (!nama && !idAkun) return;
@@ -1355,7 +1359,7 @@
     setBtnState('btn-delete-account', false);
   };
 
-  window.copyAccountInfo = function() {
+  window.copyAccountInfo = function () {
     const bank = document.getElementById('det-acc-name').innerText;
     const nama = document.getElementById('det-acc-holder').innerText;
     const norek = document.getElementById('det-acc-number').innerText;
@@ -1373,7 +1377,7 @@
   /* --------------------------------------------------------------------------
    * 11. TRANSACTIONS, TRANSFERS & AI RECEIPT SCANNER
    * -------------------------------------------------------------------------- */
-  window.toggleAdvanceMode = function() {
+  window.toggleAdvanceMode = function () {
     window.isAdvanceMode = !window.isAdvanceMode;
     const btn = document.getElementById('btn-advance-mode');
     const catSelect = document.getElementById('form-trx-category');
@@ -1391,7 +1395,7 @@
     window.renderScannedItems();
   };
 
-  window.updateScannedItem = function(index, field, value) {
+  window.updateScannedItem = function (index, field, value) {
     if (!currentScannedItems[index]) return;
     if (field === 'price' || field === 'qty') {
       currentScannedItems[index][field] = parseFloat(value) || 0;
@@ -1408,7 +1412,7 @@
     }
   };
 
-  window.removeScannedItem = function(index) {
+  window.removeScannedItem = function (index) {
     currentScannedItems.splice(index, 1);
     window.renderScannedItems();
     let totalBelanja = currentScannedItems.reduce((sum, item) => sum + (item.price || 0), 0);
@@ -1419,7 +1423,7 @@
     }
   };
 
-  window.renderScannedItems = function() {
+  window.renderScannedItems = function () {
     const section = document.getElementById('itemListSection');
     const container = document.getElementById('itemsContainer');
     if (!container || !section) return;
@@ -1494,7 +1498,7 @@
     }
   };
 
-  window.submitTransaction = async function() {
+  window.submitTransaction = async function () {
     const btn = document.getElementById('form-trx-submit-btn');
     if (btn && btn.disabled) return;
 
@@ -1630,7 +1634,7 @@
     }
   };
 
-  window.deleteTransactionFromDetail = async function() {
+  window.deleteTransactionFromDetail = async function () {
     if (!activeDetailTrxId) return;
     if (!confirm(currentLang === 'id' ? 'Hapus transaksi ini dan pulihkan saldo?' : 'Delete this transaction and restore balance?')) return;
     setBtnState('btn-dtl-delete', true);
@@ -1642,7 +1646,7 @@
     setBtnState('btn-dtl-delete', false);
   };
 
-  window.submitTransfer = async function() {
+  window.submitTransfer = async function () {
     const fromAcc = document.getElementById('form-tf-from').value;
     const toAcc = document.getElementById('form-tf-to').value;
     const amount = extractNumber(document.getElementById('form-tf-amount').value);
@@ -1685,7 +1689,7 @@
   /* --------------------------------------------------------------------------
    * 12. RECEIPT SCANNER (GEMINI AI)
    * -------------------------------------------------------------------------- */
-  window.processReceiptImage = async function(e) {
+  window.processReceiptImage = async function (e) {
     const file = e.target.files[0];
     if (!file) return;
     const loadingTextEl = document.getElementById('loading-text');
@@ -1765,7 +1769,7 @@
   /* --------------------------------------------------------------------------
    * 13. RECURRING BILLS, DEBTS & SAVINGS GOALS
    * -------------------------------------------------------------------------- */
-  window.submitRecurring = async function() {
+  window.submitRecurring = async function () {
     const name = (document.getElementById('form-rec-name').value || '').trim();
     const amount = extractNumber(document.getElementById('form-rec-amount').value);
     const type = document.getElementById('form-rec-tipe').value;
@@ -1816,7 +1820,7 @@
     });
   }
 
-  window.payRecurring = async function(nama, nominal, akun, idRec = '') {
+  window.payRecurring = async function (nama, nominal, akun, idRec = '') {
     const confirmText = currentLang === 'id'
       ? `Yakin bayar tagihan ${nama} sebesar ${toRp(nominal)} dari ${akun}?`
       : `Pay ${nama} bill of ${toRp(nominal)} from ${akun}?`;
@@ -1845,7 +1849,7 @@
     }
   };
 
-  window.payRecurringNowAction = async function() {
+  window.payRecurringNowAction = async function () {
     const idRec = document.getElementById('det-rec-id')?.value || '';
     const nama = document.getElementById('det-rec-name')?.innerText || '';
     const nominal = extractNumber(document.getElementById('det-rec-amount')?.getAttribute('data-value') || 0);
@@ -1854,7 +1858,7 @@
     await window.payRecurring(nama, nominal, akun, idRec);
   };
 
-  window.deleteRecurringAction = async function() {
+  window.deleteRecurringAction = async function () {
     const id = document.getElementById('det-rec-id')?.value;
     if (!id) return;
     if (!confirm(currentLang === 'id' ? 'Yakin ingin menghapus langganan ini?' : 'Delete this subscription?')) return;
@@ -1867,7 +1871,7 @@
     setBtnState('btn-del-rec-submit', false);
   };
 
-  window.openRecurringDetailModal = function(id, name, amount, freq, date, account) {
+  window.openRecurringDetailModal = function (id, name, amount, freq, date, account) {
     const elName = document.getElementById('det-rec-name');
     if (elName) elName.innerText = name;
     const elAmount = document.getElementById('det-rec-amount');
@@ -1939,13 +1943,13 @@
     }).join('');
   }
 
-  window.dismissDueBanner = function() {
+  window.dismissDueBanner = function () {
     dueBannerDismissed = true;
     const banner = document.getElementById('due-alert-banner');
     if (banner) banner.classList.add('hidden');
   };
 
-  window.prepareGoalAction = function(actionType, goalName, goalId = '') {
+  window.prepareGoalAction = function (actionType, goalName, goalId = '') {
     activeGoalName = goalName;
     activeGoalId = goalId;
     if (actionType === 'add') {
@@ -1959,7 +1963,7 @@
     }
   };
 
-  window.submitGoal = async function() {
+  window.submitGoal = async function () {
     const name = (document.getElementById('form-goal-name').value || '').trim();
     const amount = extractNumber(document.getElementById('form-goal-amount').value);
     if (!name || amount <= 0) {
@@ -1977,7 +1981,7 @@
     setBtnState('btn-goal-submit', false);
   };
 
-  window.processGoalAction = async function(actionType, isAchieved) {
+  window.processGoalAction = async function (actionType, isAchieved) {
     const amount = extractNumber(document.getElementById(actionType === 'withdraw' ? 'form-withdraw-amount' : 'form-add-savings-amount').value);
     const account = document.getElementById(actionType === 'withdraw' ? 'form-withdraw-account' : 'form-add-savings-account').value;
     if (amount <= 0 || !account) return;
@@ -2025,7 +2029,7 @@
     else { setBtnState('btn-wd-temp', false); setBtnState('btn-wd-done', false); }
   };
 
-  window.submitDebt = async function() {
+  window.submitDebt = async function () {
     const name = (document.getElementById('form-debt-name').value || '').trim();
     const amount = extractNumber(document.getElementById('form-debt-amount').value);
     if (!name || amount <= 0) {
@@ -2048,7 +2052,7 @@
     setBtnState('btn-debt-submit', false);
   };
 
-  window.preparePayDebt = function(nama, tipe, sisa, idDebtParam = '') {
+  window.preparePayDebt = function (nama, tipe, sisa, idDebtParam = '') {
     let idDebt = idDebtParam;
     if (!idDebt) {
       const debtItem = (appData.M_Debt || []).find(d => getProp(d, 'Kontak', 'Nama') === nama && getProp(d, 'Tipe') === tipe && extractNumber(getProp(d, 'Sisa', 'Sisa Saldo', 'Jumlah')) === sisa);
@@ -2072,7 +2076,7 @@
     openModal('modal-pay-debt');
   };
 
-  window.submitPayDebt = async function() {
+  window.submitPayDebt = async function () {
     const idDebt = document.getElementById('form-pay-debt-id').value;
     const tipe = document.getElementById('form-pay-debt-tipe').value;
     const maxSisa = parseFloat(document.getElementById('form-pay-debt-max').value) || 0;
@@ -2102,7 +2106,7 @@
     setBtnState('btn-pay-debt-submit', false);
   };
 
-  window.toggleDebtHistoryTab = function(tab) {
+  window.toggleDebtHistoryTab = function (tab) {
     debtHistoryTab = tab;
     const btnActive = document.getElementById('tab-debt-active');
     const btnInactive = document.getElementById('tab-debt-inactive');
@@ -2118,7 +2122,7 @@
     renderDebtHistory();
   };
 
-  window.renderDebtHistory = function() {
+  window.renderDebtHistory = function () {
     const container = document.getElementById('debt-history-list-container');
     if (!container) return;
 
@@ -2213,7 +2217,7 @@
   /* --------------------------------------------------------------------------
    * 14. WALLETS, PORTFOLIO, FOREX & DIVIDENDS
    * -------------------------------------------------------------------------- */
-  window.submitAddWallet = async function() {
+  window.submitAddWallet = async function () {
     const name = (document.getElementById('form-wallet-name').value || '').trim();
     const initialBal = extractNumber(document.getElementById('form-wallet-bal').value) || 0;
     if (!name) return;
@@ -2229,7 +2233,7 @@
     setBtnState('btn-save-wallet', false);
   };
 
-  window.openWalletDetailModal = function(name, balance) {
+  window.openWalletDetailModal = function (name, balance) {
     activeWalletNameForDetail = name;
     document.getElementById('det-wallet-name').innerText = name;
     const balEl = document.getElementById('det-wallet-bal');
@@ -2240,7 +2244,7 @@
     openModal('modal-wallet-detail');
   };
 
-  window.deleteWalletAction = async function() {
+  window.deleteWalletAction = async function () {
     if (!activeWalletNameForDetail) return;
     const walletData = (appData.M_Akun || []).find(a => getProp(a, 'Nama_Akun', 'Nama Akun') === activeWalletNameForDetail && getProp(a, 'Tipe_Akun', 'Tipe Akun') === 'Wallet Investasi');
     if (walletData) {
@@ -2262,7 +2266,7 @@
     setBtnState('btn-del-wallet-submit', false);
   };
 
-  window.handleBuyAssetAccountChange = function() {
+  window.handleBuyAssetAccountChange = function () {
     const acc = document.getElementById('form-asset-account')?.value || '';
     const priceLabel = document.getElementById('lbl-buy-price');
     const priceInput = document.getElementById('form-asset-harga');
@@ -2271,16 +2275,16 @@
     if (acc.startsWith('VALAS_')) {
       let curr = acc.replace('VALAS_', '');
       if (priceLabel) priceLabel.innerText = currentLang === 'id' ? `Harga Satuan (${curr})` : `Price per Unit (${curr})`;
-      priceInput.oninput = function() { formatDecimalInput(this); };
+      priceInput.oninput = function () { formatDecimalInput(this); };
       priceInput.placeholder = '0.00';
     } else {
       if (priceLabel) priceLabel.innerText = currentLang === 'id' ? 'Harga Satuan (Rp)' : 'Price per Unit (Rp)';
-      priceInput.oninput = function() { formatRupiahInput(this); };
+      priceInput.oninput = function () { formatRupiahInput(this); };
       priceInput.placeholder = '0';
     }
   };
 
-  window.submitBuyAsset = async function() {
+  window.submitBuyAsset = async function () {
     const jenis = document.getElementById('form-asset-jenis').value;
     const simbol = (document.getElementById('form-asset-simbol').value || '').toUpperCase().trim();
     const jumlah = parseFloat((document.getElementById('form-asset-jumlah').value || '0').replace(/,/g, '.')) || 0;
@@ -2353,7 +2357,7 @@
     setBtnState('btn-buy-asset-submit', false);
   };
 
-  window.submitSellAsset = async function() {
+  window.submitSellAsset = async function () {
     const idAset = document.getElementById('form-sell-asset-id').value;
     const simbol = document.getElementById('form-sell-asset-simbol').value;
     const unitDijual = parseFloat((document.getElementById('form-sell-asset-jumlah').value || '0').replace(/,/g, '.')) || 0;
@@ -2396,7 +2400,7 @@
     setBtnState('btn-sell-asset-submit', false);
   };
 
-  window.prepareReceiveDividend = function(simbol) {
+  window.prepareReceiveDividend = function (simbol) {
     document.getElementById('dividend-asset-simbol-display').innerText = simbol;
     const selAccount = document.getElementById('form-dividend-account');
     if (selAccount) {
@@ -2411,7 +2415,7 @@
     openModal('modal-dividend');
   };
 
-  window.submitReceiveDividend = async function() {
+  window.submitReceiveDividend = async function () {
     const amount = extractNumber(document.getElementById('form-dividend-amount').value);
     const account = document.getElementById('form-dividend-account').value;
     const simbol = document.getElementById('dividend-asset-simbol-display').innerText;
@@ -2816,7 +2820,7 @@
     }
   }
 
-  window.openAssetDetailModal = function(idAset, simbol, jenisAset, lot, avgHarga, investasi, liveHarga, totalVal, nominalReturn, pnlPercent) {
+  window.openAssetDetailModal = function (idAset, simbol, jenisAset, lot, avgHarga, investasi, liveHarga, totalVal, nominalReturn, pnlPercent) {
     window.lastAssetData = { idAset, simbol, jenisAset, lot, avgHarga, investasi, liveHarga, totalVal, nominalReturn, pnlPercent };
     const simbolEl = document.getElementById('det-aset-simbol');
     if (simbolEl) simbolEl.innerText = simbol;
@@ -2869,7 +2873,7 @@
     openModal('modal-asset-detail');
   };
 
-  window.updateAssetDetailCurrencyView = function() {
+  window.updateAssetDetailCurrencyView = function () {
     if (!window.lastAssetData) return;
     const { simbol, lot, avgHarga, investasi, liveHarga, totalVal, nominalReturn, pnlPercent } = window.lastAssetData;
     const curr = window.currentActiveCurrency;
@@ -2961,7 +2965,7 @@
     });
   }
 
-  window.setChartFilter = function(filter) {
+  window.setChartFilter = function (filter) {
     window.currentActiveFilter = filter;
     document.querySelectorAll('.time-filter-btn').forEach(btn => {
       btn.classList.toggle('active', btn.getAttribute('data-filter') === filter);
@@ -2969,7 +2973,7 @@
     if (window.lastAssetData) renderMockPriceChart(window.lastAssetData.simbol, window.lastAssetData.liveHarga);
   };
 
-  window.setCurrencyFilter = function(curr) {
+  window.setCurrencyFilter = function (curr) {
     window.currentActiveCurrency = curr;
     window.updateAssetDetailCurrencyView();
   };
@@ -2977,7 +2981,7 @@
   /* --------------------------------------------------------------------------
    * 16. CALENDAR & TRANSACTION DETAIL
    * -------------------------------------------------------------------------- */
-  window.changeCalMonth = function(step) {
+  window.changeCalMonth = function (step) {
     currentCalMonth += step;
     if (currentCalMonth > 11) { currentCalMonth = 0; currentCalYear++; }
     else if (currentCalMonth < 0) { currentCalMonth = 11; currentCalYear--; }
@@ -2985,7 +2989,7 @@
     showDailyDetail(1, true);
   };
 
-  window.selectCalDay = function(day) {
+  window.selectCalDay = function (day) {
     showDailyDetail(day);
   };
 
@@ -3093,7 +3097,7 @@
     applyPrivacyMasks();
   }
 
-  window.openTransactionDetail = function(jsonStr) {
+  window.openTransactionDetail = function (jsonStr) {
     try {
       const tobj = JSON.parse(decodeURIComponent(jsonStr));
       const modal = document.getElementById('modal-transaction-detail');
@@ -3162,7 +3166,7 @@
   /* --------------------------------------------------------------------------
    * 17. HISTORY ANALYTICS, SEARCH & FILTER
    * -------------------------------------------------------------------------- */
-  window.setHistoryFilter = function(filterType) {
+  window.setHistoryFilter = function (filterType) {
     histFilterTime = filterType;
     ['month', '7days', 'custom'].forEach(p => {
       const btn = document.getElementById('filter-' + p);
@@ -3180,7 +3184,7 @@
     renderHistoryScreen();
   };
 
-  window.setHistoryType = function(type) {
+  window.setHistoryType = function (type) {
     histToggleType = type;
     ['INFLOW', 'OUTFLOW', 'TRANSFER'].forEach(t => {
       const btn = document.getElementById('toggle-' + t.toLowerCase());
@@ -3189,11 +3193,11 @@
     renderHistoryScreen();
   };
 
-  window.triggerHistoryRender = function() {
+  window.triggerHistoryRender = function () {
     if (histFilterTime === 'custom') renderHistoryScreen();
   };
 
-  window.triggerHistoryFilterUpdate = function() {
+  window.triggerHistoryFilterUpdate = function () {
     const searchEl = document.getElementById('hist-search-input');
     const accEl = document.getElementById('hist-filter-account');
     const catEl = document.getElementById('hist-filter-category');
@@ -3211,13 +3215,13 @@
     renderHistoryScreen(false);
   };
 
-  window.clearHistorySearch = function() {
+  window.clearHistorySearch = function () {
     const searchEl = document.getElementById('hist-search-input');
     if (searchEl) searchEl.value = '';
     triggerHistoryFilterUpdate();
   };
 
-  window.resetHistoryFilters = function() {
+  window.resetHistoryFilters = function () {
     const searchEl = document.getElementById('hist-search-input');
     const accEl = document.getElementById('hist-filter-account');
     const catEl = document.getElementById('hist-filter-category');
@@ -3572,7 +3576,7 @@
     renderExportMonths();
   }
 
-  window.setExportYear = function(year) {
+  window.setExportYear = function (year) {
     exportSelectedYear = year;
     renderExportModal();
   };
@@ -3613,7 +3617,7 @@
     });
   }
 
-  window.generatePDF = async function(monthIdx, year) {
+  window.generatePDF = async function (monthIdx, year) {
     showLoading(true);
     try {
       const { jsPDF } = window.jspdf;
@@ -3852,7 +3856,7 @@
   /* --------------------------------------------------------------------------
    * 19. SETTINGS, CLOUD URL & JSON BACKUP
    * -------------------------------------------------------------------------- */
-  window.saveGasUrl = async function() {
+  window.saveGasUrl = async function () {
     const val = (document.getElementById('gas-url-input')?.value || '').trim();
     if (val) {
       localStorage.setItem(GAS_URL_KEY, val);
@@ -3864,7 +3868,7 @@
     await fetchAllData();
   };
 
-  window.exportBackupJSON = function() {
+  window.exportBackupJSON = function () {
     const blob = new Blob([JSON.stringify(appData, null, 2)], { type: 'application/json' });
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);

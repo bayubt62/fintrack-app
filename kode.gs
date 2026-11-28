@@ -1,74 +1,45 @@
 /**
  * ============================================================================
- * FINTRACK ENTERPRISE V3.0 - BACKEND ENGINE (CORE GOOGLE APPS SCRIPT)
- * Architecture: Google Apps Script Database Logic (Multi-Account & Cloud Sync)
- * Security & Integrity Hardened:
- * - Token-Based Session Validation (CacheService + PropertiesService TTL)
- * - Strict Per-User Email Ownership Verification on All Read & Write Endpoints
- * - Formula / CSV Injection Protection (sanitizeSheetText)
- * - Concurrency Lock (LockService) & Atomic Balance Transfers
- * - Multi-Lot FIFO Asset Selling & Consistent IDR/FX Valuation
- * - Gemini 2.5 Flash AI Receipt Scanner Integration
+ * FINTRACK ENTERPRISE V3.0 - BACKEND ENGINE (CORE GS)
+ * Architecture: Google Apps Script Database Logic
+ * Enhanced: Dynamic SS Resolver, FIFO Multi-Lot Asset Engine, Atomic Forex
+ *           Transfers, Formula Error Shield, Session & Email Validation,
+ *           Gemini 2.5 Flash Receipt Scanner
  * ============================================================================
  */
 
-// Isi ID Spreadsheet HANYA jika script dibuat sebagai Standalone Script (di luar Google Sheets).
-// Jika dibuat dari menu Google Sheets (Ekstensi > Apps Script), biarkan kosong.
-const SPREADSHEET_ID_MANUAL = "";
+const FALLBACK_SPREADSHEET_ID = "1nNOxMdkYQh1rh2zPq5P9sIjdG8T_fLYe7e3wEzu4oY5HLhfnzWdWxJuq";
 
-// ============================================================================
-// 1. DYNAMIC SPREADSHEET RESOLVER
-// ============================================================================
-function getSS() {
-  try {
-    const act = SpreadsheetApp.getActiveSpreadsheet();
-    if (act) return act;
-  } catch (e) {}
-
-  try {
-    const propId = PropertiesService.getScriptProperties().getProperty("SPREADSHEET_ID");
-    if (propId) return SpreadsheetApp.openById(propId);
-  } catch (e) {}
-
-  if (SPREADSHEET_ID_MANUAL && SPREADSHEET_ID_MANUAL !== "GANTI_DENGAN_ID_SPREADSHEET_ANDA") {
-    try {
-      return SpreadsheetApp.openById(SPREADSHEET_ID_MANUAL);
-    } catch (e) {
-      throw new Error("Gagal membuka Spreadsheet dengan ID Manual: " + e.toString());
-    }
-  }
-
-  throw new Error("Spreadsheet belum terhubung! Buka Apps Script dari Google Sheets (Ekstensi > Apps Script) atau atur SPREADSHEET_ID di Script Properties.");
-}
-
-const SS = {
-  getSheetByName: function(name) {
-    return getOrCreateSheet(name);
-  },
-  getDataRange: function() {
-    return getSS().getDataRange();
-  },
-  getSheets: function() {
-    return getSS().getSheets();
-  },
-  getName: function() {
-    return getSS().getName();
-  }
-};
-
-// ============================================================================
-// 2. SELF-HEALING DATABASE & SCHEMA BUILDER
-// ============================================================================
 const DEFAULT_SCHEMAS = {
+  'M_User': ['Email', 'Nama', 'Password'],
   'M_Akun': ['Email', 'ID_Akun', 'Nama_Akun', 'Tipe_Akun', 'Atas_Nama', 'Nomor_Rekening', 'Saldo_Awal', 'Saldo_Realtime'],
-  'T_Transaksi': ['Email', 'ID_Transaksi', 'Tanggal', 'Tipe', 'Nama_Akun', 'Kategori', 'Jumlah', 'Keterangan', 'Ref_ID'],
+  'T_Transaksi': ['Email', 'ID_Transaksi', 'Tanggal', 'Tipe', 'Akun', 'Kategori', 'Jumlah', 'Keterangan', 'Ref_ID'],
   'T_Transaksi_Detail': ['Email', 'ID_Transaksi', 'Nama_Item', 'Qty', 'Harga'],
   'M_Recurring': ['Email', 'ID_Recurring', 'Nama', 'Nominal', 'Frekuensi', 'Tgl_Tagihan', 'Akun'],
   'M_Debt': ['Email', 'ID_Debt', 'Tipe', 'Kontak', 'Nominal_Awal', 'Sisa', 'Status'],
-  'M_Goals': ['Email', 'ID_Goal', 'Nama_Goal', 'Target_Nominal', 'Terkumpul', 'Tenggat_Waktu', 'Status'],
-  'M_Portofolio': ['Email', 'ID_Aset', 'Simbol', 'Jumlah', 'Harga_Beli', 'Harga_Realtime', 'Jenis_Aset', 'Mata_Uang'],
-  'M_User': ['Email', 'Nama', 'Password']
+  'M_Goals': ['Email', 'ID_Goal', 'Nama_Goal', 'Target', 'Terkumpul', 'Tenggat_Waktu', 'Status'],
+  'M_Portofolio': ['Email', 'ID_Aset', 'Simbol', 'Jumlah', 'Harga_Beli', 'Harga_Saat_Ini', 'Jenis_Aset', 'Mata_Uang']
 };
+
+// ============================================================================
+// 1. DATABASE RESOLVER & SELF-HEALING SHEET HELPER
+// ============================================================================
+
+function getSS() {
+  const propId = PropertiesService.getScriptProperties().getProperty('SPREADSHEET_ID');
+  if (propId) {
+    return SpreadsheetApp.openById(propId);
+  }
+  try {
+    const active = SpreadsheetApp.getActiveSpreadsheet();
+    if (active) return active;
+  } catch (e) {}
+
+  if (FALLBACK_SPREADSHEET_ID) {
+    return SpreadsheetApp.openById(FALLBACK_SPREADSHEET_ID);
+  }
+  throw new Error("SPREADSHEET_ID belum dikonfigurasi pada Script Properties.");
+}
 
 function getOrCreateSheet(sheetName) {
   const ss = getSS();
@@ -83,136 +54,20 @@ function getOrCreateSheet(sheetName) {
   return sheet;
 }
 
-function initDatabase() {
-  const ss = getSS();
-  Object.keys(DEFAULT_SCHEMAS).forEach(name => {
-    getOrCreateSheet(name);
-  });
-  Logger.log("Inisialisasi tabel Fintrack V3.0 selesai pada: " + ss.getName());
-}
-
 // ============================================================================
-// 3. SECURITY, SANITIZATION & SESSION TOKEN ENGINE
+// 2. HTTP HANDLERS (doGet & doPost)
 // ============================================================================
-function sanitizeSheetText(val) {
-  if (val === undefined || val === null) return "";
-  var str = val.toString().trim();
-  if (/^[=+\-@]/.test(str)) {
-    return "'" + str;
-  }
-  return str;
-}
 
-function hashPassword(pass) {
-  var digest = Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, pass + "_fintrack_salt");
-  return digest.map(function(byte) {
-    return (byte < 0 ? byte + 256 : byte).toString(16).padStart(2, '0');
-  }).join('');
-}
-
-function createSessionToken(email) {
-  const cleanEmail = (email || '').toString().toLowerCase().trim();
-  const token = "SES-" + Utilities.getUuid();
-  const payload = JSON.stringify({
-    email: cleanEmail,
-    expiresAt: Date.now() + (24 * 60 * 60 * 1000)
-  });
-
-  try {
-    CacheService.getScriptCache().put("TOKEN_" + token, payload, 21600);
-  } catch (e) {}
-
-  try {
-    PropertiesService.getScriptProperties().setProperty("SESSION_" + token, payload);
-  } catch (e) {}
-
-  return token;
-}
-
-function validateSession(email, token) {
-  const cleanEmail = (email || '').toString().toLowerCase().trim();
-  const cleanToken = (token || '').toString().trim();
-  if (!cleanEmail || !cleanToken || !cleanToken.startsWith("SES-")) {
-    return false;
-  }
-
-  let raw = null;
-  try {
-    raw = CacheService.getScriptCache().get("TOKEN_" + cleanToken);
-  } catch (e) {}
-
-  if (!raw) {
-    try {
-      raw = PropertiesService.getScriptProperties().getProperty("SESSION_" + cleanToken);
-    } catch (e) {}
-  }
-
-  if (!raw) return false;
-
-  try {
-    const parsed = JSON.parse(raw);
-    if (!parsed || parsed.email !== cleanEmail) return false;
-    if (parsed.expiresAt && Date.now() > parsed.expiresAt) {
-      revokeSessionToken(cleanToken);
-      return false;
-    }
-    return true;
-  } catch (e) {
-    return false;
-  }
-}
-
-function revokeSessionToken(token) {
-  const cleanToken = (token || '').toString().trim();
-  if (!cleanToken) return;
-  try {
-    CacheService.getScriptCache().remove("TOKEN_" + cleanToken);
-  } catch (e) {}
-  try {
-    PropertiesService.getScriptProperties().deleteProperty("SESSION_" + cleanToken);
-  } catch (e) {}
-}
-
-// ============================================================================
-// 4. HTTP HANDLERS (doGet & doPost)
-// ============================================================================
 function doGet(e) {
-  try {
-    const action = e && e.parameter && e.parameter.action;
-    const email = (e && e.parameter && (e.parameter.email || e.parameter.user)) || '';
-    const token = (e && e.parameter && e.parameter.token) || '';
-
-    if (action === 'getData' && email) {
-      if (!validateSession(email, token)) {
-        return response({ status: 'unauthorized', message: 'Sesi tidak valid atau telah berakhir. Silakan login ulang.' });
-      }
-      return response(getUserData(email));
-    }
-
-    let ssName = "Tidak Terhubung";
-    let sheetNames = [];
-    try {
-      const ss = getSS();
-      ssName = ss.getName();
-      sheetNames = ss.getSheets().map(s => s.getName());
-    } catch (err) {
-      ssName = "Error: " + err.message;
-    }
-
-    return response({
-      status: 'success',
-      message: 'Fintrack Enterprise V3.0 Hardened Backend Active',
-      spreadsheet: ssName,
-      availableSheets: sheetNames,
-      timestamp: new Date().toISOString()
-    });
-  } catch (err) {
-    return response({ status: 'error', message: err.toString() });
-  }
+  return response({
+    status: 'success',
+    message: 'Fintrack Enterprise V3.0 Backend Engine Active',
+    timestamp: new Date().toISOString()
+  });
 }
 
 function doPost(e) {
-  var lock = LockService.getScriptLock();
+  const lock = LockService.getScriptLock();
   try {
     lock.waitLock(15000);
 
@@ -227,120 +82,250 @@ function doPost(e) {
       return response(loginUser(res.email, res.password));
     }
 
-    if (action === 'logout') {
-      revokeSessionToken(res.token);
-      return response({ status: 'success' });
+    const email = (res.email || '').toString().trim();
+    if (!email || !isRegisteredEmail(email)) {
+      return response({ status: 'error', message: 'Sesi tidak valid atau email tidak terdaftar.' });
     }
-
-    const email = (res.email || '').toString().toLowerCase().trim();
-    const token = (res.token || '').toString().trim();
-
-    if (!validateSession(email, token)) {
-      return response({
-        status: 'unauthorized',
-        message: 'Sesi tidak valid atau telah berakhir. Silakan login ulang.'
-      });
-    }
-
     res.email = email;
 
     switch (action) {
-      case 'getData': return response(getUserData(email));
-      case 'addTransaction': return response(addTransaction(res));
-      case 'deleteTransaction': return response(deleteTransaction(res));
-      case 'transfer': return response(transferFunds(res));
-      case 'addRecurring': return response(addRecurring(res));
-      case 'deleteRecurring': return response(deleteRecurring(res));
-      case 'addGoal': return response(addGoal(res));
-      case 'manageGoalFunds': return response(manageGoalFunds(res));
-      case 'addDebt': return response(addDebt(res));
-      case 'payDebt': return response(payDebt(res));
-      case 'buyAsset': return response(buyAsset(res));
-      case 'sellAsset': return response(sellAsset(res));
-      case 'addWallet': return response(addWallet(res));
-      case 'deleteWallet': return response(deleteWallet(res));
-      case 'addAccount': return response(addAccount(res));
-      case 'updateAccount': return response(updateAccount(res));
-      case 'deleteAccount': return response(deleteAccount(res));
-      case 'scanReceipt': return response(processReceiptWithGemini(res.imageB64));
-      default: return response({ status: 'error', message: 'Fungsi "' + action + '" tidak dikenali.' });
+      case 'getData':
+        return response(getUserData(email));
+      case 'addTransaction':
+        return response(addTransaction(res));
+      case 'transfer':
+        return response(transferFunds(res));
+      case 'addRecurring':
+        return response(addRecurring(res));
+      case 'deleteRecurring':
+        return response(deleteRecurring(res));
+      case 'addGoal':
+        return response(addGoal(res));
+      case 'manageGoalFunds':
+        return response(manageGoalFunds(res));
+      case 'addDebt':
+        return response(addDebt(res));
+      case 'payDebt':
+        return response(payDebt(res));
+      case 'buyAsset':
+        return response(buyAsset(res));
+      case 'sellAsset':
+        return response(sellAsset(res));
+      case 'addWallet':
+        return response(addWallet(res));
+      case 'deleteWallet':
+        return response(deleteWallet(res));
+      case 'scanReceipt':
+        return response(processReceiptWithGemini(res.imageB64));
+      default:
+        return response({ status: 'error', message: 'Fungsi tidak dikenali.' });
     }
   } catch (err) {
     return response({ status: 'error', message: "System Error: " + err.toString() });
   } finally {
-    lock.releaseLock();
+    try {
+      lock.releaseLock();
+    } catch (e) {}
   }
 }
 
 function response(data) {
-  return ContentService.createTextOutput(JSON.stringify(data)).setMimeType(ContentService.MimeType.JSON);
+  return ContentService
+    .createTextOutput(JSON.stringify(data))
+    .setMimeType(ContentService.MimeType.JSON);
 }
 
 // ============================================================================
-// 5. AUTHENTICATION & STRICT USER DATA RETRIEVAL
+// 3. SECURITY, AUTH & GENERAL UTILITIES
 // ============================================================================
+
+function sanitizeSheetText(val) {
+  if (val === undefined || val === null) return "";
+  const str = val.toString();
+  if (/^[=+\-@\t\r]/.test(str)) {
+    return "'" + str;
+  }
+  return str;
+}
+
+function hashPassword(pass) {
+  const digest = Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, pass + "_fintrack_salt");
+  return digest.map(function (byte) {
+    return (byte < 0 ? byte + 256 : byte).toString(16).padStart(2, '0');
+  }).join('');
+}
+
+function isRegisteredEmail(email) {
+  const sheet = getSS().getSheetByName('M_User');
+  if (!sheet) return false;
+  const data = sheet.getDataRange().getValues();
+  const target = email.toLowerCase();
+  for (let i = 1; i < data.length; i++) {
+    if (data[i][0] && data[i][0].toString().trim().toLowerCase() === target) {
+      return true;
+    }
+  }
+  return false;
+}
+
 function loginUser(email, password) {
-  try {
-    const searchEmail = (email || '').toString().toLowerCase().trim();
-    const rawPass = (password || '').toString();
-    if (!searchEmail || !rawPass) {
-      return { status: 'error', message: 'Email dan kata sandi wajib diisi.' };
-    }
+  const sheet = getSS().getSheetByName('M_User');
+  if (!sheet) return { status: 'error', message: 'Tabel M_User tidak ditemukan.' };
+  if (!email || !password) return { status: 'error', message: 'Email dan password wajib diisi.' };
 
-    const sheet = SS.getSheetByName('M_User');
-    if (!sheet) {
-      return { status: 'error', message: 'Tabel M_User tidak ditemukan.' };
-    }
+  const data = sheet.getDataRange().getValues();
+  const inputEmail = email.toString().trim().toLowerCase();
+  const inputHash = hashPassword(password);
 
-    const data = sheet.getDataRange().getValues();
-    if (data.length <= 1) {
-      return { status: 'error', message: 'Belum ada akun terdaftar pada sistem.' };
-    }
-
-    const headers = data[0].map(h => (h || '').toString().toLowerCase().trim());
-    const idxEmail = headers.findIndex(h => h.includes('email'));
-    const idxName = headers.findIndex(h => h.includes('nama') || h.includes('name'));
-    const idxPass = headers.findIndex(h => h.includes('pass') || h.includes('password'));
-
-    const colEmail = idxEmail !== -1 ? idxEmail : 0;
-    const colName = idxName !== -1 ? idxName : 1;
-    const colPass = idxPass !== -1 ? idxPass : 2;
-    const inputHash = hashPassword(rawPass);
-
-    for (let i = 1; i < data.length; i++) {
-      const rowEmail = (data[i][colEmail] || '').toString().toLowerCase().trim();
-      const rowPass = (data[i][colPass] || '').toString();
-      const rowName = (data[i][colName] || '').toString().trim();
-
-      if (rowEmail === searchEmail) {
-        if (rowPass && (rowPass === inputHash || rowPass === rawPass)) {
-          if (rowPass === rawPass && rowPass !== inputHash) {
-            sheet.getRange(i + 1, colPass + 1).setValue(inputHash);
-          }
-          const token = createSessionToken(rowEmail);
-          return {
-            status: 'success',
-            name: rowName || rowEmail.split('@')[0],
-            email: rowEmail,
-            token: token
-          };
+  for (let i = 1; i < data.length; i++) {
+    const sheetEmail = (data[i][0] || '').toString().trim().toLowerCase();
+    const sheetPass = (data[i][2] || '').toString();
+    if (sheetEmail === inputEmail) {
+      if (sheetPass === inputHash || sheetPass === password.toString()) {
+        const sessionToken = "SES-" + Utilities.getUuid();
+        if (sheetPass === password.toString() && sheetPass !== inputHash) {
+          sheet.getRange(i + 1, 3).setValue(inputHash);
         }
+        return {
+          status: 'success',
+          name: data[i][1],
+          email: data[i][0].toString().trim(),
+          token: sessionToken
+        };
       }
     }
-
-    return { status: 'error', message: 'Email atau Password salah.' };
-  } catch (err) {
-    return { status: 'error', message: err.toString() };
   }
+  return { status: 'error', message: 'Email atau Password salah.' };
 }
+
+function getColumnIndex(headers, ...candidates) {
+  for (let c = 0; c < candidates.length; c++) {
+    const target = candidates[c].toLowerCase().replace(/[_ ]/g, '');
+    const idx = headers.findIndex(function (h) {
+      return h.toString().toLowerCase().replace(/[_ ]/g, '') === target;
+    });
+    if (idx !== -1) return idx;
+  }
+  return -1;
+}
+
+function parseValidNumber(val) {
+  if (val === undefined || val === null || val === '') return NaN;
+  if (typeof val === 'number') return isFinite(val) ? val : NaN;
+  const str = val.toString().trim();
+  if (str.startsWith('#') || str.toLowerCase().includes('loading') || str.toLowerCase().includes('error')) {
+    return NaN;
+  }
+  const num = Number(str.replace(/,/g, '.'));
+  return isFinite(num) ? num : NaN;
+}
+
+// ============================================================================
+// 4. FOREX & PORTFOLIO HELPERS
+// ============================================================================
+
+function getValasRate(email, currencyCode) {
+  const curr = (currencyCode || 'IDR').toString().trim().toUpperCase();
+  if (curr === 'IDR') return 1;
+
+  const sheetPorto = getSS().getSheetByName('M_Portofolio');
+  if (sheetPorto) {
+    const dataPorto = sheetPorto.getDataRange().getValues();
+    for (let i = 1; i < dataPorto.length; i++) {
+      const rowEmail = (dataPorto[i][0] || '').toString().trim().toLowerCase();
+      const rowSimbol = (dataPorto[i][2] || '').toString().trim().toUpperCase();
+      const rowJenis = (dataPorto[i][6] || '').toString().trim();
+      if (rowEmail === email.toLowerCase() && rowSimbol === curr && rowJenis === 'Valuta Asing') {
+        const liveVal = parseValidNumber(dataPorto[i][5]);
+        const buyVal = parseValidNumber(dataPorto[i][4]);
+        if (!isNaN(liveVal) && liveVal > 0) return liveVal;
+        if (!isNaN(buyVal) && buyVal > 0) return buyVal;
+      }
+    }
+  }
+
+  // Fallback live exchange rate API jika aset valas belum tercatat di M_Portofolio
+  try {
+    const res = UrlFetchApp.fetch("https://open.er-api.com/v6/latest/" + encodeURIComponent(curr), {
+      muteHttpExceptions: true
+    });
+    const json = JSON.parse(res.getContentText());
+    if (json && json.rates && json.rates.IDR) {
+      return Number(json.rates.IDR);
+    }
+  } catch (e) {
+    Logger.log("Fallback Forex API gagal: " + e.toString());
+  }
+
+  return curr === 'USD' ? 16250 : 1;
+}
+
+function updateValasUnits(email, valasSimbol, deltaUnits) {
+  const sym = valasSimbol.toString().trim().toUpperCase();
+  const sheetPorto = getOrCreateSheet('M_Portofolio');
+  const dataPorto = sheetPorto.getDataRange().getValues();
+  const targetEmail = email.toLowerCase();
+
+  const matchingRows = [];
+  for (let i = 1; i < dataPorto.length; i++) {
+    const rowEmail = (dataPorto[i][0] || '').toString().trim().toLowerCase();
+    const rowSimbol = (dataPorto[i][2] || '').toString().trim().toUpperCase();
+    const rowJenis = (dataPorto[i][6] || '').toString().trim();
+    if (rowEmail === targetEmail && rowSimbol === sym && rowJenis === 'Valuta Asing') {
+      matchingRows.push({
+        rowIndex: i + 1,
+        units: Number(dataPorto[i][3]) || 0
+      });
+    }
+  }
+
+  if (deltaUnits >= 0) {
+    if (matchingRows.length > 0) {
+      const first = matchingRows[0];
+      sheetPorto.getRange(first.rowIndex, 4).setValue(first.units + deltaUnits);
+    } else {
+      const rate = getValasRate(email, sym);
+      const formula = '=IFERROR(GOOGLEFINANCE("CURRENCY:' + sym + 'IDR"), ' + rate + ')';
+      sheetPorto.appendRow([
+        email,
+        "AST-" + new Date().getTime(),
+        sym,
+        deltaUnits,
+        rate,
+        formula,
+        'Valuta Asing',
+        'IDR'
+      ]);
+    }
+    return true;
+  }
+
+  // Pemotongan FIFO jika deltaUnits < 0
+  let remainingToDeduct = Math.abs(deltaUnits);
+  for (let j = 0; j < matchingRows.length && remainingToDeduct > 0; j++) {
+    const lot = matchingRows[j];
+    if (lot.units <= remainingToDeduct) {
+      remainingToDeduct -= lot.units;
+      sheetPorto.getRange(lot.rowIndex, 4).setValue(0);
+    } else {
+      sheetPorto.getRange(lot.rowIndex, 4).setValue(lot.units - remainingToDeduct);
+      remainingToDeduct = 0;
+    }
+  }
+  return true;
+}
+
+// ============================================================================
+// 5. DATA FETCHING (getUserData)
+// ============================================================================
 
 function getUserData(email) {
   const tables = ['M_Akun', 'T_Transaksi', 'T_Transaksi_Detail', 'M_Goals', 'M_Debt', 'M_Recurring', 'M_Portofolio'];
-  let result = { status: 'success', data: {} };
-  const searchEmail = (email || '').toString().toLowerCase().trim();
+  const result = { status: 'success', data: {} };
+  const targetEmail = email.toLowerCase();
 
-  tables.forEach(tableName => {
-    const sheet = SS.getSheetByName(tableName);
+  tables.forEach(function (tableName) {
+    const sheet = getSS().getSheetByName(tableName);
     if (!sheet) {
       result.data[tableName] = [];
       return;
@@ -350,24 +335,26 @@ function getUserData(email) {
       result.data[tableName] = [];
       return;
     }
-
     const headers = rows.shift();
-    const emailIdx = headers.findIndex(h => {
-      const clean = (h || '').toString().toLowerCase().trim().replace(/[_ ]/g, '');
-      return clean === 'email' || clean === 'useremail' || clean === 'owner';
-    });
-    const colE = emailIdx !== -1 ? emailIdx : 0;
-
-    const userRows = rows.filter(row => {
-      const cell = (row[colE] || '').toString().toLowerCase().trim();
-      return cell === searchEmail;
+    const userRows = rows.filter(function (row) {
+      return row[0] && row[0].toString().trim().toLowerCase() === targetEmail;
     });
 
-    result.data[tableName] = userRows.map(row => {
-      let obj = {};
-      headers.forEach((header, i) => {
-        if (header) obj[header] = row[i];
+    result.data[tableName] = userRows.map(function (row) {
+      const obj = {};
+      headers.forEach(function (header, i) {
+        obj[header] = row[i];
       });
+
+      // Shield harga live GOOGLEFINANCE dari #N/A atau Loading... agar portofolio tidak drop ke 0
+      if (tableName === 'M_Portofolio') {
+        const hargaBeli = parseValidNumber(obj['Harga_Beli'] !== undefined ? obj['Harga_Beli'] : obj['Harga Beli']) || 0;
+        const rawLive = obj['Harga_Saat_Ini'] !== undefined ? obj['Harga_Saat_Ini'] : obj['Harga_Realtime'];
+        const parsedLive = parseValidNumber(rawLive);
+        const safeLive = (!isNaN(parsedLive) && parsedLive > 0) ? parsedLive : hargaBeli;
+        obj['Harga_Saat_Ini'] = safeLive;
+      }
+
       return obj;
     });
   });
@@ -376,119 +363,46 @@ function getUserData(email) {
 }
 
 // ============================================================================
-// 6. TRANSACTION ENGINE
+// 6. CORE TRANSACTION & TRANSFER ENGINE
 // ============================================================================
+
 function addTransaction(payload) {
-  const email = payload.email;
-  const idTrx = payload.refId && payload.refId.toString().startsWith("TRX-") ? payload.refId : ("TRX-" + new Date().getTime() + "-" + Math.floor(Math.random() * 1000));
+  const idTrx = payload.refId || ("TRX-" + new Date().getTime());
   const tglFinal = payload.tanggal || new Date();
-  const sheetTrx = SS.getSheetByName('T_Transaksi');
+  const sheetTrx = getOrCreateSheet('T_Transaksi');
   const refId = payload.refId || "";
   const jumlahFinal = Math.round(Number(payload.jumlah) || 0);
   const tipeFinal = (payload.tipe || '').toString().trim().toUpperCase();
+  const akunStr = (payload.akun || '').toString().trim();
 
-  if (jumlahFinal <= 0) {
-    return { status: 'error', message: 'Nominal transaksi harus lebih dari 0.' };
-  }
-  if (!['INFLOW', 'OUTFLOW', 'NEUTRAL'].includes(tipeFinal)) {
-    return { status: 'error', message: 'Tipe transaksi tidak valid.' };
-  }
-
-  if (tipeFinal === 'INFLOW' || tipeFinal === 'OUTFLOW') {
-    const akunStr = (payload.akun || '').toString().trim();
-    if (!akunStr) {
-      return { status: 'error', message: 'Akun transaksi wajib dipilih.' };
-    }
-
-    if (akunStr.startsWith("VALAS_")) {
-      let valasSimbol = akunStr.replace("VALAS_", "").toUpperCase();
-      let sheetPorto = SS.getSheetByName('M_Portofolio');
-      let dataPorto = sheetPorto.getDataRange().getValues();
-
-      let valasRate = 1;
-      let portoIndex = -1;
-      let currentUnits = 0;
-
-      for (let i = 1; i < dataPorto.length; i++) {
-        if ((dataPorto[i][0] || '').toString().toLowerCase().trim() === email &&
-            (dataPorto[i][2] || '').toString().toUpperCase() === valasSimbol &&
-            dataPorto[i][6] === 'Valuta Asing') {
-          valasRate = Number(dataPorto[i][5]) || Number(dataPorto[i][4]) || 1;
-          currentUnits = Number(dataPorto[i][3]) || 0;
-          portoIndex = i;
-          break;
-        }
-      }
-
-      if (portoIndex === -1) {
-        return { status: 'error', message: 'Dompet Valuta Asing tidak ditemukan.' };
-      }
-
-      let amountInValas = jumlahFinal / valasRate;
-      if (tipeFinal === 'OUTFLOW' && currentUnits + 1e-8 < amountInValas) {
-        return { status: 'error', message: 'Saldo Valas tidak mencukupi.' };
-      }
-      let newUnits = (tipeFinal === 'INFLOW') ? currentUnits + amountInValas : Math.max(0, currentUnits - amountInValas);
-      sheetPorto.getRange(portoIndex + 1, 4).setValue(newUnits);
-    } else {
-      const sheetAkun = SS.getSheetByName('M_Akun');
-      const dataAkun = sheetAkun.getDataRange().getValues();
-      if (dataAkun.length <= 1) {
-        return { status: 'error', message: 'Data rekening tidak ditemukan.' };
-      }
-
-      const cols = resolveAkunColumns(dataAkun[0]);
-      const targetAkun = akunStr.toLowerCase();
-      let foundIdx = -1;
-
-      for (let i = 1; i < dataAkun.length; i++) {
-        const rowEmail = (dataAkun[i][cols.email] || '').toString().toLowerCase().trim();
-        const rowNama = (dataAkun[i][cols.nama] || '').toString().trim().toLowerCase();
-        const rowId = (dataAkun[i][cols.id] || '').toString().trim().toLowerCase();
-
-        if (rowEmail === email && (rowNama === targetAkun || rowId === targetAkun)) {
-          foundIdx = i;
-          break;
-        }
-      }
-
-      if (foundIdx === -1) {
-        return { status: 'error', message: 'Rekening "' + akunStr + '" tidak ditemukan.' };
-      }
-
-      let saldoLama = Number(dataAkun[foundIdx][cols.saldoReal]) || 0;
-      if (tipeFinal === 'OUTFLOW' && !payload.allowNegative && saldoLama < jumlahFinal) {
-        return { status: 'error', message: 'Saldo rekening tidak mencukupi.' };
-      }
-      let newBalance = (tipeFinal === 'INFLOW') ? saldoLama + jumlahFinal : saldoLama - jumlahFinal;
-      sheetAkun.getRange(foundIdx + 1, cols.saldoReal + 1).setValue(newBalance);
-    }
-  }
-
+  // 1. Simpan Transaksi Utama
   sheetTrx.appendRow([
-    email,
+    payload.email,
     idTrx,
     tglFinal,
     tipeFinal,
-    sanitizeSheetText(payload.akun || ''),
-    sanitizeSheetText(payload.kategori || 'Lainnya'),
+    sanitizeSheetText(akunStr),
+    sanitizeSheetText(payload.kategori),
     jumlahFinal,
-    sanitizeSheetText(payload.keterangan || ''),
-    sanitizeSheetText(refId)
+    sanitizeSheetText(payload.keterangan),
+    refId
   ]);
 
+  // 2. Simpan Detail Item (Jika Ada)
   if (payload.itemsDetail) {
     try {
-      const sheetDetail = SS.getSheetByName("T_Transaksi_Detail");
-      const items = typeof payload.itemsDetail === 'string' ? JSON.parse(payload.itemsDetail) : payload.itemsDetail;
+      const sheetDetail = getOrCreateSheet("T_Transaksi_Detail");
+      const items = typeof payload.itemsDetail === 'string'
+        ? JSON.parse(payload.itemsDetail)
+        : payload.itemsDetail;
       if (Array.isArray(items)) {
         items.forEach(function (item) {
           sheetDetail.appendRow([
-            email,
+            payload.email,
             idTrx,
             sanitizeSheetText(item.name || "Item"),
             Number(item.qty) || 1,
-            Number(item.price) || 0
+            Math.round(Number(item.price) || 0)
           ]);
         });
       }
@@ -497,366 +411,217 @@ function addTransaction(payload) {
     }
   }
 
-  return { status: 'success', trxId: idTrx };
-}
+  // 3. Update Saldo Akun (VALAS vs IDR REGULER; NEUTRAL tidak mengubah saldo)
+  if (tipeFinal === 'INFLOW' || tipeFinal === 'OUTFLOW') {
+    if (akunStr.startsWith("VALAS_")) {
+      const valasSimbol = akunStr.replace("VALAS_", "").trim().toUpperCase();
+      const valasRate = getValasRate(payload.email, valasSimbol);
+      const amountInValas = jumlahFinal / valasRate;
+      const deltaUnits = (tipeFinal === 'INFLOW') ? amountInValas : -amountInValas;
+      updateValasUnits(payload.email, valasSimbol, deltaUnits);
+    } else {
+      const sheetAkun = getOrCreateSheet('M_Akun');
+      const dataAkun = sheetAkun.getDataRange().getValues();
+      const headers = dataAkun[0];
 
-function deleteTransaction(payload) {
-  const email = payload.email;
-  const idTrx = (payload.idTrx || '').toString().trim();
-  if (!idTrx) return { status: 'error', message: 'ID transaksi tidak valid.' };
+      const idxEmail = getColumnIndex(headers, 'Email');
+      const idxAkun = getColumnIndex(headers, 'Nama_Akun', 'Nama Akun');
+      const idxSaldoReal = getColumnIndex(headers, 'Saldo_Realtime', 'Saldo Realtime');
 
-  const sheetTrx = SS.getSheetByName('T_Transaksi');
-  const data = sheetTrx.getDataRange().getValues();
-
-  for (let i = 1; i < data.length; i++) {
-    if ((data[i][0] || '').toString().toLowerCase().trim() === email &&
-        (data[i][1] || '').toString().trim() === idTrx) {
-      const tipe = (data[i][3] || '').toString().trim().toUpperCase();
-      const akun = (data[i][4] || '').toString().trim();
-      const jumlah = Number(data[i][6]) || 0;
-
-      if ((tipe === 'INFLOW' || tipe === 'OUTFLOW') && akun && !akun.startsWith('VALAS_')) {
-        const sheetAkun = SS.getSheetByName('M_Akun');
-        const dataAkun = sheetAkun.getDataRange().getValues();
-        if (dataAkun.length > 1) {
-          const cols = resolveAkunColumns(dataAkun[0]);
-          for (let j = 1; j < dataAkun.length; j++) {
-            if ((dataAkun[j][cols.email] || '').toString().toLowerCase().trim() === email &&
-                (dataAkun[j][cols.nama] || '').toString().trim().toLowerCase() === akun.toLowerCase()) {
-              const cur = Number(dataAkun[j][cols.saldoReal]) || 0;
-              const restored = tipe === 'INFLOW' ? (cur - jumlah) : (cur + jumlah);
-              sheetAkun.getRange(j + 1, cols.saldoReal + 1).setValue(restored);
-              break;
-            }
+      if (idxEmail !== -1 && idxAkun !== -1 && idxSaldoReal !== -1) {
+        for (let i = 1; i < dataAkun.length; i++) {
+          if (
+            dataAkun[i][idxEmail].toString().trim().toLowerCase() === payload.email.toLowerCase() &&
+            dataAkun[i][idxAkun].toString().trim() === akunStr
+          ) {
+            const saldoLama = Number(dataAkun[i][idxSaldoReal]) || 0;
+            const newBalance = (tipeFinal === 'INFLOW') ? saldoLama + jumlahFinal : saldoLama - jumlahFinal;
+            sheetAkun.getRange(i + 1, idxSaldoReal + 1).setValue(newBalance);
+            break;
           }
         }
       }
-
-      sheetTrx.deleteRow(i + 1);
-      return { status: 'success' };
     }
   }
 
-  return { status: 'error', message: 'Transaksi tidak ditemukan.' };
+  return { status: 'success', trxId: idTrx };
 }
 
 function transferFunds(payload) {
-  const email = payload.email;
   const fromAcc = (payload.fromAcc || '').toString().trim();
   const toAcc = (payload.toAcc || '').toString().trim();
   const amount = Math.round(Number(payload.amount) || 0);
   const admin = Math.round(Number(payload.admin) || 0);
   const desc = payload.desc || ("Transfer dari " + fromAcc + " ke " + toAcc);
   const tgl = payload.tanggal || new Date();
-  const refId = "TF-" + new Date().getTime();
+  const nowMs = new Date().getTime();
+  const refId = "TF-" + nowMs;
 
-  if (amount <= 0 || admin < 0 || !fromAcc || !toAcc || fromAcc === toAcc) {
+  if (amount <= 0 || !fromAcc || !toAcc || fromAcc === toAcc) {
     return { status: 'error', message: 'Parameter transfer tidak valid.' };
   }
 
-  const sheetAkun = SS.getSheetByName('M_Akun');
-  const dataAkun = sheetAkun.getDataRange().getValues();
-  if (dataAkun.length <= 1) {
-    return { status: 'error', message: 'Data rekening kosong.' };
-  }
+  const isFromValas = fromAcc.startsWith('VALAS_');
+  const isToValas = toAcc.startsWith('VALAS_');
 
-  const cols = resolveAkunColumns(dataAkun[0]);
+  const sheetAkun = getOrCreateSheet('M_Akun');
+  const dataAkun = sheetAkun.getDataRange().getValues();
+  const headers = dataAkun[0];
+  const idxEmail = getColumnIndex(headers, 'Email');
+  const idxAkun = getColumnIndex(headers, 'Nama_Akun', 'Nama Akun');
+  const idxSaldoReal = getColumnIndex(headers, 'Saldo_Realtime', 'Saldo Realtime');
+
   let fromIdx = -1, toIdx = -1;
   let fromBal = 0, toBal = 0;
 
   for (let i = 1; i < dataAkun.length; i++) {
-    if ((dataAkun[i][cols.email] || '').toString().toLowerCase().trim() === email) {
-      const rowNama = (dataAkun[i][cols.nama] || '').toString().trim();
-      if (rowNama === fromAcc) {
+    if (dataAkun[i][idxEmail].toString().trim().toLowerCase() === payload.email.toLowerCase()) {
+      const namaRow = dataAkun[i][idxAkun].toString().trim();
+      if (!isFromValas && namaRow === fromAcc) {
         fromIdx = i;
-        fromBal = Number(dataAkun[i][cols.saldoReal]) || 0;
+        fromBal = Number(dataAkun[i][idxSaldoReal]) || 0;
       }
-      if (rowNama === toAcc) {
+      if (!isToValas && namaRow === toAcc) {
         toIdx = i;
-        toBal = Number(dataAkun[i][cols.saldoReal]) || 0;
+        toBal = Number(dataAkun[i][idxSaldoReal]) || 0;
       }
     }
   }
 
-  if (fromIdx === -1 || toIdx === -1) {
-    return { status: 'error', message: 'Rekening asal atau tujuan tidak ditemukan.' };
+  // Validasi keberadaan akun asal & tujuan
+  if (!isFromValas && fromIdx === -1) {
+    return { status: 'error', message: 'Rekening asal tidak ditemukan.' };
+  }
+  if (!isToValas && toIdx === -1) {
+    return { status: 'error', message: 'Rekening tujuan tidak ditemukan.' };
   }
 
-  if (fromBal < (amount + admin)) {
-    return { status: 'error', message: 'Saldo rekening asal tidak mencukupi.' };
+  // Validasi saldo rekening asal
+  if (!isFromValas) {
+    if (fromBal < (amount + admin)) {
+      return { status: 'error', message: 'Saldo rekening asal tidak mencukupi.' };
+    }
+  } else {
+    const fromSym = fromAcc.replace('VALAS_', '').trim().toUpperCase();
+    const fromRate = getValasRate(payload.email, fromSym);
+    const sheetPorto = getOrCreateSheet('M_Portofolio');
+    const dataPorto = sheetPorto.getDataRange().getValues();
+    let totalUnits = 0;
+    for (let i = 1; i < dataPorto.length; i++) {
+      if (
+        dataPorto[i][0].toString().trim().toLowerCase() === payload.email.toLowerCase() &&
+        dataPorto[i][2].toString().trim().toUpperCase() === fromSym &&
+        dataPorto[i][6].toString().trim() === 'Valuta Asing'
+      ) {
+        totalUnits += Number(dataPorto[i][3]) || 0;
+      }
+    }
+    if ((totalUnits * fromRate) + 1 < (amount + admin)) {
+      return { status: 'error', message: 'Saldo ' + fromSym + ' tidak mencukupi.' };
+    }
   }
 
-  sheetAkun.getRange(fromIdx + 1, cols.saldoReal + 1).setValue(fromBal - amount - admin);
-  sheetAkun.getRange(toIdx + 1, cols.saldoReal + 1).setValue(toBal + amount);
+  // Eksekusi mutasi asal
+  if (!isFromValas) {
+    sheetAkun.getRange(fromIdx + 1, idxSaldoReal + 1).setValue(fromBal - amount - admin);
+  } else {
+    const fromSym = fromAcc.replace('VALAS_', '').trim().toUpperCase();
+    const fromRate = getValasRate(payload.email, fromSym);
+    updateValasUnits(payload.email, fromSym, -((amount + admin) / fromRate));
+  }
 
-  const sheetTrx = SS.getSheetByName('T_Transaksi');
-  const nowMs = new Date().getTime();
-  sheetTrx.appendRow([email, "TRX-" + nowMs, tgl, 'OUTFLOW', sanitizeSheetText(fromAcc), 'Transfer Keluar', amount, sanitizeSheetText(desc), refId]);
-  sheetTrx.appendRow([email, "TRX-" + (nowMs + 1), tgl, 'INFLOW', sanitizeSheetText(toAcc), 'Transfer Masuk', amount, sanitizeSheetText(desc), refId]);
+  // Eksekusi mutasi tujuan
+  if (!isToValas) {
+    sheetAkun.getRange(toIdx + 1, idxSaldoReal + 1).setValue(toBal + amount);
+  } else {
+    const toSym = toAcc.replace('VALAS_', '').trim().toUpperCase();
+    const toRate = getValasRate(payload.email, toSym);
+    updateValasUnits(payload.email, toSym, amount / toRate);
+  }
+
+  // Catat histori transaksi mutasi
+  const sheetTrx = getOrCreateSheet('T_Transaksi');
+  sheetTrx.appendRow([
+    payload.email, "TRX-" + nowMs, tgl, 'OUTFLOW',
+    sanitizeSheetText(fromAcc), 'Transfer Keluar', amount, sanitizeSheetText(desc), refId
+  ]);
+  sheetTrx.appendRow([
+    payload.email, "TRX-" + (nowMs + 1), tgl, 'INFLOW',
+    sanitizeSheetText(toAcc), 'Transfer Masuk', amount, sanitizeSheetText(desc), refId
+  ]);
   if (admin > 0) {
-    sheetTrx.appendRow([email, "TRX-" + (nowMs + 2), tgl, 'OUTFLOW', sanitizeSheetText(fromAcc), 'Biaya Admin', admin, sanitizeSheetText("Admin tf ke " + toAcc), refId]);
+    sheetTrx.appendRow([
+      payload.email, "TRX-" + (nowMs + 2), tgl, 'OUTFLOW',
+      sanitizeSheetText(fromAcc), 'Biaya Admin', admin, sanitizeSheetText("Admin tf ke " + toAcc), refId
+    ]);
   }
 
   return { status: 'success', refId: refId };
 }
 
 // ============================================================================
-// 7. ACCOUNT MANAGEMENT ENGINE
+// 7. RECURRING, WALLETS, GOALS & DEBTS
 // ============================================================================
-function resolveAkunColumns(headers) {
-  const findIdx = (patterns, fallback) => {
-    const idx = headers.findIndex(h => {
-      const clean = (h || '').toString().toLowerCase().replace(/[_ ]/g, '');
-      return patterns.some(p => clean === p || clean.includes(p));
-    });
-    return idx !== -1 ? idx : fallback;
-  };
 
-  return {
-    email: findIdx(['email'], 0),
-    id: findIdx(['idakun', 'id'], 1),
-    nama: findIdx(['namaakun', 'nama', 'akun'], 2),
-    tipe: findIdx(['tipeakun', 'tipe', 'jenis'], 3),
-    atasNama: findIdx(['atasnama', 'pemilik'], 4),
-    noRek: findIdx(['nomorrekening', 'norekening', 'rekening', 'norek'], 5),
-    saldoAwal: findIdx(['saldoawal', 'awal'], 6),
-    saldoReal: findIdx(['saldorealtime', 'saldoreal', 'saldo'], 7)
-  };
-}
-
-function addAccount(payload) {
-  const email = payload.email;
-  const sheet = SS.getSheetByName('M_Akun');
-  const nama = (payload.nama || '').toString().trim();
-  if (!nama) return { status: 'error', message: 'Nama rekening wajib diisi.' };
-
-  const data = sheet.getDataRange().getValues();
-  const cols = data.length > 0 ? resolveAkunColumns(data[0]) : { email: 0, id: 1, nama: 2, tipe: 3, atasNama: 4, noRek: 5, saldoAwal: 6, saldoReal: 7 };
-
-  for (let i = 1; i < data.length; i++) {
-    if ((data[i][cols.email] || '').toString().toLowerCase().trim() === email &&
-        (data[i][cols.nama] || '').toString().trim().toLowerCase() === nama.toLowerCase()) {
-      return { status: 'error', message: 'Nama rekening "' + nama + '" sudah terdaftar.' };
-    }
-  }
-
-  const saldo = Math.max(0, Math.round(Number(payload.saldo) || 0));
-  const tipe = (payload.tipe || 'Bank').toString().trim();
-  const atasNama = (payload.atasNama || nama).toString().trim();
-  const noRek = (payload.noRek || '').toString().trim();
-  const idAkun = "ACC-" + new Date().getTime();
-
-  const totalCols = Math.max(8, data.length > 0 ? data[0].length : 8);
-  const newRow = new Array(totalCols).fill('');
-  newRow[cols.email] = email;
-  newRow[cols.id] = idAkun;
-  newRow[cols.nama] = sanitizeSheetText(nama);
-  newRow[cols.tipe] = sanitizeSheetText(tipe);
-  newRow[cols.atasNama] = sanitizeSheetText(atasNama);
-  newRow[cols.noRek] = sanitizeSheetText(noRek);
-  newRow[cols.saldoAwal] = saldo;
-  newRow[cols.saldoReal] = saldo;
-
-  sheet.appendRow(newRow);
-  return { status: 'success', idAkun: idAkun };
-}
-
-function updateAccount(payload) {
-  const email = payload.email;
-  const sheet = SS.getSheetByName('M_Akun');
-  const data = sheet.getDataRange().getValues();
-  if (data.length <= 1) return { status: 'error', message: 'Data rekening kosong.' };
-
-  const cols = resolveAkunColumns(data[0]);
-  const targetId = (payload.idAkun || '').toString().trim();
-  const oldNama = (payload.oldNama || '').toString().trim();
-
-  let rowIndex = -1;
-  for (let i = 1; i < data.length; i++) {
-    if ((data[i][cols.email] || '').toString().toLowerCase().trim() === email) {
-      const rowId = (data[i][cols.id] || '').toString().trim();
-      const rowNama = (data[i][cols.nama] || '').toString().trim();
-      if ((targetId && rowId === targetId) || (oldNama && rowNama === oldNama)) {
-        rowIndex = i;
-        break;
-      }
-    }
-  }
-
-  if (rowIndex === -1) return { status: 'error', message: 'Rekening tidak ditemukan.' };
-
-  const currentNama = data[rowIndex][cols.nama].toString().trim();
-  const currentSaldo = Number(data[rowIndex][cols.saldoReal]) || 0;
-  const newNama = (payload.nama !== undefined && payload.nama !== null && payload.nama.toString().trim() !== '')
-    ? payload.nama.toString().trim()
-    : currentNama;
-
-  if (newNama !== currentNama) {
-    sheet.getRange(rowIndex + 1, cols.nama + 1).setValue(sanitizeSheetText(newNama));
-    syncRenamedAccount(email, currentNama, newNama);
-  }
-
-  if (payload.tipe !== undefined && payload.tipe !== null && payload.tipe !== '') {
-    sheet.getRange(rowIndex + 1, cols.tipe + 1).setValue(sanitizeSheetText(payload.tipe));
-  }
-  if (payload.atasNama !== undefined && payload.atasNama !== null) {
-    sheet.getRange(rowIndex + 1, cols.atasNama + 1).setValue(sanitizeSheetText(payload.atasNama));
-  }
-  if (payload.noRek !== undefined && payload.noRek !== null) {
-    sheet.getRange(rowIndex + 1, cols.noRek + 1).setValue(sanitizeSheetText(payload.noRek));
-  }
-
-  if (payload.saldo !== undefined && payload.saldo !== null && payload.saldo !== '') {
-    const targetSaldo = Math.round(Number(payload.saldo) || 0);
-    const diff = targetSaldo - currentSaldo;
-    sheet.getRange(rowIndex + 1, cols.saldoReal + 1).setValue(targetSaldo);
-
-    if (payload.recordAdjustment && diff !== 0) {
-      const sheetTrx = SS.getSheetByName('T_Transaksi');
-      const note = payload.adjNote ? payload.adjNote.toString().trim() : 'Penyesuaian Saldo Rekening';
-      sheetTrx.appendRow([
-        email,
-        "TRX-" + new Date().getTime(),
-        new Date(),
-        diff > 0 ? 'INFLOW' : 'OUTFLOW',
-        sanitizeSheetText(newNama),
-        'Lainnya',
-        Math.abs(diff),
-        sanitizeSheetText(note),
-        'ADJ-' + new Date().getTime()
-      ]);
-    }
-  }
-
-  return { status: 'success' };
-}
-
-function syncRenamedAccount(email, oldName, newName) {
-  try {
-    const sheetTrx = SS.getSheetByName('T_Transaksi');
-    if (sheetTrx) {
-      const trxData = sheetTrx.getDataRange().getValues();
-      for (let i = 1; i < trxData.length; i++) {
-        if ((trxData[i][0] || '').toString().toLowerCase().trim() === email &&
-            (trxData[i][4] || '').toString().trim() === oldName) {
-          sheetTrx.getRange(i + 1, 5).setValue(sanitizeSheetText(newName));
-        }
-      }
-    }
-    const sheetRec = SS.getSheetByName('M_Recurring');
-    if (sheetRec) {
-      const recData = sheetRec.getDataRange().getValues();
-      for (let i = 1; i < recData.length; i++) {
-        if ((recData[i][0] || '').toString().toLowerCase().trim() === email &&
-            (recData[i][6] || '').toString().trim() === oldName) {
-          sheetRec.getRange(i + 1, 7).setValue(sanitizeSheetText(newName));
-        }
-      }
-    }
-  } catch (e) {
-    Logger.log("Sync rename notice: " + e.toString());
-  }
-}
-
-function deleteAccount(payload) {
-  const email = payload.email;
-  const sheet = SS.getSheetByName('M_Akun');
-  const data = sheet.getDataRange().getValues();
-  if (data.length <= 1) return { status: 'error', message: 'Rekening tidak ditemukan.' };
-
-  const cols = resolveAkunColumns(data[0]);
-  const targetId = (payload.idAkun || '').toString().trim();
-  const targetNama = (payload.nama || '').toString().trim();
-
-  for (let i = 1; i < data.length; i++) {
-    if ((data[i][cols.email] || '').toString().toLowerCase().trim() === email) {
-      const rowId = (data[i][cols.id] || '').toString().trim();
-      const rowNama = (data[i][cols.nama] || '').toString().trim();
-      if ((targetId && rowId === targetId) || (targetNama && rowNama === targetNama)) {
-        sheet.deleteRow(i + 1);
-        return { status: 'success' };
-      }
-    }
-  }
-  return { status: 'error', message: 'Rekening tidak ditemukan.' };
-}
-
-// ============================================================================
-// 8. RECURRING, DEBT, GOALS, PORTFOLIO & WALLET MODULES (VALIDATED)
-// ============================================================================
 function addRecurring(payload) {
-  const nama = (payload.nama || '').toString().trim();
-  const nominal = Math.round(Number(payload.nominal) || 0);
-  const tglTagihan = parseInt(payload.tgl_tagihan, 10) || 1;
-  const akun = (payload.akun || '').toString().trim();
-
-  if (!nama || nominal <= 0 || !akun) {
-    return { status: 'error', message: 'Nama layanan, nominal (>0), dan rekening wajib diisi.' };
-  }
-  if (tglTagihan < 1 || tglTagihan > 31) {
-    return { status: 'error', message: 'Tanggal tagihan harus antara 1 sampai 31.' };
-  }
-
-  SS.getSheetByName('M_Recurring').appendRow([
+  getOrCreateSheet('M_Recurring').appendRow([
     payload.email,
     "REC-" + new Date().getTime(),
-    sanitizeSheetText(nama),
-    nominal,
-    sanitizeSheetText(payload.frekuensi || 'Bulanan'),
-    tglTagihan,
-    sanitizeSheetText(akun)
+    sanitizeSheetText(payload.nama),
+    Math.round(Number(payload.nominal) || 0),
+    sanitizeSheetText(payload.frekuensi),
+    payload.tgl_tagihan,
+    sanitizeSheetText(payload.akun)
   ]);
   return { status: 'success' };
 }
 
 function deleteRecurring(payload) {
-  const email = payload.email;
-  const sheet = SS.getSheetByName('M_Recurring');
+  const sheet = getOrCreateSheet('M_Recurring');
   const data = sheet.getDataRange().getValues();
-  const idRec = (payload.idRec || '').toString().trim();
+  const targetId = (payload.idRec || '').toString().trim();
 
   for (let i = 1; i < data.length; i++) {
-    if ((data[i][0] || '').toString().toLowerCase().trim() === email &&
-        (data[i][1] || '').toString().trim() === idRec) {
+    if (
+      data[i][0].toString().trim().toLowerCase() === payload.email.toLowerCase() &&
+      data[i][1].toString().trim() === targetId
+    ) {
       sheet.deleteRow(i + 1);
       return { status: 'success' };
     }
   }
-  return { status: 'error', message: 'Tagihan tidak ditemukan.' };
+  return { status: 'error', message: 'Data langganan tidak ditemukan.' };
 }
 
 function addWallet(payload) {
-  const nama = (payload.nama || '').toString().trim();
-  const saldo = Math.max(0, Math.round(Number(payload.saldo) || 0));
-  if (!nama) return { status: 'error', message: 'Nama dompet wajib diisi.' };
-
-  const sheet = SS.getSheetByName('M_Akun');
-  sheet.appendRow([
+  const initialSaldo = Math.round(Number(payload.saldo) || 0);
+  getOrCreateSheet('M_Akun').appendRow([
     payload.email,
     "ACC-" + new Date().getTime(),
-    sanitizeSheetText(nama),
+    sanitizeSheetText(payload.nama),
     'Wallet Investasi',
-    sanitizeSheetText(nama),
+    sanitizeSheetText(payload.nama),
     '',
-    saldo,
-    saldo
+    initialSaldo,
+    initialSaldo
   ]);
   return { status: 'success' };
 }
 
 function deleteWallet(payload) {
-  const email = payload.email;
-  const nama = (payload.nama || '').toString().trim().toLowerCase();
-  const sheet = SS.getSheetByName('M_Akun');
+  const sheet = getOrCreateSheet('M_Akun');
   const data = sheet.getDataRange().getValues();
+  const targetName = (payload.nama || '').toString().trim().toLowerCase();
 
   for (let i = 1; i < data.length; i++) {
-    if ((data[i][0] || '').toString().toLowerCase().trim() === email &&
-        (data[i][2] || '').toString().trim().toLowerCase() === nama &&
-        (data[i][3] || '').toString() === 'Wallet Investasi') {
-      const saldo = Number(data[i][7]) || 0;
-      if (saldo > 0) {
-        return { status: 'error', message: 'Dompet masih memiliki saldo. Kosongkan saldo terlebih dahulu.' };
+    if (
+      data[i][0].toString().trim().toLowerCase() === payload.email.toLowerCase() &&
+      data[i][2].toString().trim().toLowerCase() === targetName &&
+      data[i][3].toString().trim() === 'Wallet Investasi'
+    ) {
+      const saldoRealtime = Number(data[i][7]) || 0;
+      if (saldoRealtime > 0) {
+        return { status: 'error', message: 'Saldo dompet harus 0 sebelum dihapus.' };
       }
       sheet.deleteRow(i + 1);
       return { status: 'success' };
@@ -866,47 +631,39 @@ function deleteWallet(payload) {
 }
 
 function addGoal(payload) {
-  const nama = (payload.nama || '').toString().trim();
-  const target = Math.round(Number(payload.target) || 0);
-  if (!nama || target <= 0) {
-    return { status: 'error', message: 'Nama target dan nominal target (>0) wajib diisi.' };
-  }
-
-  SS.getSheetByName('M_Goals').appendRow([
+  getOrCreateSheet('M_Goals').appendRow([
     payload.email,
     "GOAL-" + new Date().getTime(),
-    sanitizeSheetText(nama),
-    target,
+    sanitizeSheetText(payload.nama),
+    Math.round(Number(payload.target) || 0),
     0,
-    sanitizeSheetText(payload.tenggat || ''),
+    '',
     'ACTIVE'
   ]);
   return { status: 'success' };
 }
 
 function manageGoalFunds(payload) {
-  const email = payload.email;
-  const sheetGoal = SS.getSheetByName('M_Goals');
+  const sheetGoal = getOrCreateSheet('M_Goals');
   const rows = sheetGoal.getDataRange().getValues();
-  const targetName = (payload.namaGoal || '').toString().trim();
-  const targetId = (payload.idGoal || '').toString().trim();
+  const targetGoal = (payload.namaGoal || '').toString().trim();
+  const nominal = Math.round(Number(payload.nominal) || 0);
+
+  if (nominal <= 0) {
+    return { status: 'error', message: 'Nominal harus lebih dari 0.' };
+  }
 
   for (let i = 1; i < rows.length; i++) {
-    const rowEmail = (rows[i][0] || '').toString().toLowerCase().trim();
-    const rowId = (rows[i][1] || '').toString().trim();
-    const rowNama = (rows[i][2] || '').toString().trim();
-
-    if (rowEmail === email && ((targetId && rowId === targetId) || (targetName && rowNama === targetName))) {
-      let currentTerkumpul = Number(rows[i][4]) || 0;
-      let nominal = Math.round(Number(payload.nominal) || 0);
-
-      if (nominal <= 0) {
-        return { status: 'error', message: 'Nominal harus lebih dari 0.' };
-      }
+    if (
+      rows[i][0].toString().trim().toLowerCase() === payload.email.toLowerCase() &&
+      rows[i][2].toString().trim() === targetGoal &&
+      (rows[i][6] || 'ACTIVE').toString().trim().toUpperCase() !== 'COMPLETED'
+    ) {
+      const currentTerkumpul = Number(rows[i][4]) || 0;
 
       if (payload.tipeAksi === 'withdraw') {
         if (nominal > currentTerkumpul) {
-          return { status: 'error', message: 'Nominal penarikan melebihi dana terkumpul pada target.' };
+          return { status: 'error', message: 'Nominal tarik melebihi dana target yang terkumpul.' };
         }
         const sisaGoal = Math.max(0, currentTerkumpul - nominal);
         sheetGoal.getRange(i + 1, 5).setValue(sisaGoal);
@@ -914,56 +671,52 @@ function manageGoalFunds(payload) {
           sheetGoal.getRange(i + 1, 7).setValue('COMPLETED');
         }
         return addTransaction({
-          email: email,
+          email: payload.email,
           tipe: 'INFLOW',
           akun: payload.akun,
           kategori: 'Tabungan & Investasi',
           jumlah: nominal,
-          keterangan: 'Pencairan: ' + rowNama,
-          refId: rowId
+          keterangan: 'Pencairan: ' + targetGoal
         });
       } else if (payload.tipeAksi === 'add') {
-        const trxRes = addTransaction({
-          email: email,
+        sheetGoal.getRange(i + 1, 5).setValue(currentTerkumpul + nominal);
+        return addTransaction({
+          email: payload.email,
           tipe: 'OUTFLOW',
           akun: payload.akun,
           kategori: 'Tabungan & Investasi',
           jumlah: nominal,
-          keterangan: 'Nabung: ' + rowNama,
-          refId: rowId
+          keterangan: 'Nabung: ' + targetGoal
         });
-        if (trxRes.status !== 'success') return trxRes;
-
-        sheetGoal.getRange(i + 1, 5).setValue(currentTerkumpul + nominal);
-        return { status: 'success' };
       }
     }
   }
-  return { status: 'error', message: 'Goal tidak ditemukan.' };
+  return { status: 'error', message: 'Goal aktif tidak ditemukan.' };
 }
 
 function addDebt(payload) {
-  const email = payload.email;
-  const kontak = (payload.kontak || '').toString().trim();
-  const tipe = (payload.tipe || '').toString().trim().toUpperCase();
+  const sheetDebt = getOrCreateSheet('M_Debt');
+  const data = sheetDebt.getDataRange().getValues();
+  const tipeNorm = (payload.tipe || 'UTANG').toString().trim().toUpperCase();
+  const kontakClean = (payload.kontak || '').toString().trim();
   const newAmount = Math.round(Number(payload.jumlah) || 0);
 
-  if (!kontak || newAmount <= 0 || !['UTANG', 'PIUTANG'].includes(tipe)) {
-    return { status: 'error', message: 'Data hutang/piutang tidak valid.' };
+  if (!kontakClean || newAmount <= 0) {
+    return { status: 'error', message: 'Data kontak atau nominal tidak valid.' };
   }
 
-  const sheetDebt = SS.getSheetByName('M_Debt');
-  const data = sheetDebt.getDataRange().getValues();
   let existingIndex = -1;
   let currentSisa = 0;
   let currentAwal = 0;
   let targetId = "";
 
   for (let i = 1; i < data.length; i++) {
-    if ((data[i][0] || '').toString().toLowerCase().trim() === email &&
-        (data[i][3] || '').toString().toLowerCase().trim() === kontak.toLowerCase() &&
-        data[i][2] === tipe &&
-        data[i][6] === 'ACTIVE') {
+    if (
+      data[i][0].toString().trim().toLowerCase() === payload.email.toLowerCase() &&
+      data[i][3].toString().trim().toLowerCase() === kontakClean.toLowerCase() &&
+      data[i][2].toString().trim().toUpperCase() === tipeNorm &&
+      (data[i][6] || '').toString().trim().toUpperCase() === 'ACTIVE'
+    ) {
       existingIndex = i;
       targetId = data[i][1];
       currentAwal = Number(data[i][4]) || 0;
@@ -977,18 +730,26 @@ function addDebt(payload) {
     sheetDebt.getRange(existingIndex + 1, 6).setValue(currentSisa + newAmount);
   } else {
     targetId = "DEBT-" + new Date().getTime();
-    sheetDebt.appendRow([email, targetId, tipe, sanitizeSheetText(kontak), newAmount, newAmount, 'ACTIVE']);
+    sheetDebt.appendRow([
+      payload.email,
+      targetId,
+      tipeNorm,
+      sanitizeSheetText(kontakClean),
+      newAmount,
+      newAmount,
+      'ACTIVE'
+    ]);
   }
 
-  const sheetTrx = SS.getSheetByName('T_Transaksi');
-  let ketMsg = kontak + " bertambah";
+  const sheetTrx = getOrCreateSheet('T_Transaksi');
+  const ketMsg = kontakClean + " bertambah";
   sheetTrx.appendRow([
-    email,
+    payload.email,
     "TRX-" + new Date().getTime(),
     new Date(),
     "NEUTRAL",
     "-",
-    tipe === 'UTANG' ? "Hutang Bertambah" : "Piutang Bertambah",
+    "Hutang Bertambah",
     newAmount,
     sanitizeSheetText(ketMsg),
     targetId
@@ -998,29 +759,36 @@ function addDebt(payload) {
 }
 
 function payDebt(payload) {
-  const email = payload.email;
-  const sheetDebt = SS.getSheetByName('M_Debt');
+  const sheetDebt = getOrCreateSheet('M_Debt');
   const data = sheetDebt.getDataRange().getValues();
   const idDebt = (payload.idDebt || '').toString().trim();
 
   for (let i = 1; i < data.length; i++) {
-    if ((data[i][0] || '').toString().toLowerCase().trim() === email &&
-        (data[i][1] || '').toString().trim() === idDebt) {
-      let tipe = data[i][2];
-      let kontak = data[i][3];
-      let currentSisa = Number(data[i][5]) || 0;
+    if (
+      data[i][0].toString().trim().toLowerCase() === payload.email.toLowerCase() &&
+      data[i][1].toString().trim() === idDebt
+    ) {
+      const tipe = (data[i][2] || '').toString().trim().toUpperCase();
+      const kontak = data[i][3];
+      const currentSisa = Number(data[i][5]) || 0;
       let nominalBayar = Math.round(Number(payload.nominal) || 0);
 
-      if (nominalBayar <= 0) {
-        return { status: 'error', message: 'Nominal pelunasan harus lebih dari 0.' };
+      if (nominalBayar <= 0 || currentSisa <= 0) {
+        return { status: 'error', message: 'Nominal pembayaran tidak valid atau tagihan sudah lunas.' };
       }
       if (nominalBayar > currentSisa) nominalBayar = currentSisa;
 
-      let trxTipe = (tipe === 'UTANG') ? 'OUTFLOW' : 'INFLOW';
-      let ketMsg = (tipe === 'UTANG') ? 'Bayar hutang: ' + kontak : 'Terima piutang: ' + kontak;
+      const newSisa = Math.max(0, currentSisa - nominalBayar);
+      const status = (newSisa <= 0) ? 'COMPLETED' : 'ACTIVE';
 
-      const trxRes = addTransaction({
-        email: email,
+      sheetDebt.getRange(i + 1, 6).setValue(newSisa);
+      sheetDebt.getRange(i + 1, 7).setValue(status);
+
+      const trxTipe = (tipe === 'UTANG') ? 'OUTFLOW' : 'INFLOW';
+      const ketMsg = (tipe === 'UTANG') ? 'Bayar hutang: ' + kontak : 'Terima piutang: ' + kontak;
+
+      return addTransaction({
+        email: payload.email,
         tipe: trxTipe,
         akun: payload.akun,
         kategori: 'Kewajiban & Sosial',
@@ -1028,184 +796,187 @@ function payDebt(payload) {
         keterangan: ketMsg,
         refId: idDebt
       });
-      if (trxRes.status !== 'success') return trxRes;
-
-      let newSisa = Math.max(0, currentSisa - nominalBayar);
-      let status = (newSisa <= 0) ? 'COMPLETED' : 'ACTIVE';
-      sheetDebt.getRange(i + 1, 6).setValue(newSisa);
-      sheetDebt.getRange(i + 1, 7).setValue(status);
-
-      return { status: 'success' };
     }
   }
   return { status: 'error', message: 'Data hutang/piutang tidak ditemukan.' };
 }
 
-function buyAsset(payload) {
-  const email = payload.email;
-  const sheetPorto = SS.getSheetByName('M_Portofolio');
-  const idAset = "AST-" + new Date().getTime();
-  let pureSimbol = (payload.simbol || '').toString().toUpperCase().replace(/[^A-Z0-9.\-_]/g, '').trim();
-  let jumlahUnit = Number(payload.jumlah) || 0;
-  let hargaUnitInput = Number(payload.harga) || 0;
-  let mataUang = (payload.mataUang || 'IDR').toString().toUpperCase().replace(/[^A-Z0-9]/g, '').trim();
+// ============================================================================
+// 8. INVESTMENT PORTFOLIO ENGINE (BUY & FIFO MULTI-LOT SELL)
+// ============================================================================
 
-  if (!pureSimbol || jumlahUnit <= 0 || hargaUnitInput <= 0) {
+function buyAsset(payload) {
+  const sheetPorto = getOrCreateSheet('M_Portofolio');
+  const idAset = "AST-" + new Date().getTime();
+  const pureSimbol = (payload.simbol || '').toString().toUpperCase().replace(/[^A-Z0-9.\-_]/g, '').trim();
+  const jenis = (payload.jenis || '').toString().trim();
+  const jumlah = Number(payload.jumlah) || 0;
+  const harga = Number(payload.harga) || 0;
+  const mataUang = (payload.mataUang || 'IDR').toString().toUpperCase().replace(/[^A-Z0-9]/g, '').trim();
+
+  if (!pureSimbol || jumlah <= 0 || harga <= 0) {
     return { status: 'error', message: 'Detail pembelian aset tidak valid.' };
   }
 
-  let valasRate = 1;
-  if (mataUang !== 'IDR') {
-    valasRate = Number(payload.kurs) || 0;
-    if (valasRate <= 0) {
-      const dataPorto = sheetPorto.getDataRange().getValues();
-      for (let i = 1; i < dataPorto.length; i++) {
-        if ((dataPorto[i][0] || '').toString().toLowerCase().trim() === email &&
-            (dataPorto[i][2] || '').toString().toUpperCase() === mataUang &&
-            dataPorto[i][6] === 'Valuta Asing') {
-          valasRate = Number(dataPorto[i][5]) || Number(dataPorto[i][4]) || 1;
-          break;
-        }
-      }
-    }
-    if (valasRate <= 0) valasRate = 1;
+  let formula = harga;
+  if (jenis === 'Cryptocurrency') {
+    formula = '=IFERROR(GOOGLEFINANCE("CURRENCY:' + pureSimbol + 'USD") * GOOGLEFINANCE("CURRENCY:USDIDR"), ' + harga + ')';
+  } else if (jenis === 'Saham Indonesia') {
+    formula = '=IFERROR(GOOGLEFINANCE("IDX:' + pureSimbol + '"), ' + harga + ')';
+  } else if (jenis === 'Valuta Asing') {
+    formula = '=IFERROR(GOOGLEFINANCE("CURRENCY:' + pureSimbol + 'IDR"), ' + harga + ')';
+  } else if (jenis.toLowerCase().includes('amerika') || jenis.toLowerCase().includes('us')) {
+    formula = '=IFERROR(GOOGLEFINANCE("' + pureSimbol + '"), ' + harga + ')';
   }
 
-  let hargaBeliIDR = Math.round(hargaUnitInput * valasRate);
-  let totalHargaIDR = Math.round(jumlahUnit * hargaBeliIDR);
-  let formula = hargaBeliIDR;
+  sheetPorto.appendRow([
+    payload.email,
+    idAset,
+    pureSimbol,
+    jumlah,
+    harga,
+    formula,
+    jenis,
+    mataUang
+  ]);
 
-  if (payload.jenis === 'Cryptocurrency') {
-    formula = '=IFERROR(GOOGLEFINANCE("CURRENCY:' + pureSimbol + 'USD") * GOOGLEFINANCE("CURRENCY:USDIDR"), ' + hargaBeliIDR + ')';
-  } else if (payload.jenis === 'Saham Indonesia') {
-    formula = '=IFERROR(GOOGLEFINANCE("IDX:' + pureSimbol + '"), ' + hargaBeliIDR + ')';
-  } else if (payload.jenis === 'Valuta Asing') {
-    formula = '=IFERROR(GOOGLEFINANCE("CURRENCY:' + pureSimbol + 'IDR"), ' + hargaBeliIDR + ')';
-  }
-
+  let totalHargaIDR = Number(payload.totalHarga) || (jumlah * harga);
   let keteranganStr = 'Beli Aset: ' + pureSimbol;
+
   if (mataUang !== 'IDR') {
-    keteranganStr += ' (' + (jumlahUnit * hargaUnitInput).toFixed(2) + ' ' + mataUang + ')';
+    const valasRate = getValasRate(payload.email, mataUang);
+    totalHargaIDR = (Number(payload.totalHarga) || (jumlah * harga)) * valasRate;
+    keteranganStr += ' (' + (Number(payload.totalHarga) || (jumlah * harga)) + ' ' + mataUang + ')';
   }
 
-  const trxRes = addTransaction({
-    email: email,
+  return addTransaction({
+    email: payload.email,
     tipe: 'OUTFLOW',
     akun: payload.akun,
     kategori: 'Tabungan & Investasi',
     jumlah: totalHargaIDR,
-    keterangan: keteranganStr,
-    refId: idAset
+    keterangan: keteranganStr
   });
-  if (trxRes.status !== 'success') return trxRes;
-
-  sheetPorto.appendRow([
-    email,
-    idAset,
-    pureSimbol,
-    jumlahUnit,
-    hargaBeliIDR,
-    formula,
-    sanitizeSheetText(payload.jenis || 'Saham Indonesia'),
-    mataUang
-  ]);
-
-  return { status: 'success', idAset: idAset };
 }
 
 function sellAsset(payload) {
-  const email = payload.email;
-  const sheetPorto = SS.getSheetByName('M_Portofolio');
+  const sheetPorto = getOrCreateSheet('M_Portofolio');
   const data = sheetPorto.getDataRange().getValues();
-  const targetSimbol = (payload.simbol || '').toString().toUpperCase().trim();
+  const targetEmail = payload.email.toLowerCase();
   const targetId = (payload.idAset || '').toString().trim();
+  const targetSimbol = (payload.simbol || '').toString().trim().toUpperCase();
   let remainingToSell = Number(payload.jumlahJual) || 0;
-  const totalDapat = Math.round(Number(payload.totalDapat) || 0);
 
-  if (remainingToSell <= 0 || totalDapat <= 0) {
-    return { status: 'error', message: 'Jumlah unit atau harga jual tidak valid.' };
+  if (remainingToSell <= 0) {
+    return { status: 'error', message: 'Jumlah unit jual tidak valid.' };
   }
 
-  let matchingRows = [];
-  let totalOwned = 0;
+  // Kumpulkan semua lot milik user untuk simbol ini (prioritaskan idAset jika ada, lalu FIFO)
+  const lots = [];
+  let assetCurrency = 'IDR';
 
   for (let i = 1; i < data.length; i++) {
-    const rowEmail = (data[i][0] || '').toString().toLowerCase().trim();
+    const rowEmail = (data[i][0] || '').toString().trim().toLowerCase();
     const rowId = (data[i][1] || '').toString().trim();
-    const rowSimbol = (data[i][2] || '').toString().toUpperCase().trim();
+    const rowSimbol = (data[i][2] || '').toString().trim().toUpperCase();
 
-    if (rowEmail === email && ((targetSimbol && rowSimbol === targetSimbol) || (!targetSimbol && rowId === targetId))) {
+    if (rowEmail === targetEmail && (rowId === targetId || (targetSimbol && rowSimbol === targetSimbol))) {
       const units = Number(data[i][3]) || 0;
       if (units > 0) {
-        matchingRows.push({ rowIndex: i + 1, units: units });
-        totalOwned += units;
+        if (data[i][7]) assetCurrency = data[i][7].toString().trim().toUpperCase();
+        lots.push({
+          rowIndex: i + 1,
+          isPrimary: rowId === targetId,
+          units: units
+        });
       }
     }
   }
 
-  if (matchingRows.length === 0 || totalOwned + 1e-8 < remainingToSell) {
-    return { status: 'error', message: 'Jumlah unit melebihi kepemilikan aset Anda.' };
+  if (lots.length === 0) {
+    return { status: 'error', message: 'Aset tidak ditemukan.' };
   }
 
-  const trxRes = addTransaction({
-    email: email,
-    tipe: 'INFLOW',
-    akun: payload.akunTujuan,
-    kategori: 'Tabungan & Investasi',
-    jumlah: totalDapat,
-    keterangan: 'Jual Aset: ' + (targetSimbol || targetId)
+  lots.sort(function (a, b) {
+    if (a.isPrimary && !b.isPrimary) return -1;
+    if (!a.isPrimary && b.isPrimary) return 1;
+    return a.rowIndex - b.rowIndex;
   });
-  if (trxRes.status !== 'success') return trxRes;
 
-  let rowsToDelete = [];
-  for (let k = 0; k < matchingRows.length && remainingToSell > 1e-8; k++) {
-    const lot = matchingRows[k];
-    if (lot.units <= remainingToSell + 1e-8) {
-      remainingToSell -= lot.units;
+  const rowsToDelete = [];
+  for (let j = 0; j < lots.length && remainingToSell > 0; j++) {
+    const lot = lots[j];
+    const newUnits = lot.units - remainingToSell;
+    if (newUnits <= 0.0000001) {
+      remainingToSell = Math.max(0, remainingToSell - lot.units);
       rowsToDelete.push(lot.rowIndex);
     } else {
-      const newUnits = lot.units - remainingToSell;
       sheetPorto.getRange(lot.rowIndex, 4).setValue(newUnits);
       remainingToSell = 0;
     }
   }
 
-  rowsToDelete.sort((a, b) => b - a).forEach(rIdx => {
-    sheetPorto.deleteRow(rIdx);
+  // Hapus baris dari indeks terbesar ke terkecil agar nomor baris tidak bergeser
+  rowsToDelete.sort(function (a, b) { return b - a; }).forEach(function (rowIdx) {
+    sheetPorto.deleteRow(rowIdx);
   });
 
-  return { status: 'success' };
+  let totalDapatIDR = Number(payload.totalDapat) || 0;
+  let keteranganStr = 'Jual Aset: ' + (targetSimbol || payload.simbol);
+
+  if (assetCurrency !== 'IDR') {
+    const valasRate = getValasRate(payload.email, assetCurrency);
+    keteranganStr += ' (' + totalDapatIDR + ' ' + assetCurrency + ')';
+    totalDapatIDR = totalDapatIDR * valasRate;
+  }
+
+  return addTransaction({
+    email: payload.email,
+    tipe: 'INFLOW',
+    akun: payload.akunTujuan,
+    kategori: 'Tabungan & Investasi',
+    jumlah: totalDapatIDR,
+    keterangan: keteranganStr
+  });
 }
 
 // ============================================================================
 // 9. GEMINI AI RECEIPT SCANNER
 // ============================================================================
+
 function processReceiptWithGemini(base64ImageFull) {
-  if (!base64ImageFull) return { status: 'error', message: 'Gambar kosong.' };
+  if (!base64ImageFull) {
+    return { status: 'error', message: 'Gambar kosong.' };
+  }
 
   const apiKey = PropertiesService.getScriptProperties().getProperty('GEMINI_API_KEY');
   if (!apiKey) {
-    return { status: 'error', message: 'GEMINI_API_KEY belum disetel di Script Properties Google Apps Script.' };
+    return { status: 'error', message: 'Sistem gagal memuat Gemini API Key. Periksa Script Properties.' };
   }
 
-  const base64Data = base64ImageFull.split(',')[1] || base64ImageFull;
-  const url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=" + apiKey;
-  const promptText = `Analyze this receipt.
-You MUST return ONLY a JSON object. Do NOT wrap it in markdown.
-Extract the data using EXACTLY these keys:
-{
-  "merchant": "String (Merchant Name)",
-  "total": Number (Total Amount),
-  "date": "String (YYYY-MM-DD)",
-  "time": "String (HH:MM)",
-  "items": [
-    {
-      "name": "String (Item name)",
-      "qty": Number (Quantity),
-      "price": Number (Total price for this item)
-    }
-  ]
-}`;
+  const base64Data = base64ImageFull.indexOf(',') > -1
+    ? base64ImageFull.split(',')[1]
+    : base64ImageFull;
+
+  const promptText = [
+    'Analyze this receipt and extract transaction details.',
+    'Return ONLY a valid JSON object without markdown formatting.',
+    'Use these exact keys:',
+    '{',
+    '  "merchant": "String (Merchant or store name)",',
+    '  "total": Number (Final total amount paid),',
+    '  "date": "String (YYYY-MM-DD)",',
+    '  "time": "String (HH:MM)",',
+    '  "items": [',
+    '    {',
+    '      "name": "String (Item name)",',
+    '      "qty": Number (Quantity),',
+    '      "price": Number (Total line price for this item),',
+    '      "category": "String (One of: Makanan, Hiburan, Tagihan, Tabungan & Investasi, Kewajiban & Sosial, Transportasi, Lainnya)"',
+    '    }',
+    '  ]',
+    '}'
+  ].join('\n');
 
   const payload = {
     "contents": [
@@ -1228,22 +999,38 @@ Extract the data using EXACTLY these keys:
     'muteHttpExceptions': true
   };
 
-  try {
-    const response = UrlFetchApp.fetch(url, options);
-    const resultJson = JSON.parse(response.getContentText());
-    if (resultJson.error) {
-      return { status: 'error', message: 'Error Gemini API: ' + resultJson.error.message };
+  const models = ['gemini-2.5-flash', 'gemini-2.0-flash'];
+  let lastError = '';
+
+  for (let m = 0; m < models.length; m++) {
+    try {
+      const url = "https://generativelanguage.googleapis.com/v1beta/models/" + models[m] + ":generateContent?key=" + apiKey;
+      const res = UrlFetchApp.fetch(url, options);
+      const resultJson = JSON.parse(res.getContentText());
+
+      if (resultJson.error) {
+        lastError = resultJson.error.message || 'API Error';
+        continue;
+      }
+
+      if (
+        !resultJson.candidates ||
+        !resultJson.candidates[0] ||
+        !resultJson.candidates[0].content ||
+        !resultJson.candidates[0].content.parts ||
+        !resultJson.candidates[0].content.parts[0]
+      ) {
+        lastError = 'AI tidak dapat mendeteksi teks dari nota tersebut.';
+        continue;
+      }
+
+      const aiText = resultJson.candidates[0].content.parts[0].text;
+      const cleanedText = aiText.replace(/```json/gi, "").replace(/```/g, "").trim();
+      return { status: 'success', data: JSON.parse(cleanedText) };
+    } catch (error) {
+      lastError = error.toString();
     }
-
-    if (!resultJson.candidates || !resultJson.candidates[0] || !resultJson.candidates[0].content || !resultJson.candidates[0].content.parts || !resultJson.candidates[0].content.parts[0]) {
-      return { status: 'error', message: 'AI tidak dapat mendeteksi teks dari nota tersebut.' };
-    }
-
-    let aiText = resultJson.candidates[0].content.parts[0].text;
-    let cleanedText = aiText.replace(/```json/gi, "").replace(/```/g, "").trim();
-    return { status: 'success', data: JSON.parse(cleanedText) };
-
-  } catch (error) {
-    return { status: 'error', message: 'Gagal memproses struk dengan AI: ' + error.toString() };
   }
+
+  return { status: 'error', message: 'Gagal memproses nota: ' + lastError };
 }
